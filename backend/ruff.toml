@@ -1,0 +1,114 @@
+# Ruff configuration for FastAPI backend project
+# https://docs.astral.sh/ruff/
+
+# Target Python 3.11+ (adjust based on your project requirements)
+target-version = "py313"
+
+# Same as Black's default line length
+line-length = 88
+
+# Enable auto-fixing for all fixable rules
+fix = true
+
+# Show fixes in output
+show-fixes = true
+
+# Directories to exclude from linting
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "*.egg-info",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "build",
+    "dist",
+    "migrations",  # Common for database migrations
+]
+
+[lint]
+# Enable these rule sets
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort (import sorting)
+    "N",      # pep8-naming
+    "UP",     # pyupgrade (modernize Python code)
+    "B",      # flake8-bugbear (likely bugs and design problems)
+    "C4",     # flake8-comprehensions (better list/dict comprehensions)
+    "SIM",    # flake8-simplify (simplify code)
+    "TCH",    # flake8-type-checking (type checking imports)
+    "Q",      # flake8-quotes (consistent quote usage)
+    "RET",    # flake8-return (return statement issues)
+    "PTH",    # flake8-use-pathlib (use pathlib instead of os.path)
+    "ERA",    # eradicate (remove commented code)
+    "PL",     # Pylint
+    "RUF",    # Ruff-specific rules
+]
+
+# Disable specific rules that might be too strict for your project
+ignore = [
+    "E501",     # Line too long (handled by line-length setting)
+    "B008",     # Do not perform function calls in argument defaults (common in FastAPI)
+    "RET504",   # Unnecessary variable assignment before return
+    "PLR0913",  # Too many arguments in function definition
+    "PLR2004",  # Magic value used in comparison
+    "UP007",    # Use X | Y for type annotations (if you prefer Union[X, Y])
+]
+
+# Allow unused variables when they start with an underscore
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[lint.per-file-ignores]
+# Ignore certain rules in specific files/directories
+"tests/*" = [
+    "PLR2004",  # Magic values are OK in tests
+    "S101",     # Use of assert is OK in tests
+]
+"app/models/*" = [
+    "N815",     # Variable in class scope should not be mixedCase (Pydantic models)
+]
+"app/schemas/*" = [
+    "N815",     # Variable in class scope should not be mixedCase (Pydantic schemas)
+]
+
+[lint.isort]
+# Configure import sorting
+force-single-line = false
+force-sort-within-sections = true
+known-first-party = ["app"]  # Your main package name
+split-on-trailing-comma = true
+
+# Group imports: standard library, third-party, first-party, local
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[lint.pylint]
+# Pylint-specific settings
+max-args = 6  # Maximum number of arguments for function/method
+
+[lint.flake8-quotes]
+# Use double quotes for strings
+inline-quotes = "double"
+docstring-quotes = "double"
+
+[lint.flake8-bugbear]
+# Extend immutable calls (add FastAPI dependencies)
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path"]
+
+[format]
+# Use double quotes for string formatting
+quote-style = "double"
+
+# Use spaces around operators
+indent-style = "space"
+
+# Skip magic trailing comma
+skip-magic-trailing-comma = false
+
+# Respect existing line endings
+line-ending = "auto"
+
+# Format docstrings
+docstring-code-format = true
