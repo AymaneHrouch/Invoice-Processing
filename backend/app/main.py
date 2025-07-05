@@ -31,7 +31,7 @@ app = FastAPI(
     title="Invoice Processing API",
     description="Invoice Processing API with MongoDB and PyMongo",
     version="1.0.0",
-    # root_path="/api",  # Comment this out to access docs at root level
+    root_path="/api", 
     lifespan=lifespan,
 )
 

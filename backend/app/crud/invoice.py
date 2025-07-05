@@ -3,6 +3,7 @@ CRUD operations for Invoice model using PyMongo
 """
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from decimal import Decimal
 from bson import ObjectId
 from pymongo.collection import Collection
 from pymongo.errors import DuplicateKeyError
@@ -23,6 +24,27 @@ class InvoiceCRUD:
             
             # Convert Pydantic model to dict
             invoice_dict = invoice_data.model_dump()
+            
+            # Convert date to datetime for MongoDB storage
+            if invoice_dict.get("invoice_date"):
+                from datetime import datetime, date
+                if isinstance(invoice_dict["invoice_date"], date):
+                    invoice_dict["invoice_date"] = datetime.combine(
+                        invoice_dict["invoice_date"], 
+                        datetime.min.time()
+                    )
+            
+            # Convert Decimal objects to float for MongoDB storage
+            def convert_decimals(obj):
+                if isinstance(obj, dict):
+                    return {k: convert_decimals(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_decimals(item) for item in obj]
+                elif isinstance(obj, Decimal):
+                    return float(obj)
+                return obj
+            
+            invoice_dict = convert_decimals(invoice_dict)
             invoice_dict["created_at"] = datetime.utcnow()
             
             # Insert the document

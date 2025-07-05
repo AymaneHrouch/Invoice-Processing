@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'sonner';
 
 import { 
@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { calculateItemTotal, categories, currencies } from '@/constants';
-import { useTheme } from '@/contexts'
+import { useTheme } from '@/contexts';
 import { useAddInvoice } from '@/hooks/useAddInvoice';
 
 const ManualInvoice = () => {
@@ -23,14 +23,15 @@ const ManualInvoice = () => {
   const { addInvoice, loading, error, success, message, reset } = useAddInvoice();
   const [newTag, setNewTag] = useState('');
   const [formData, setFormData] = useState({
-    supplier: '',
-    date: '',
-    amount: '',
-    currency: 'EUR',
+    vendor_name: '',
+    invoice_date: '',
+    total_amount: '',
+    currency: 'MAD',
     invoice_number: '',
     category: '',
     items: [],
-    tags: []
+    tags: [],
+    source_type: 'manual'
   });
 
   const [newItem, setNewItem] = useState({
@@ -84,22 +85,32 @@ const ManualInvoice = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     // Validation simple
-    if (!formData.supplier || !formData.amount || !formData.date) {
-      toast.error("Merci de remplir les champs obligatoires : fournisseur, montant, date.");
+    if (!formData.vendor_name || !formData.total_amount || !formData.category) {
+      toast.error("Merci de remplir les champs obligatoires : fournisseur, montant, catégorie.");
       return;
     }
-    const result = await addInvoice(formData);
+    
+    // Préparer les données pour l'API
+    const invoiceData = {
+      ...formData,
+      total_amount: parseFloat(formData.total_amount),
+      source_type: 'manual',
+      invoice_date: formData.invoice_date || null
+    };
+    
+    const result = await addInvoice(invoiceData);
     if (result) {
       toast.success(message || "Facture ajoutée avec succès !");
       setFormData({
-        supplier: '',
-        date: '',
-        amount: '',
-        currency: 'EUR',
+        vendor_name: '',
+        invoice_date: '',
+        total_amount: '',
+        currency: 'MAD',
         invoice_number: '',
         category: '',
         items: [],
-        tags: []
+        tags: [],
+        source_type: 'manual'
       });
       reset();
     } else if (error) {
@@ -124,14 +135,14 @@ const ManualInvoice = () => {
           {/* Form fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="supplier" className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <Label htmlFor="vendor_name" className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 <Building className="w-4 h-4" />
                 Fournisseur
               </Label>
               <Input
-                id="supplier"
-                value={formData.supplier}
-                onChange={(e) => setFormData(prev => ({ ...prev, supplier: e.target.value }))}
+                id="vendor_name"
+                value={formData.vendor_name}
+                onChange={(e) => setFormData(prev => ({ ...prev, vendor_name: e.target.value }))}
                 placeholder="Nom du fournisseur"
                 className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
               />
@@ -154,16 +165,16 @@ const ManualInvoice = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="space-y-2">
-              <Label htmlFor="amount" className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <Label htmlFor="total_amount" className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 <DollarSign className="w-4 h-4" />
                 Montant
               </Label>
               <Input
-                id="amount"
+                id="total_amount"
                 type="number"
                 step="0.01"
-                value={formData.amount}
-                onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                value={formData.total_amount}
+                onChange={(e) => setFormData(prev => ({ ...prev, total_amount: e.target.value }))}
                 placeholder="0.00"
                 className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
               />
@@ -184,15 +195,15 @@ const ManualInvoice = () => {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="date" className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              <Label htmlFor="invoice_date" className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 <CalendarDays className="w-4 h-4" />
                 Date
               </Label>
               <Input
-                id="date"
+                id="invoice_date"
                 type="date"
-                value={formData.date}
-                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                value={formData.invoice_date}
+                onChange={(e) => setFormData(prev => ({ ...prev, invoice_date: e.target.value }))}
                 className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
               />
             </div>

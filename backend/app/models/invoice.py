@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 from typing import List, Optional, Annotated
 from bson import ObjectId
@@ -10,6 +10,8 @@ from decimal import Decimal
 from typing import List, Optional, Annotated, Any
 from bson import ObjectId
 from pydantic import BaseModel, Field, ConfigDict, field_validator
+from datetime import date
+
 
 
 class InvoiceItem(BaseModel):
@@ -90,7 +92,7 @@ class Invoice(BaseModel):
 class InvoiceCreate(BaseModel):
     """Schema for creating invoices (without id)"""
     invoice_number: str
-    invoice_date: datetime
+    invoice_date: Optional[date] = None
     vendor_name: str
     total_amount: Decimal
     currency: str = "MAD"
@@ -99,6 +101,26 @@ class InvoiceCreate(BaseModel):
     tags: List[str] = []
     source_type: str
     status: str = "pending"
+
+    @field_validator('invoice_date', mode='before')
+    @classmethod
+    def validate_invoice_date(cls, v):
+        """Convert string dates to date objects"""
+        if v is None or v == "":
+            return None
+        if isinstance(v, str):
+            from datetime import datetime
+            try:
+                return datetime.strptime(v, "%Y-%m-%d").date()
+            except ValueError:
+                raise ValueError('Invalid date format. Use YYYY-MM-DD')
+        return v
+
+    model_config = ConfigDict(
+        json_encoders={
+            Decimal: lambda v: float(v)
+        }
+    )
 
 
 class InvoiceUpdate(BaseModel):
