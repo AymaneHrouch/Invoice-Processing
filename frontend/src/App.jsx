@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { NavBar, Sidebar } from '@/components';
 import { InvoiceAddPage } from '@/pages';
 import { useTheme } from '@/contexts';
-
+import InvoiceTable from './components/invoice/InvoiceTable';
 function App() {
   const { isDarkMode } = useTheme();
 
@@ -15,8 +15,8 @@ function App() {
             <Routes>
               <Route path="/invoices/add" element={<InvoiceAddPage />} />
               {/* <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/invoices/list" element={<ListInvoices />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} /> */}
+              <Route path="/invoices/list" element={<InvoiceTable />} />
             </Routes>
           </main>
         </div>

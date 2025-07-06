@@ -1,10 +1,11 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.database import close_database, init_database
 from app.routes.health import router as health_router
 from app.routes.invoices import router as invoices_router
-from app.database import init_database, close_database
 
 
 @asynccontextmanager
@@ -16,9 +17,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Warning: Database initialization failed during startup: {e}")
         print("Database will be initialized when first accessed")
-    
+
     yield
-    
+
     # Shutdown
     try:
         close_database()  # PyMongo is synchronous
@@ -31,7 +32,7 @@ app = FastAPI(
     title="Invoice Processing API",
     description="Invoice Processing API with MongoDB and PyMongo",
     version="1.0.0",
-    root_path="/api", 
+    root_path="/api",
     lifespan=lifespan,
 )
 
@@ -41,6 +42,14 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=[
+        "X-Total-Count",
+        "X-Total-Pages",
+        "X-Per-Page",
+        "X-Page",
+        "X-Has-Next",
+        "X-Has-Prev"
+    ]
 )
 
 

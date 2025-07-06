@@ -1,7 +1,7 @@
 """
 CRUD operations for Invoice model using PyMongo
 """
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 from decimal import Decimal
 from bson import ObjectId
@@ -82,16 +82,17 @@ class InvoiceCRUD:
 
     @staticmethod
     def get_all_invoices(
-        skip: int = 0,
-        limit: int = 100,
-        status: Optional[str] = None,
-        vendor_name: Optional[str] = None,
-        category: Optional[str] = None
-    ) -> List[Invoice]:
+            page: int = 1,
+            per_page: int = 10,
+            sort_by: str = "created_at",
+            order: Literal["asc", "desc"] = "desc",
+            status: str | None = None,
+            vendor_name: str | None = None,
+            category: str | None = None
+    ):
         """Get all invoices with optional filtering"""
         try:
             collection = get_invoices_collection()
-            
             # Build filter query
             filter_query = {}
             if status:
@@ -100,17 +101,32 @@ class InvoiceCRUD:
                 filter_query["vendor_name"] = {"$regex": vendor_name, "$options": "i"}
             if category:
                 filter_query["category"] = category
-            
-            # Execute query with pagination
-            cursor = collection.find(filter_query).skip(skip).limit(limit).sort("created_at", DESCENDING)
-            
-            invoices = []
-            for invoice_data in cursor:
-                invoices.append(Invoice(**invoice_data))
-            
-            return invoices
+
+            total = collection.count_documents(filter_query)
+            total_pages = (total + per_page - 1) // per_page
+            skip = (page - 1) * per_page
+            order_by = ASCENDING if order == "asc" else DESCENDING
+
+            cursor = (
+                collection.find(filter_query)
+                .sort(sort_by, order_by)
+                .skip(skip)
+                .limit(per_page)
+            )
+
+            invoices = [Invoice(**doc) for doc in cursor]
+
+            return {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "total_pages": total_pages,
+                "has_next": page < total_pages,
+                "has_prev": page > 1,
+                "data": invoices,
+            }
         except Exception as e:
-            raise Exception(f"Failed to retrieve invoices: {str(e)}")
+            raise Exception(f"Failed to retrieve invoices: {e!s}")
 
     @staticmethod
     def get_invoices_by_vendor(vendor_name: str) -> List[Invoice]:

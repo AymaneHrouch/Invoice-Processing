@@ -1,9 +1,9 @@
 """
 Invoice REST API routes using PyMongo
 """
-from typing import List, Optional
+from typing import List, Optional, Literal
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Query, Path, Body
+from fastapi import APIRouter, HTTPException, Query, Path, Body, Response
 
 from app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate, InvoiceResponse
 from app.crud.invoice import InvoiceCRUD
@@ -29,31 +29,47 @@ def create_invoice(invoice_data: InvoiceCreate):
 
 # ============= READ ENDPOINTS =============
 
-@router.get("/", response_model=List[InvoiceResponse], summary="Get all invoices with filtering")
+@router.get("/", response_model=list[Invoice],
+            summary="Get all invoices with filtering, pagination and sorting")
 def get_invoices(
-    skip: int = Query(0, ge=0, description="Number of invoices to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of invoices to return"),
-    status: Optional[str] = Query(None, description="Filter by invoice status"),
-    vendor_name: Optional[str] = Query(None, description="Filter by vendor name (partial match)"),
-    category: Optional[str] = Query(None, description="Filter by category")
+        response: Response,
+        page: int = Query(1, ge=1, description="Page number"),
+        per_page: int = Query(10, ge=1, le=1000, description="Number of invoices to return"),
+        sort_by: str | None = Query("created_at", description="Field to sort by"),
+        order: Literal["desc", "asc"] = Query("desc", description="Sort order"),
+        status: str | None = Query(None, description="Filter by invoice status"),
+        vendor_name: str | None = Query(None, description="Filter by vendor name (partial match)"),
+        category: str | None = Query(None, description="Filter by category"),
 ):
     """
     Get all invoices with optional filtering and pagination
-    
-    - **skip**: Number of invoices to skip (for pagination)
-    - **limit**: Maximum number of invoices to return
+
+    - **page**: Page number (for pagination)
+    - **per_page**: Number of invoices to return
+    - **sort_by**: Field to sort by
+    - **order**: Sort order
     - **status**: Filter by invoice status (e.g., 'pending', 'processed', 'paid')
     - **vendor_name**: Filter by vendor name (supports partial matching)
     - **category**: Filter by exact category match
-    """ 
+    """
     try:
-        return InvoiceCRUD.get_all_invoices(
-            skip=skip,
-            limit=limit,
+
+        result = InvoiceCRUD.get_all_invoices(
+            page=page,
+            per_page=per_page,
             status=status,
+            sort_by=sort_by,
+            order=order,
             vendor_name=vendor_name,
-            category=category
+            category=category,
         )
+        response.headers["X-Total-Count"] = str(result["total"])
+        response.headers["X-Total-Pages"] = str(result["total_pages"])
+        response.headers["X-Per-Page"] = str(per_page)
+        response.headers["X-Page"] = str(page)
+        response.headers["X-Has-Next"] = str(result["has_next"]).lower()
+        response.headers["X-Has-Prev"] = str(result["has_prev"]).lower()
+        return result["data"]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
