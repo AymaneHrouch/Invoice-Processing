@@ -4,7 +4,7 @@ import random
 
 from faker import Faker
 
-from app.database import get_invoices_collection
+from database import get_invoices_collection
 
 fake = Faker()
 

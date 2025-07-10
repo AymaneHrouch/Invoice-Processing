@@ -4,13 +4,27 @@ CRUD operations for Invoice model using PyMongo
 from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 from decimal import Decimal
-from bson import ObjectId
+from bson.objectid import ObjectId
+from bson.errors import InvalidId
 from pymongo.collection import Collection
 from pymongo.errors import DuplicateKeyError
 from pymongo import ASCENDING, DESCENDING
+import json
 
 from app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate
 from app.database import get_invoices_collection
+
+
+def convert_decimals_to_floats(obj):
+    """Convert Decimal objects to floats for MongoDB compatibility"""
+    if isinstance(obj, Decimal):
+        return float(obj)
+    elif isinstance(obj, dict):
+        return {key: convert_decimals_to_floats(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_decimals_to_floats(item) for item in obj]
+    else:
+        return obj
 
 
 class InvoiceCRUD:
@@ -67,6 +81,8 @@ class InvoiceCRUD:
             object_id = ObjectId(invoice_id)
             invoice_data = collection.find_one({"_id": object_id})
             return Invoice(**invoice_data) if invoice_data else None
+        except InvalidId:
+            return None
         except Exception:
             return None
 
@@ -182,27 +198,51 @@ class InvoiceCRUD:
     def update_invoice(invoice_id: str, update_data: InvoiceUpdate) -> Optional[Invoice]:
         """Update an invoice"""
         try:
+            print(f"DEBUG CRUD: Starting update for invoice_id: {invoice_id}")
             collection = get_invoices_collection()
+            
+            print(f"DEBUG CRUD: Converting ObjectId...")
             object_id = ObjectId(invoice_id)
+            print(f"DEBUG CRUD: ObjectId converted successfully: {object_id}")
             
             # Convert update data to dict, excluding None values
+            print(f"DEBUG CRUD: Converting update_data to dict...")
             update_dict = update_data.model_dump(exclude_unset=True, exclude_none=True)
+            print(f"DEBUG CRUD: Update dict: {update_dict}")
+            
+            # Convert Decimal objects to floats for MongoDB compatibility
+            print(f"DEBUG CRUD: Converting Decimal objects to floats...")
+            update_dict = convert_decimals_to_floats(update_dict)
+            print(f"DEBUG CRUD: Update dict after conversion: {update_dict}")
             
             if not update_dict:
+                print(f"DEBUG CRUD: No data to update, returning existing invoice")
                 # Nothing to update
                 return InvoiceCRUD.get_invoice_by_id(invoice_id)
             
             # Update the document
+            print(f"DEBUG CRUD: Updating document in MongoDB...")
             result = collection.update_one(
                 {"_id": object_id},
                 {"$set": update_dict}
             )
+            print(f"DEBUG CRUD: Update result - matched_count: {result.matched_count}, modified_count: {result.modified_count}")
             
             if result.matched_count > 0:
+                print(f"DEBUG CRUD: Document found and updated, fetching updated invoice...")
                 return InvoiceCRUD.get_invoice_by_id(invoice_id)
+            
+            print(f"DEBUG CRUD: No document found with ID: {invoice_id}")
             return None
             
+        except InvalidId as e:
+            print(f"DEBUG CRUD: InvalidId exception: {e}")
+            return None
         except Exception as e:
+            print(f"DEBUG CRUD: Exception in update_invoice: {e}")
+            print(f"DEBUG CRUD: Exception type: {type(e)}")
+            import traceback
+            print(f"DEBUG CRUD: Traceback: {traceback.format_exc()}")
             raise Exception(f"Failed to update invoice: {str(e)}")
 
     @staticmethod

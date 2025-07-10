@@ -19,3 +19,15 @@ export const createInvoice = async (data) => {
     throw new Error('Erreur lors de la création de la facture');
   }
 }
+
+export const updateInvoice = async (id, data) => {
+  try {
+    const response = await api.put(`/invoices/${id}`, data);
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.data && error.response.data.message) {
+      throw new Error(error.response.data.message);
+    }
+    throw new Error('Erreur lors de la mise à jour de la facture');
+  }
+}

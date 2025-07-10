@@ -7,6 +7,7 @@ import { Badge } from '../ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Label } from '../ui/label';
 import { useTheme } from '@/contexts';
+import { EditInvoice } from './index';
 
 const InvoiceTable = () => {
   const { isDarkMode } = useTheme();
@@ -171,7 +172,7 @@ const InvoiceTable = () => {
       if (filters.vendor_name) params.append('vendor_name', filters.vendor_name);
       if (filters.category && filters.category !== 'all') params.append('category', filters.category);
 
-      const response = await fetch(`http://localhost:8000/invoices/?${params}`);
+      const response = await fetch(`http://localhost:8000/api/invoices/?${params}`);
       console.log(response.headers)
       
       if (!response.ok) {
@@ -243,6 +244,9 @@ const InvoiceTable = () => {
     setVendorSearchInput(''); // Also clear the vendor input
     setPage(1);
   };
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   if (loading) {
     return (
@@ -567,6 +571,7 @@ const InvoiceTable = () => {
                         variant="outline" 
                         size="sm" 
                         className={`text-xs border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700 ${isDarkMode ? 'border-green-400 text-green-400 hover:bg-green-900/20 hover:text-green-300' : ''}`}
+                        onClick={() => { setSelectedInvoice(invoice); setEditModalOpen(true); }}
                       >
                         Edit
                       </Button>
@@ -657,6 +662,16 @@ const InvoiceTable = () => {
           Next
         </Button>
       </div>
+
+      {/* Edit Invoice Modal */}
+      {editModalOpen && selectedInvoice && (
+        <EditInvoice
+          open={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          invoice={selectedInvoice}
+          onSuccess={() => { setEditModalOpen(false); setSelectedInvoice(null); fetchInvoices(); }}
+        />
+      )}
     </div>
   );
 };
