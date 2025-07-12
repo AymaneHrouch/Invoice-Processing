@@ -1,12 +1,16 @@
 """
 Invoice REST API routes using PyMongo
 """
+import logging
 from typing import List, Optional, Literal
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query, Path, Body, Response
 
 from app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate, InvoiceResponse
 from app.crud.invoice import InvoiceCRUD
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
@@ -17,13 +21,21 @@ router = APIRouter(prefix="/invoices", tags=["invoices"])
 def create_invoice(invoice_data: InvoiceCreate):
     """Create a new invoice with all required fields"""
     try:
+        logger.info(f"Received invoice data: {invoice_data}")
         invoice = InvoiceCRUD.create_invoice(invoice_data)
         if not invoice:
+            logger.error("Invoice creation returned None")
             raise HTTPException(status_code=500, detail="Failed to create invoice")
+        logger.info(f"Invoice created successfully: {invoice}")
         return invoice
     except ValueError as e:
+        logger.error(f"ValueError: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error(f"Exception: {e}")
+        logger.error(f"Exception type: {type(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -13,8 +13,8 @@ export const createInvoice = async (data) => {
     const response = await api.post('/invoices', data);
     return response.data;
   } catch (error) {
-    if (error.response && error.response.data && error.response.data.message) {
-      throw new Error(error.response.data.message);
+    if (error.response && error.response.data && error.response.data.detail) {
+      throw new Error(error.response.data.detail);
     }
     throw new Error('Erreur lors de la création de la facture');
   }

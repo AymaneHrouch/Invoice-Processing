@@ -1,6 +1,6 @@
 import { FileText, LayoutDashboard, List, Plus } from "lucide-react";
 
-export const currencies = ['EUR', 'USD', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'];
+export const currencies = ['MAD', 'EUR', 'USD', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'];
 
 export const categories = ['Services', 'Matériel', 'Logiciel', 'Voyage', 'Marketing', 'Utilities', 'Autres'];
 
