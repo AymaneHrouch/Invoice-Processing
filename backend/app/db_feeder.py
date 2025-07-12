@@ -14,7 +14,28 @@ CURRENCIES = ["USD", "EUR", "MAD"]
 CATEGORIES = ["Professional Services", "Software", "Consulting", "Hardware"]
 SOURCE_TYPES = ["pdf", "image", "email"]
 STATUS = ["pending", "paid", "processed"]
-
+ITEM_NAMES = [
+    "Consultation Fee",
+    "Software Subscription",
+    "Development Services",
+    "Cloud Hosting",
+    "Maintenance & Support",
+    "Project Management",
+    "UI/UX Design",
+    "Technical Audit",
+    "Hardware Installation",
+    "License Renewal",
+    "Bug Fixing",
+    "Training Session",
+    "Monthly Retainer",
+    "Custom Report",
+    "Code Review",
+    "System Integration",
+    "Data Migration",
+    "Mobile App Setup",
+    "Server Monitoring",
+    "Security Assessment"
+]
 def generate_invoice() -> dict:
     num_items = random.randint(1, 5)
     items = []
@@ -27,6 +48,7 @@ def generate_invoice() -> dict:
         total += total_price
 
         items.append({
+            "name": random.choice(ITEM_NAMES),
             "description": fake.text(max_nb_chars=50),
             "unit_price": unit_price,  # now float
             "quantity": quantity,
@@ -46,14 +68,14 @@ def generate_invoice() -> dict:
         "tags": [fake.word(), fake.word()],
         "source_type": random.choice(SOURCE_TYPES),
         "created_at": now,
-        "status": STATUS[random.randint(0, 2)],
+        "status": random.choice(STATUS),
     }
 
     return invoice
-async def seed_invoices(n: int = 20):
+async def seed_invoices(n: int = 100):
     collection.delete_many({})
     invoices = [generate_invoice() for _ in range(n)]
     result = collection.insert_many(invoices)
     print(f"Inserted {len(result.inserted_ids)} invoices.")
 if __name__ == "__main__":
-    asyncio.run(seed_invoices(20))
+    asyncio.run(seed_invoices(100))

@@ -1,13 +1,6 @@
-from datetime import datetime, date
-from decimal import Decimal
-from typing import List, Optional, Annotated
-from bson import ObjectId
-from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
-
-
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional, Annotated, Any
+from typing import List, Optional
 from bson import ObjectId
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import date
@@ -16,6 +9,7 @@ from datetime import date
 
 class InvoiceItem(BaseModel):
     """Invoice item model"""
+    name: str = Field(..., title="Invoice item name")
     description: str = Field(..., description="Item description")
     quantity: int = Field(..., gt=0, description="Item quantity")
     unit_price: Decimal = Field(..., gt=0, description="Price per unit")
