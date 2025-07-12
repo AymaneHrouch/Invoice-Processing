@@ -56,18 +56,13 @@ export const useInvoiceForm = (initialData = {}) => {
 
   useEffect(() => {
     if (initialData && Object.keys(initialData).length > 0) {
-      console.log('useInvoiceForm - Initial data received:', initialData);
-      console.log('useInvoiceForm - Original invoice_date:', initialData.invoice_date);
-      
       // Convert date format for HTML date input
       const processedData = { ...initialData };
       if (processedData.invoice_date) {
         const formattedDate = formatDateForInput(processedData.invoice_date);
-        console.log('useInvoiceForm - Formatted invoice_date:', formattedDate);
         processedData.invoice_date = formattedDate;
       }
       
-      console.log('useInvoiceForm - Processed data:', processedData);
       setFormData(prev => ({ ...prev, ...processedData }));
     }
   }, [initialData]);
@@ -92,19 +87,19 @@ export const useInvoiceForm = (initialData = {}) => {
     const newErrors = {};
 
     if (!formData.vendor_name?.trim()) {
-      newErrors.vendor_name = 'Le nom du fournisseur est requis';
+      newErrors.vendor_name = 'The supplier name is required !';
     }
 
     if (!formData.invoice_number?.trim()) {
-      newErrors.invoice_number = 'Le numéro de facture est requis';
+      newErrors.invoice_number = 'The invoice number is required !';
     }
 
     if (!formData.total_amount || parseFloat(formData.total_amount) <= 0) {
-      newErrors.total_amount = 'Le montant doit être supérieur à 0';
+      newErrors.total_amount = 'The amount must be greater than 0 !';
     }
 
     if (!formData.category?.trim()) {
-      newErrors.category = 'La catégorie est requise';
+      newErrors.category = 'The category is required !';
     }
 
     setErrors(newErrors);

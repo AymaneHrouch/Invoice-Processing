@@ -13,16 +13,13 @@ export const useEditInvoice = () => {
     setSuccess(false);
     setMessage("");
     
-    console.log("useEditInvoice - ID:", id);
-    console.log("useEditInvoice - Data:", data);
-    
     try {
       const response = await updateInvoice(id, data);
       setSuccess(true);
-      setMessage("Facture modifiée avec succès !");
+      setMessage("Invoice updated successfully !");
       return response;
     } catch (e) {
-      setError(e.message || "Erreur lors de la modification de la facture.");
+      setError(e.message || "Error while updating the invoice.");
       setMessage("");
     } finally {
       setLoading(false);

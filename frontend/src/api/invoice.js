@@ -16,7 +16,7 @@ export const createInvoice = async (data) => {
     if (error.response && error.response.data && error.response.data.detail) {
       throw new Error(error.response.data.detail);
     }
-    throw new Error('Erreur lors de la création de la facture');
+    throw new Error('Error while adding the invoice.');
   }
 }
 
@@ -28,6 +28,6 @@ export const updateInvoice = async (id, data) => {
     if (error.response && error.response.data && error.response.data.message) {
       throw new Error(error.response.data.message);
     }
-    throw new Error('Erreur lors de la mise à jour de la facture');
+    throw new Error('Error while updating the invoice.');
   }
 }
