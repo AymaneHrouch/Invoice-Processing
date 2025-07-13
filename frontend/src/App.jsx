@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { NavBar, Sidebar } from '@/components';
 import { InvoiceAddPage } from '@/pages';
 import { useTheme } from '@/contexts';
-import InvoiceTable from './components/invoice/InvoiceTable';
+import { InvoiceTable } from './components/invoice/invoiceslisting';
 function App() {
   const { isDarkMode } = useTheme();
 
