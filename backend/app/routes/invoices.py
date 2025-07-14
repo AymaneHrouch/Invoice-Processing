@@ -65,7 +65,6 @@ def get_invoices(
     - **category**: Filter by exact category match
     """
     try:
-
         result = InvoiceCRUD.get_all_invoices(
             page=page,
             per_page=per_page,
@@ -83,6 +82,10 @@ def get_invoices(
         response.headers["X-Has-Prev"] = str(result["has_prev"]).lower()
         return result["data"]
     except Exception as e:
+        logger.error(f"Error in get_invoices: {e}")
+        logger.error(f"Exception type: {type(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
