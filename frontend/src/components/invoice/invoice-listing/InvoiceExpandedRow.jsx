@@ -1,11 +1,11 @@
-import { useTheme } from "@/contexts";
-import { formatDate, formatCurrency } from "@/constants";
+import { useTheme } from '@/contexts';
+import { formatDate, formatCurrency } from '@/constants';
 
 const InvoiceExpandedRow = ({ invoice }) => {
-  const { isDarkMode } = useTheme();
+  const { isDarkMode } = useTheme()
 
   return (
-    <tr className={isDarkMode ? "bg-gray-700" : "bg-gray-50"}>
+    <tr className={isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}>
       <td colSpan="9" className="px-6 py-6">
         <div className="space-y-8">
           <div className="space-y-6">
@@ -13,8 +13,8 @@ const InvoiceExpandedRow = ({ invoice }) => {
               <h4
                 className={`text-lg font-semibold mb-4 pb-2 border-b ${
                   isDarkMode
-                    ? "text-gray-200 border-gray-600"
-                    : "text-gray-800 border-gray-200"
+                    ? 'text-gray-200 border-gray-600'
+                    : 'text-gray-800 border-gray-200'
                 }`}
               >
                 Items
@@ -25,36 +25,32 @@ const InvoiceExpandedRow = ({ invoice }) => {
                     key={index}
                     className={`border rounded-lg p-4 transition-shadow hover:shadow-md ${
                       isDarkMode
-                        ? "bg-gray-800 border-gray-600"
-                        : "bg-white border-gray-200"
+                        ? 'bg-gray-800 border-gray-600'
+                        : 'bg-white border-gray-200'
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <h5
-                        className={`text-sm font-semibold ${
-                          isDarkMode ? "text-gray-200" : "text-gray-800"
-                        }`}
-                      >
-                        {item.name}
-                      </h5>
-                      <span className="text-green-600 font-semibold text-sm">
-                        {formatCurrency(item.total, invoice.currency)}
+      
+      
+                               <span className=   "text-green-600 font-semibold text-sm">
+                        {formatCurrency(item.total,invoice.currency)}
                       </span>
                     </div>
                     <p
                       className={`text-sm mb-3 leading-relaxed ${
-                        isDarkMode ? "text-gray-300" : "text-gray-600"
+                        isDarkMode ? 'text-gray-300' : 'text-gray-600'
                       }`}
                     >
                       {item.description}
                     </p>
                     <div
                       className={`space-y-1 text-xs ${
-                        isDarkMode ? "text-gray-400" : "text-gray-500"
+                        isDarkMode ? 'text-gray-400' : 'text-gray-500'
                       }`}
                     >
                       <span className="block">
-                        Unit Price: {formatCurrency(item.unit_price, invoice.currency)}
+                        Unit Price:{' '}
+                        {formatCurrency(item.unit_price, invoice.currency)}
                       </span>
                       <span className="block">Quantity: {item.quantity}</span>
                     </div>
@@ -67,8 +63,8 @@ const InvoiceExpandedRow = ({ invoice }) => {
               <h4
                 className={`text-lg font-semibold mb-4 pb-2 border-b ${
                   isDarkMode
-                    ? "text-gray-200 border-gray-600"
-                    : "text-gray-800 border-gray-200"
+                    ? 'text-gray-200 border-gray-600'
+                    : 'text-gray-800 border-gray-200'
                 }`}
               >
                 Additional Information
@@ -77,14 +73,14 @@ const InvoiceExpandedRow = ({ invoice }) => {
                 <div className="space-y-1">
                   <label
                     className={`text-sm font-medium ${
-                      isDarkMode ? "text-gray-300" : "text-gray-700"
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
                     }`}
                   >
                     Notes:
                   </label>
                   <span
                     className={`text-sm ${
-                      isDarkMode ? "text-gray-400" : "text-gray-600"
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
                     }`}
                   >
                     {invoice.notes}
@@ -93,7 +89,7 @@ const InvoiceExpandedRow = ({ invoice }) => {
                 <div className="space-y-1">
                   <label
                     className={`text-sm font-medium ${
-                      isDarkMode ? "text-gray-300" : "text-gray-700"
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
                     }`}
                   >
                     Tags:
@@ -104,8 +100,8 @@ const InvoiceExpandedRow = ({ invoice }) => {
                         key={index}
                         className={`inline-block text-xs px-2 py-1 rounded-full ${
                           isDarkMode
-                            ? "bg-blue-900 text-blue-200"
-                            : "bg-blue-100 text-blue-800"
+                            ? 'bg-blue-900 text-blue-200'
+                            : 'bg-blue-100 text-blue-800'
                         }`}
                       >
                         {tag}
@@ -116,14 +112,14 @@ const InvoiceExpandedRow = ({ invoice }) => {
                 <div className="space-y-1">
                   <label
                     className={`text-sm font-medium ${
-                      isDarkMode ? "text-gray-300" : "text-gray-700"
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
                     }`}
                   >
                     Created:
                   </label>
                   <span
                     className={`text-sm ${
-                      isDarkMode ? "text-gray-400" : "text-gray-600"
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
                     }`}
                   >
                     {formatDate(invoice.created_at)}
@@ -132,14 +128,14 @@ const InvoiceExpandedRow = ({ invoice }) => {
                 <div className="space-y-1">
                   <label
                     className={`text-sm font-medium ${
-                      isDarkMode ? "text-gray-300" : "text-gray-700"
+                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
                     }`}
                   >
                     Updated:
                   </label>
                   <span
                     className={`text-sm ${
-                      isDarkMode ? "text-gray-400" : "text-gray-600"
+                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
                     }`}
                   >
                     {formatDate(invoice.updated_at)}
