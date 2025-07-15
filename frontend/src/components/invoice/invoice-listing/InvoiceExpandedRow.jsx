@@ -2,7 +2,7 @@ import { useTheme } from '@/contexts';
 import { formatDate, formatCurrency } from '@/constants';
 
 const InvoiceExpandedRow = ({ invoice }) => {
-  const { isDarkMode } = useTheme()
+  const { isDarkMode } = useTheme();
 
   return (
     <tr className={isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}>
@@ -30,10 +30,8 @@ const InvoiceExpandedRow = ({ invoice }) => {
                     }`}
                   >
                     <div className="flex justify-between items-start mb-2">
-      
-      
-                               <span className=   "text-green-600 font-semibold text-sm">
-                        {formatCurrency(item.total,invoice.currency)}
+                      <span className="text-green-600 font-semibold text-sm">
+                        {formatCurrency(item.total, invoice.currency)}
                       </span>
                     </div>
                     <p

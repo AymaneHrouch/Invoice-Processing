@@ -11,11 +11,7 @@
     "prepare": "cd .. && husky frontend/.husky"
   },
   "lint-staged": {
-    "**/*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "**/*.{json,css,md}": [
+    "*.{js,jsx,ts,tsx,css,md,json}": [
       "prettier --write"
     ]
   },
