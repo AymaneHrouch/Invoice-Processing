@@ -1,12 +1,16 @@
 """
 Invoice REST API routes using PyMongo
 """
+import logging
 from typing import List, Optional, Literal
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query, Path, Body, Response
 
 from app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate, InvoiceResponse
 from app.crud.invoice import InvoiceCRUD
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
@@ -17,13 +21,21 @@ router = APIRouter(prefix="/invoices", tags=["invoices"])
 def create_invoice(invoice_data: InvoiceCreate):
     """Create a new invoice with all required fields"""
     try:
+        logger.info(f"Received invoice data: {invoice_data}")
         invoice = InvoiceCRUD.create_invoice(invoice_data)
         if not invoice:
+            logger.error("Invoice creation returned None")
             raise HTTPException(status_code=500, detail="Failed to create invoice")
+        logger.info(f"Invoice created successfully: {invoice}")
         return invoice
     except ValueError as e:
+        logger.error(f"ValueError: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error(f"Exception: {e}")
+        logger.error(f"Exception type: {type(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -53,7 +65,6 @@ def get_invoices(
     - **category**: Filter by exact category match
     """
     try:
-
         result = InvoiceCRUD.get_all_invoices(
             page=page,
             per_page=per_page,
@@ -71,10 +82,14 @@ def get_invoices(
         response.headers["X-Has-Prev"] = str(result["has_prev"]).lower()
         return result["data"]
     except Exception as e:
+        logger.error(f"Error in get_invoices: {e}")
+        logger.error(f"Exception type: {type(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/id/{invoice_id}", response_model=InvoiceResponse, summary="Get invoice by ID")
+@router.get("/{invoice_id}", response_model=InvoiceResponse, summary="Get invoice by ID")
 def get_invoice_by_id(
     invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice")
 ):
@@ -94,7 +109,7 @@ def get_invoice_by_id(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/number/{invoice_number}", response_model=InvoiceResponse, summary="Get invoice by invoice number")
+@router.get("/by-number/{invoice_number}", response_model=InvoiceResponse, summary="Get invoice by invoice number")
 def get_invoice_by_number(
     invoice_number: str = Path(..., description="Unique invoice number")
 ):
@@ -169,7 +184,7 @@ def get_invoices_by_single_tag(
 
 # ============= UPDATE ENDPOINTS =============
 
-@router.put("/id/{invoice_id}", response_model=InvoiceResponse, summary="Update invoice by ID")
+@router.put("/{invoice_id}", response_model=InvoiceResponse, summary="Update invoice by ID")
 def update_invoice_by_id(
     invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
     update_data: InvoiceUpdate = Body(..., description="Fields to update")
@@ -183,17 +198,28 @@ def update_invoice_by_id(
     Only the provided fields will be updated. Omitted fields will remain unchanged.
     """
     try:
+        print(f"DEBUG: Updating invoice with ID: {invoice_id}")
+        print(f"DEBUG: Update data: {update_data}")
+        
         invoice = InvoiceCRUD.update_invoice(invoice_id, update_data)
         if not invoice:
+            print(f"DEBUG: Invoice not found for ID: {invoice_id}")
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
+        
+        print(f"DEBUG: Invoice updated successfully: {invoice}")
         return invoice
-    except ValueError:
+    except ValueError as e:
+        print(f"DEBUG: ValueError: {e}")
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
     except Exception as e:
+        print(f"DEBUG: Exception: {e}")
+        print(f"DEBUG: Exception type: {type(e)}")
+        import traceback
+        print(f"DEBUG: Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/number/{invoice_number}", response_model=InvoiceResponse, summary="Update invoice by invoice number")
+@router.put("/by-number/{invoice_number}", response_model=InvoiceResponse, summary="Update invoice by invoice number")
 def update_invoice_by_number(
     invoice_number: str = Path(..., description="Unique invoice number"),
     update_data: InvoiceUpdate = Body(..., description="Fields to update")
@@ -217,7 +243,7 @@ def update_invoice_by_number(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.patch("/id/{invoice_id}/status", summary="Update invoice status by ID")
+@router.patch("/{invoice_id}/status", summary="Update invoice status by ID")
 def update_invoice_status_by_id(
     invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
     status: str = Body(..., description="New status value", embed=True)
@@ -246,7 +272,7 @@ def update_invoice_status_by_id(
 
 # ============= DELETE ENDPOINTS =============
 
-@router.delete("/id/{invoice_id}", summary="Delete invoice by ID")
+@router.delete("/{invoice_id}", summary="Delete invoice by ID")
 def delete_invoice_by_id(
     invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice")
 ):

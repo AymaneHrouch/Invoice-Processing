@@ -91,29 +91,58 @@ class Invoice(BaseModel):
 
 class InvoiceCreate(BaseModel):
     """Schema for creating invoices (without id)"""
-    invoice_number: str
-    invoice_date: Optional[date] = None
-    vendor_name: str
-    total_amount: Decimal
-    currency: str = "MAD"
-    items: List[InvoiceItem] = []
-    category: str
-    tags: List[str] = []
-    source_type: str
-    status: str = "pending"
+    invoice_number: str = Field(..., min_length=1, description="Unique invoice number")
+    invoice_date: Optional[datetime] = None
+    vendor_name: str = Field(..., min_length=1, description="Vendor name")
+    total_amount: Decimal = Field(..., gt=0, description="Total invoice amount")
+    currency: str = Field(default="MAD", description="Currency code")
+    items: List[InvoiceItem] = Field(default_factory=list, description="List of invoice items")
+    category: str = Field(..., min_length=1, description="Invoice category")
+    tags: List[str] = Field(default_factory=list, description="Invoice tags")
+    source_type: str = Field(..., description="Source type (manual/pdf/image)")
+    status: str = Field(default="pending", description="Processing status")
+
+    @field_validator('invoice_number')
+    @classmethod
+    def validate_invoice_number(cls, v):
+        """Validate invoice number is not empty"""
+        if not v or not v.strip():
+            raise ValueError('Invoice number cannot be empty')
+        return v.strip()
+
+    @field_validator('vendor_name')
+    @classmethod
+    def validate_vendor_name(cls, v):
+        """Validate vendor name is not empty"""
+        if not v or not v.strip():
+            raise ValueError('Vendor name cannot be empty')
+        return v.strip()
+
+    @field_validator('category')
+    @classmethod
+    def validate_category(cls, v):
+        """Validate category is not empty"""
+        if not v or not v.strip():
+            raise ValueError('Category cannot be empty')
+        return v.strip()
 
     @field_validator('invoice_date', mode='before')
     @classmethod
     def validate_invoice_date(cls, v):
-        """Convert string dates to date objects"""
+        """Convert string dates to datetime objects"""
         if v is None or v == "":
             return None
         if isinstance(v, str):
             from datetime import datetime
             try:
-                return datetime.strptime(v, "%Y-%m-%d").date()
+                # Parse as date first, then convert to datetime
+                date_obj = datetime.strptime(v, "%Y-%m-%d").date()
+                return datetime.combine(date_obj, datetime.min.time())
             except ValueError:
                 raise ValueError('Invalid date format. Use YYYY-MM-DD')
+        elif isinstance(v, date):
+            # Convert date to datetime
+            return datetime.combine(v, datetime.min.time())
         return v
 
     model_config = ConfigDict(

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 import { 
   Upload, X, FileText, Eye, Save, Trash2, DollarSign, Hash,
@@ -20,8 +20,9 @@ import { useAddInvoice } from '@/hooks/useAddInvoice';
 const AutoInvoice = () => {
   const { isDarkMode } = useTheme();
   const { addInvoice, loading, error, success, message, reset } = useAddInvoice();
+  const fileInputRef = useRef(null);
   const [dragActive, setDragActive] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [formData, setFormData] = useState({
     supplier: '',
@@ -51,8 +52,66 @@ const AutoInvoice = () => {
     
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      handleFileUpload(files[0]);
+      handleFilesUpload(files);
     }
+  };
+
+  const handleFilesUpload = (files) => {
+    const validFiles = files.filter(file => {
+      const validTypes = ['.pdf', '.png', '.jpg', '.jpeg'];
+      const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+      return validTypes.includes(fileExtension);
+    });
+
+    if (validFiles.length !== files.length) {
+      alert('Some files were skipped. Only PDF, PNG, JPG, and JPEG files are supported.');
+    }
+
+    if (validFiles.length > 0) {
+      setUploadedFiles(prev => [...prev, ...validFiles]);
+      setIsProcessing(true);
+      
+      // Simulate AI processing for each file
+      setTimeout(() => {
+        const extractedData = {
+          supplier: 'Tech Solutions Inc.',
+          date: '2024-12-15',
+          amount: '1250.00',
+          currency: 'EUR',
+          invoice_number: 'INV-2024-001',
+          category: 'Services',
+          items: [
+            {
+              description: 'Web Development Services',
+              quantity: 40,
+              unit_price: 25.00,
+              total: 1000.00
+            },
+            {
+              description: 'Project Management',
+              quantity: 10,
+              unit_price: 25.00,
+              total: 250.00
+            }
+          ],
+          tags: ['Web', 'Development', 'Q4']
+        };
+        
+        setFormData(extractedData);
+        setIsProcessing(false);
+      }, 2000);
+    }
+  };
+
+  const handleFileInputChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      handleFilesUpload(files);
+    }
+  };
+
+  const removeFile = (index) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const removeItem = (index) => {
@@ -68,53 +127,17 @@ const AutoInvoice = () => {
       tags: prev.tags.filter(tag => tag !== tagToRemove)
     }));
   };
-  
-  // TODO hook
-  const handleFileUpload = (file) => {
-    setUploadedFile(file);
-    setIsProcessing(true);
-    
-    // Simulate AI processing
-    setTimeout(() => {
-      const extractedData = {
-        supplier: 'Tech Solutions Inc.',
-        date: '2024-12-15',
-        amount: '1250.00',
-        currency: 'EUR',
-        invoice_number: 'INV-2024-001',
-        category: 'Services',
-        items: [
-          {
-            description: 'Web Development Services',
-            quantity: 40,
-            unit_price: 25.00,
-            total: 1000.00
-          },
-          {
-            description: 'Project Management',
-            quantity: 10,
-            unit_price: 25.00,
-            total: 250.00
-          }
-        ],
-        tags: ['Web', 'Development', 'Q4']
-      };
-      
-      setFormData(extractedData);
-      setIsProcessing(false);
-    }, 2000);
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     // Validation simple
     if (!formData.supplier || !formData.amount || !formData.date) {
-      alert("Merci de remplir les champs obligatoires : fournisseur, montant, date.");
+      alert("Please fill in the required fields: supplier, amount, date.");
       return;
     }
     const result = await addInvoice(formData);
     if (result) {
-      // Reset du formulaire après succès
+      // Reset form after success
       setFormData({
         supplier: '',
         date: '',
@@ -125,7 +148,7 @@ const AutoInvoice = () => {
         items: [],
         tags: []
       });
-      setUploadedFile(null);
+      setUploadedFiles([]);
     }
   };
 
@@ -135,10 +158,10 @@ const AutoInvoice = () => {
         <CardHeader>
           <CardTitle className={`flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             <Sparkles className="w-5 h-5 text-purple-600" />
-            Intelligence Artificielle
+            Artificial Intelligence
           </CardTitle>
           <CardDescription className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
-            Glissez-déposez votre facture et laissez l'IA extraire les données automatiquement
+            Drag and drop your invoices and let AI extract the data automatically
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -147,6 +170,7 @@ const AutoInvoice = () => {
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
             className={`border-2 border-dashed rounded-xl p-12 text-center transition-all duration-300 ${
               dragActive
                 ? 'border-blue-500 bg-blue-50/50 scale-105'
@@ -159,40 +183,57 @@ const AutoInvoice = () => {
               </div>
               <div>
                 <h3 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                  Glissez-déposez votre facture
+                  Drag and drop your invoices
                 </h3>
                 <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Formats supportés: PDF, PNG, JPG, JPEG
+                  Supported formats: PDF, PNG, JPG, JPEG
                 </p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center justify-center gap-4">
                 <Button
                   variant="outline"
-                  onClick={() => document.getElementById('file-input').click()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
                   className={`${isDarkMode ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'}`}
                 >
                   <Upload className="w-4 h-4 mr-2" />
-                  Choisir un fichier
+                  Choose files
                 </Button>
                 <input
-                  id="file-input"
+                  ref={fileInputRef}
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg"
-                  onChange={(e) => e.target.files[0] && handleFileUpload(e.target.files[0])}
+                  multiple
+                  onChange={handleFileInputChange}
                   className="hidden"
                 />
               </div>
             </div>
           </div>
 
-          {uploadedFile && (
-            <div className="mt-6">
-              <Alert className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-blue-50 border-blue-200'}`}>
-                <FileText className="w-4 h-4" />
-                <AlertDescription className={isDarkMode ? 'text-gray-300' : 'text-blue-800'}>
-                  <strong>Fichier sélectionné:</strong> {uploadedFile.name}
-                </AlertDescription>
-              </Alert>
+          {uploadedFiles.length > 0 && (
+            <div className="mt-6 space-y-2">
+              <h4 className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                Selected files ({uploadedFiles.length}):
+              </h4>
+              {uploadedFiles.map((file, index) => (
+                <Alert key={index} className={`${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-blue-50 border-blue-200'}`}>
+                  <FileText className="w-4 h-4" />
+                  <AlertDescription className={`${isDarkMode ? 'text-gray-300' : 'text-blue-800'} flex items-center justify-between`}>
+                    <span>{file.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFile(index)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              ))}
             </div>
           )}
 
@@ -201,7 +242,7 @@ const AutoInvoice = () => {
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                 <p className={`mt-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Traitement en cours par l'IA...
+                  Processing {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''} with AI...
                 </p>
               </div>
             </div>
@@ -212,7 +253,7 @@ const AutoInvoice = () => {
               <Alert className={`${isDarkMode ? 'bg-green-900/20 border-green-700' : 'bg-green-50 border-green-200'}`}>
                 <Check className="w-4 h-4 text-green-600" />
                 <AlertDescription className={isDarkMode ? 'text-green-300' : 'text-green-800'}>
-                  <strong>Données extraites avec succès!</strong> Vous pouvez maintenant réviser et modifier les informations ci-dessous.
+                  <strong>Data extracted successfully!</strong> You can now review and modify the information below.
                 </AlertDescription>
               </Alert>
             </div>
@@ -243,10 +284,10 @@ const AutoInvoice = () => {
           <CardHeader>
             <CardTitle className={`flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <Eye className="w-5 h-5 text-green-600" />
-              Données extraites
+              Extracted Data
             </CardTitle>
             <CardDescription className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
-              Vérifiez et modifiez les informations extraites si nécessaire
+              Review and modify the extracted information if necessary
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -255,7 +296,7 @@ const AutoInvoice = () => {
               <div className="space-y-2">
                 <Label htmlFor="ai-supplier" className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   <Building className="w-4 h-4" />
-                  Fournisseur
+                  Supplier
                 </Label>
                 <Input
                   id="ai-supplier"
@@ -268,7 +309,7 @@ const AutoInvoice = () => {
               <div className="space-y-2">
                 <Label htmlFor="ai-invoice-number" className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   <Hash className="w-4 h-4" />
-                  Numéro
+                  Number
                 </Label>
                 <Input
                   id="ai-invoice-number"
@@ -283,7 +324,7 @@ const AutoInvoice = () => {
               <div className="space-y-2">
                 <Label htmlFor="ai-amount" className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   <DollarSign className="w-4 h-4" />
-                  Montant
+                  Amount
                 </Label>
                 <Input
                   id="ai-amount"
@@ -296,7 +337,7 @@ const AutoInvoice = () => {
               </div>
               
               <div className="space-y-2">
-                <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Devise</Label>
+                <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>Currency</Label>
                 <Select value={formData.currency} onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}>
                   <SelectTrigger className={`w-full ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}>
                     <SelectValue />
@@ -326,7 +367,7 @@ const AutoInvoice = () => {
               <div className="space-y-2">
                 <Label className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   <Package className="w-4 h-4" />
-                  Catégorie
+                  Category
                 </Label>
                 <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
                   <SelectTrigger className={`w-full ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}>
@@ -346,7 +387,7 @@ const AutoInvoice = () => {
               <div className="space-y-4">
                 <h3 className={`text-lg font-semibold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   <Package className="w-5 h-5" />
-                  Articles extraits
+                  Extracted Items
                 </h3>
                 <div className="space-y-2">
                   {formData.items.map((item, index) => (
@@ -380,7 +421,7 @@ const AutoInvoice = () => {
               <div className="space-y-4">
                 <Label className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   <Tag className="w-4 h-4" />
-                  Tags extraits
+                  Extracted Tags
                 </Label>
                 <div className="flex flex-wrap gap-2">
                   {formData.tags.map((tag, index) => (
@@ -411,7 +452,7 @@ const AutoInvoice = () => {
             className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200"
           >
             <Save className="w-5 h-5 mr-2" />
-            Enregistrer la facture
+            Save Invoice
           </Button>
         </div>
       )}

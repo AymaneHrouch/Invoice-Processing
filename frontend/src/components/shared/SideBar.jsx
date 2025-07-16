@@ -156,10 +156,10 @@ const Sidebar = () => {
               : 'text-red-600 hover:bg-red-50 hover:text-red-700'
             }
           `}
-          title={isCollapsed ? 'Déconnexion' : ''}
+          title={isCollapsed ? 'Log out' : ''}
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!isCollapsed && <span className="font-medium">Déconnexion</span>}
+          {!isCollapsed && <span className="font-medium">Log out</span>}
         </button>
       </div>
     </div>

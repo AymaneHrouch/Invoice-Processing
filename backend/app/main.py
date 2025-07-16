@@ -1,31 +1,40 @@
 from contextlib import asynccontextmanager
-
+import logging
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+# Import configuration first to set environment variables
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.database import close_database, init_database
 from app.routes.health import router as health_router
 from app.routes.invoices import router as invoices_router
+from app.logging_config import setup_logging
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Setup logging first
+    logger = setup_logging()
+    
     # Startup
     try:
         init_database()  # PyMongo is synchronous
-        print("Application startup complete")
+        logger.info("Application startup complete")
     except Exception as e:
-        print(f"Warning: Database initialization failed during startup: {e}")
-        print("Database will be initialized when first accessed")
+        logger.warning(f"Database initialization failed during startup: {e}")
+        logger.info("Database will be initialized when first accessed")
 
     yield
 
     # Shutdown
     try:
         close_database()  # PyMongo is synchronous
-        print("Application shutdown complete")
+        logger.info("Application shutdown complete")
     except Exception as e:
-        print(f"Warning: Error during shutdown: {e}")
+        logger.warning(f"Error during shutdown: {e}")
 
 
 app = FastAPI(

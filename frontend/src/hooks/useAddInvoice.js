@@ -15,10 +15,10 @@ export const useAddInvoice = () => {
     try {
       const response = await createInvoice(data);
       setSuccess(true);
-      setMessage("Facture ajoutée avec succès !");
+      setMessage("Invoice added successfully !");
       return response;
     } catch (e) {
-      setError(e.message || "Erreur lors de l'ajout de la facture.");
+      setError(e.message || "Error while adding the invoice.");
       setMessage("");
     } finally {
       setLoading(false);
