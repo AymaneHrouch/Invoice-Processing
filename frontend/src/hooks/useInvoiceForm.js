@@ -41,7 +41,7 @@ export const useInvoiceForm = (initialData = {}) => {
   const [formData, setFormData] = useState({
     vendor_name: '',
     invoice_number: '',
-    invoice_date: '',
+    invoice_date: formatDateForInput(new Date()),
     total_amount: '',
     currency: 'MAD',
     category: '',
