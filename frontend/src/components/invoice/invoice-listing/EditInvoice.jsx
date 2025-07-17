@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,11 +25,10 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     getFormDataForSubmission
   } = useInvoiceForm(invoice);
 
-  // Debug: Log invoice data when it changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (invoice && open) {
       console.log('EditInvoice - Invoice data received:', invoice);
-      console.log('EditInvoice - Invoice date:', invoice.invoice_date);
+      console.log('EditInvoice - Invoice date:', invoice.invoice_due_date);
     }
   }, [invoice, open]);
 
@@ -42,6 +41,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     }
     
     const invoiceData = getFormDataForSubmission();
+    console.log("Data sent to backend:", invoiceData);
     const result = await editInvoice(invoice._id, invoiceData);
     
     if (result) {
@@ -55,6 +55,26 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     }
   };
 
+  // FONCTION CORRIGÉE pour afficher les dates sans décalage
+  function formatDateForInput(isoDateString) {
+    if (!isoDateString) return "";
+    
+    // Extraire directement la partie date (YYYY-MM-DD) sans conversion timezone
+    if (isoDateString.includes('T')) {
+      return isoDateString.split('T')[0];
+    }
+    
+    // Si c'est déjà au format YYYY-MM-DD, retourner tel quel
+    return isoDateString;
+  }
+
+  // GESTIONNAIRE SPÉCIAL pour les champs de date
+  const handleDateChange = (field, dateValue) => {
+    // Stocker directement la valeur YYYY-MM-DD sans conversion timezone
+    // Le backend recevra cette valeur et pourra la traiter correctement
+    updateField(field, dateValue);
+  };
+  
   if (!open) return null;
 
   return (
@@ -108,12 +128,20 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                   onChange={(value) => updateField('currency', value)}
                   options={currencies}
                 />
+                {/* CHAMPS DE DATE CORRIGÉS */}
                 <FormField
                   id="invoice_date"
                   type="date"
                   label="Date"
-                  value={formData.invoice_date}
-                  onChange={(e) => updateField('invoice_date', e.target.value)}
+                  value={formatDateForInput(formData.invoice_date)}
+                  onChange={(e) => handleDateChange('invoice_date', e.target.value)}
+                />
+                <FormField
+                  id="invoice_due_date"
+                  type="date"
+                  label="Due Date"
+                  value={formatDateForInput(formData.invoice_due_date)}
+                  onChange={(e) => handleDateChange('invoice_due_date', e.target.value)}
                 />
                 <FormField
                   type="select"
@@ -151,4 +179,4 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   );
 };
 
-export default EditInvoice; 
+export default EditInvoice;

@@ -6,31 +6,31 @@ const formatDateForInput = (dateString) => {
   
   try {
     // Handle different date formats
-    let date;
-    
     if (typeof dateString === 'string') {
-      // If it's already in YYYY-MM-DD format, return as is
+      // Si c'est déjà au format YYYY-MM-DD, retourner tel quel
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
         return dateString;
       }
       
-      // Try to parse the date string
-      date = new Date(dateString);
+      // Extraire directement la partie date sans conversion timezone
+      // pour éviter le décalage dû au fuseau horaire
+      if (dateString.includes('T')) {
+        return dateString.split('T')[0];
+      }
+      
+      // Sinon, essayer de parser la date
+      const date = new Date(dateString);
+      if (!isNaN(date.getTime())) {
+        // Extraire juste la partie date (YYYY-MM-DD) sans conversion timezone
+        return date.toISOString().split('T')[0];
+      }
     } else if (dateString instanceof Date) {
-      date = dateString;
-    } else {
-      console.warn('Invalid date format:', dateString);
-      return '';
+      // Pour les objets Date, extraire juste la partie date
+      return dateString.toISOString().split('T')[0];
     }
     
-    if (isNaN(date.getTime())) {
-      console.warn('Invalid date value:', dateString);
-      return '';
-    }
-    
-    const formattedDate = date.toISOString().split('T')[0];
-    console.log('Date formatted successfully:', dateString, '->', formattedDate);
-    return formattedDate;
+    console.warn('Invalid date format:', dateString);
+    return '';
   } catch (error) {
     console.error('Error formatting date:', error, 'Input:', dateString);
     return '';
@@ -41,7 +41,8 @@ export const useInvoiceForm = (initialData = {}) => {
   const [formData, setFormData] = useState({
     vendor_name: '',
     invoice_number: '',
-    invoice_date: '',
+    invoice_date: formatDateForInput(new Date()),
+    invoice_due_date: '',
     total_amount: '',
     currency: 'MAD',
     category: '',
@@ -56,16 +57,14 @@ export const useInvoiceForm = (initialData = {}) => {
 
   useEffect(() => {
     if (initialData && Object.keys(initialData).length > 0) {
-      // Convert date format for HTML date input
       const processedData = { ...initialData };
-      if (processedData.invoice_date) {
-        const formattedDate = formatDateForInput(processedData.invoice_date);
-        processedData.invoice_date = formattedDate;
-      }
-      
-      setFormData(prev => ({ ...prev, ...processedData }));
+  
+      processedData.invoice_date = formatDateForInput(processedData.invoice_date);
+      processedData.invoice_due_date = formatDateForInput(processedData.invoice_due_date);
+  
+      setFormData(processedData); 
     }
-  }, [initialData]);
+  }, [initialData]);  
 
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -110,7 +109,8 @@ export const useInvoiceForm = (initialData = {}) => {
     setFormData({
       vendor_name: '',
       invoice_number: '',
-      invoice_date: '',
+      invoice_date: formatDateForInput(new Date()),
+      invoice_due_date: '',
       total_amount: '',
       currency: 'MAD',
       category: '',
@@ -123,11 +123,21 @@ export const useInvoiceForm = (initialData = {}) => {
   };
 
   const getFormDataForSubmission = () => {
-    return {
-      ...formData,
-      total_amount: parseFloat(formData.total_amount),
-      ...(formData.invoice_date && { invoice_date: formData.invoice_date })
+    const submission = {
+        ...formData,
+        total_amount: parseFloat(formData.total_amount)
     };
+
+    // Convertir les dates vides en null au lieu de les supprimer
+    if (!formData.invoice_date || formData.invoice_date.trim() === '') {
+        submission.invoice_date = null;
+    }
+
+    if (!formData.invoice_due_date || formData.invoice_due_date.trim() === '') {
+        submission.invoice_due_date = null;
+    }
+
+    return submission;
   };
 
   return {
@@ -140,4 +150,4 @@ export const useInvoiceForm = (initialData = {}) => {
     resetForm,
     getFormDataForSubmission
   };
-}; 
+};

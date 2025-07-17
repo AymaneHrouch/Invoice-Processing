@@ -189,33 +189,24 @@ def update_invoice_by_id(
     invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
     update_data: InvoiceUpdate = Body(..., description="Fields to update")
 ):
-    """
-    Update an invoice by its MongoDB ObjectId
-    
-    - **invoice_id**: The MongoDB ObjectId of the invoice
-    - **update_data**: Object containing the fields to update (all fields are optional)
-    
-    Only the provided fields will be updated. Omitted fields will remain unchanged.
-    """
     try:
-        print(f"DEBUG: Updating invoice with ID: {invoice_id}")
-        print(f"DEBUG: Update data: {update_data}")
+        logger.debug(f"Updating invoice with ID: {invoice_id}")
+        logger.debug(f"Update data: {update_data}")
         
         invoice = InvoiceCRUD.update_invoice(invoice_id, update_data)
         if not invoice:
-            print(f"DEBUG: Invoice not found for ID: {invoice_id}")
+            logger.debug(f"Invoice not found for ID: {invoice_id}")
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
         
-        print(f"DEBUG: Invoice updated successfully: {invoice}")
+        logger.debug(f"Invoice updated successfully: {invoice}")
         return invoice
     except ValueError as e:
-        print(f"DEBUG: ValueError: {e}")
+        logger.debug(f"ValueError: {e}")
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
     except Exception as e:
-        print(f"DEBUG: Exception: {e}")
-        print(f"DEBUG: Exception type: {type(e)}")
-        import traceback
-        print(f"DEBUG: Traceback: {traceback.format_exc()}")
+        logger.debug(f"Exception: {e}")
+        logger.debug(f"Exception type: {type(e)}")
+        logger.debug(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

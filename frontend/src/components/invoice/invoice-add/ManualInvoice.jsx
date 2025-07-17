@@ -1,15 +1,8 @@
-import React, { useState } from 'react';
+import { Save, Building } from 'lucide-react';
 import { toast } from 'sonner';
-
-import { 
-  Plus, X, Save, Trash2, DollarSign, Hash, 
-  Building, Tag, CalendarDays, Package
-} from 'lucide-react';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TabsContent } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { categories, currencies } from '@/constants';
 import { useTheme } from '@/contexts';
@@ -118,6 +111,14 @@ const ManualInvoice = () => {
               label="Date"
               value={formData.invoice_date}
               onChange={(e) => updateField('invoice_date', e.target.value)}
+              className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
+            />
+            <FormField
+              id="invoice_due_date"
+              type="date"
+              label="Due Date"
+              value={formData.invoice_due_date}
+              onChange={(e) => updateField('invoice_due_date', e.target.value)}
               className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
             />
             <FormField

@@ -9,17 +9,17 @@ import {
   getSourceIcon,
 } from "@/constants";
 import { EditInvoice } from "@/components/invoice";
+import { ChevronDown, ChevronUp, Download, SquarePen, Trash2 } from "lucide-react";
+import { fetchInvoices } from "@/api";
 
 const InvoiceRow = ({ 
   invoice, 
   isExpanded, 
   onToggleExpand, 
-  onExportPDF 
+  onExportPDF,
+  onEdit
 }) => {
   const { isDarkMode } = useTheme();
-
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   return (
     <>
@@ -44,7 +44,7 @@ const InvoiceRow = ({
                 : "text-gray-500 hover:text-gray-700 hover:bg-gray-200"
             }`}
           >
-            {isExpanded ? "▼" : "▶"}
+            {isExpanded ? <ChevronUp /> : <ChevronDown />}
           </Button>
         </td>
         <td
@@ -144,49 +144,33 @@ const InvoiceRow = ({
           }`}
         >
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className={`text-xs border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 ${
-                isDarkMode
-                  ? "border-blue-400 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300"
-                  : ""
-              }`}
+            <button
+              title="Edit"
+              className={`p-2 rounded-md border border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700 transition cursor-pointer 
+                ${isDarkMode ? "border-green-400 text-green-400 hover:bg-green-900/20 hover:text-green-300" : ""}`}
+              onClick={() => onEdit(invoice)}
             >
-              View
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={`text-xs border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700 ${
-                isDarkMode
-                  ? "border-green-400 text-green-400 hover:bg-green-900/20 hover:text-green-300"
-                  : ""
-              }`}
-              onClick={() => { setSelectedInvoice(invoice); setEditModalOpen(true); }}
+              <SquarePen className="w-4 h-4" />
+            </button>
+            <button
+              title="Delete"
+              className={`p-2 rounded-md border border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700 transition cursor-pointer 
+                ${isDarkMode ? "border-red-400 text-red-400 hover:bg-red-900/20 hover:text-red-300" : ""}`}
+              onClick={() => onDelete(invoice)}
             >
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <button
+              title="Export PDF"
+              className={`p-2 rounded-md border border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer 
+                ${isDarkMode ? "border-blue-400 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300" : ""}`}
               onClick={() => onExportPDF(invoice)}
             >
-              pdf
-            </Button>
+              <Download className="w-4 h-4" />
+            </button>
           </div>
         </td>
       </tr>
-      
-      {/* Edit Invoice Modal */}
-      {editModalOpen && selectedInvoice && (
-        <EditInvoice
-          open={editModalOpen}
-          onClose={() => setEditModalOpen(false)}
-          invoice={selectedInvoice}
-          onSuccess={() => { setEditModalOpen(false); setSelectedInvoice(null); fetchInvoices(); }}
-        />
-      )}
     </>
   );
 };

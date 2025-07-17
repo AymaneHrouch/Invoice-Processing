@@ -14,6 +14,7 @@ export const useEditInvoice = () => {
     setMessage("");
     
     try {
+      console.log("data", data);
       const response = await updateInvoice(id, data);
       setSuccess(true);
       setMessage("Invoice updated successfully !");

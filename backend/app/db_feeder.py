@@ -11,7 +11,7 @@ fake = Faker()
 collection = get_invoices_collection()
 
 CURRENCIES = ["USD", "EUR", "MAD"]
-CATEGORIES = ["Professional Services", "Software", "Consulting", "Hardware"]
+CATEGORIES = ["Services", "Software", "Travel", "Marketing", "Utilities", "Others"]
 SOURCE_TYPES = ["pdf", "image", "email"]
 STATUS = ["pending", "paid", "processed"]
 ITEM_NAMES = [

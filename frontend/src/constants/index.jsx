@@ -1,15 +1,15 @@
-import { FileText, LayoutDashboard, List, Plus } from "lucide-react";
+import { File, FileText, Image, LayoutDashboard, List, Mail, Plus, UserPen } from "lucide-react";
 
 export const currencies = ['MAD', 'EUR', 'USD', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'];
 
 export const categories = [
   'Services',
-  'Matériel',
-  'Logiciel',
-  'Voyage',
+  'Equipment',
+  'Software',
+  'Travel',
   'Marketing',
   'Utilities',
-  'Autres',
+  'Others',
 ];
 
 export const calculateItemTotal = (quantity, unitPrice) => {
@@ -118,19 +118,23 @@ export const formatCurrency = (amount, currency = "USD") => {
 
 export const getCategoryColor = (category) => {
   const colors = {
-    Software: "#3b82f6",
-    Hardware: "#10b981",
-    "Professional Services": "#f59e0b",
-    Consulting: "#8b5cf6",
+    Services: "#3b82f6",      // bleu
+    Equipment: "#10b981",     // vert
+    Software: "#6366f1",      // indigo
+    Travel: "#f59e0b",        // orange
+    Marketing: "#ec4899",     // rose
+    Utilities: "#f43f5e",     // rouge
+    Others: "#6b7280",        // gris
   };
   return colors[category] || "#6b7280";
 };
 
 export const getSourceIcon = (sourceType) => {
   const icons = {
-    pdf: "📄",
-    email: "📧",
-    image: "🖼️",
+    pdf: <FileText/>,
+    email: <Mail/>,
+    image: <Image/>,
+    manual: <UserPen />
   };
-  return icons[sourceType] || "📄";
+  return icons[sourceType] || <File/>;
 };
