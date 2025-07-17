@@ -90,22 +90,6 @@ const InvoiceExpandedRow = ({ invoice }) => {
                       isDarkMode ? "text-gray-300" : "text-gray-700"
                     }`}
                   >
-                    Notes: 
-                  </label>
-                  <span
-                    className={`text-sm ${
-                      isDarkMode ? "text-gray-400" : "text-gray-600"
-                    }`}
-                  >
-                    {invoice.notes ? invoice.notes : "No notes"}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <label
-                    className={`text-sm font-medium ${
-                      isDarkMode ? "text-gray-300" : "text-gray-700"
-                    }`}
-                  >
                     Tags:
                   </label>
                   <div className="flex flex-wrap gap-1">
@@ -132,6 +116,22 @@ const InvoiceExpandedRow = ({ invoice }) => {
                       </span>
                     )}
                   </div>
+                </div>
+                <div className="space-y-1">
+                  <label
+                    className={`text-sm font-medium ${
+                      isDarkMode ? "text-gray-300" : "text-gray-700"
+                    }`}
+                  >
+                    Due Date:
+                  </label>
+                  <span
+                    className={`text-sm ${
+                      isDarkMode ? "text-gray-400" : "text-gray-600"
+                    }`}
+                  >
+                    {invoice.invoice_due_date ? formatDate(invoice.invoice_due_date) : "No due date"}
+                  </span>
                 </div>
                 <div className="space-y-1">
                   <label

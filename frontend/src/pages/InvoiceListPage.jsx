@@ -11,7 +11,8 @@ import {
     InvoiceFilters, 
     InvoiceTableHeader, 
     InvoiceRow, 
-    InvoiceExpandedRow 
+    InvoiceExpandedRow, 
+    EditInvoice
 } from "@/components";
 
 const InvoiceListPage = () => {
@@ -34,6 +35,25 @@ const InvoiceListPage = () => {
 
   // Separate state for the vendor input to prevent immediate API calls
   const [vendorSearchInput, setVendorSearchInput] = useState("");
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+
+  const handleEdit = (invoice) => {
+    setSelectedInvoice(invoice);
+    setEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setEditModalOpen(false);
+    setSelectedInvoice(null);
+  };
+
+  const handleEditSuccess = () => {
+    handleFetchInvoices();  // recharger les données
+    closeEditModal();
+  };
+
 
   // Debounce hook for vendor search
   const useDebounce = (value, delay) => {
@@ -179,9 +199,15 @@ const InvoiceListPage = () => {
           onFilterChange={handleFilterChange}
           onClearFilters={clearFilters}
         />
-        <Alert className="border-blue-200 bg-blue-50">
-          <AlertTitle className="text-blue-800">No invoices found</AlertTitle>
-          <AlertDescription className="text-blue-600">
+        <Alert className={
+          isDarkMode
+            ? "border-blue-900 bg-gray-800"
+            : "border-blue-200 bg-blue-50"
+        }>
+          <AlertTitle className={isDarkMode ? "text-blue-300" : "text-blue-800"}>
+            No invoices found
+          </AlertTitle>
+          <AlertDescription className={isDarkMode ? "text-blue-400" : "text-blue-600"}>
             {(filters.status && filters.status !== "all") ||
             filters.vendor_name ||
             (filters.category && filters.category !== "all")
@@ -226,6 +252,7 @@ const InvoiceListPage = () => {
                 isExpanded={expandedRows.has(invoice.id || invoice._id)}
                 onToggleExpand={toggleRowExpansion}
                 onExportPDF={exportToPDF}
+                onEdit={handleEdit}
               />,
               ...(expandedRows.has(invoice.id || invoice._id)
                 ? [
@@ -245,6 +272,16 @@ const InvoiceListPage = () => {
         loading={loading}
         onPageChange={handlePageChange}
       />
+
+      {editModalOpen && selectedInvoice && (
+        <EditInvoice
+          open={editModalOpen}
+          onClose={closeEditModal}
+          invoice={selectedInvoice}
+          onSuccess={handleEditSuccess}
+        />
+      )}
+
     </div>
   );
 };
