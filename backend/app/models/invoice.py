@@ -1,17 +1,9 @@
-from datetime import datetime, date
-from decimal import Decimal
-from typing import List, Optional, Annotated
-from bson import ObjectId
-from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
-
-
 from datetime import datetime
 from decimal import Decimal
 from typing import List, Optional, Annotated, Any
 from bson import ObjectId
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import date
-
 
 
 class InvoiceItem(BaseModel):
@@ -30,29 +22,31 @@ class InvoiceItem(BaseModel):
 
 class Invoice(BaseModel):
     """Invoice model with Pydantic validation"""
-    
+
     # MongoDB ObjectId (as string for JSON schema compatibility)
     id: Optional[str] = Field(default=None, alias="_id", description="MongoDB ObjectId as string")
-    
+
     # Basic invoice information
     invoice_number: str = Field(..., description="Unique invoice number")
     invoice_date: datetime = Field(..., description="Invoice date")
+    invoice_due_date: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
-    
+    updated_at: Optional[datetime] = None
+
     # Vendor information
     vendor_name: str = Field(..., description="Vendor name")
-    
+
     # Financial information
     total_amount: Decimal = Field(..., gt=0, description="Total invoice amount")
     currency: str = Field(default="MAD", description="Currency code")
-    
+
     # Invoice items
     items: List[InvoiceItem] = Field(default_factory=list, description="List of invoice items")
-    
+
     # Categorization
     category: str = Field(..., description="Invoice category")
     tags: List[str] = Field(default_factory=list, description="Invoice tags")
-    
+
     # Processing information
     source_type: str = Field(..., description="Source type (pdf/image)")
     status: str = Field(default="pending", description="Processing status")
@@ -93,6 +87,7 @@ class InvoiceCreate(BaseModel):
     """Schema for creating invoices (without id)"""
     invoice_number: str = Field(..., min_length=1, description="Unique invoice number")
     invoice_date: Optional[datetime] = None
+    invoice_due_date: Optional[datetime] = None
     vendor_name: str = Field(..., min_length=1, description="Vendor name")
     total_amount: Decimal = Field(..., gt=0, description="Total invoice amount")
     currency: str = Field(default="MAD", description="Currency code")
@@ -145,6 +140,22 @@ class InvoiceCreate(BaseModel):
             return datetime.combine(v, datetime.min.time())
         return v
 
+    @field_validator('invoice_due_date', mode='before')
+    @classmethod
+    def validate_invoice_due_date(cls, v):
+        """Convert string dates to datetime objects or return None"""
+        if v is None or v == "":
+            return None
+        if isinstance(v, str):
+            try:
+                date_obj = datetime.strptime(v, "%Y-%m-%d").date()
+                return datetime.combine(date_obj, datetime.min.time())
+            except ValueError:
+                raise ValueError('Invalid due date format. Use YYYY-MM-DD')
+        elif isinstance(v, date):
+            return datetime.combine(v, datetime.min.time())
+        return v
+
     model_config = ConfigDict(
         json_encoders={
             Decimal: lambda v: float(v)
@@ -166,6 +177,18 @@ class InvoiceUpdate(BaseModel):
     status: Optional[str] = None
 
 
-class InvoiceResponse(Invoice):
+class InvoiceResponse(BaseModel):
     """Response schema for invoices"""
-    pass
+    invoice_number: Optional[str] = None
+    invoice_date: Optional[datetime] = None
+    invoice_due_date: Optional[datetime] = None
+    vendor_name: Optional[str] = None
+    total_amount: Optional[Decimal] = None
+    currency: Optional[str] = None
+    items: Optional[List[InvoiceItem]] = None
+    category: Optional[str] = None
+    tags: Optional[List[str]] = None
+    source_type: Optional[str] = None
+    status: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

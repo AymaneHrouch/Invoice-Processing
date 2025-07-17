@@ -11,7 +11,7 @@ fake = Faker()
 collection = get_invoices_collection()
 
 CURRENCIES = ["USD", "EUR", "MAD"]
-CATEGORIES = ["Professional Services", "Software", "Consulting", "Hardware"]
+CATEGORIES = ["Professional Services", "Software", "Consulting", "Hardware", "Office"]
 SOURCE_TYPES = ["pdf", "image", "email"]
 STATUS = ["pending", "paid", "processed"]
 ITEM_NAMES = [
@@ -68,7 +68,9 @@ def generate_invoice() -> dict:
         "tags": [fake.word(), fake.word()],
         "source_type": random.choice(SOURCE_TYPES),
         "created_at": now,
+        "updated_at": now,
         "status": random.choice(STATUS),
+        "invoice_due_date": now + (random.choice([1, -1]) * datetime.timedelta(days=random.randint(0, 15))),
     }
 
     return invoice
