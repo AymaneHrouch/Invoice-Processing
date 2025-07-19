@@ -34,7 +34,7 @@ const AutoInvoice = () => {
     currency: 'EUR',
     invoice_number: '',
     category: '',
-    items: [],
+    items: [], // Each item should have a 'name' field
     tags: []
   });
 

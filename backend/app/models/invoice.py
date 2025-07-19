@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 class InvoiceItem(BaseModel):
     """Invoice item model"""
+    name: str = Field(..., description="Item name")
     description: str = Field(..., description="Item description")
     quantity: int = Field(..., gt=0, description="Item quantity")
     unit_price: Decimal = Field(..., gt=0, description="Price per unit")

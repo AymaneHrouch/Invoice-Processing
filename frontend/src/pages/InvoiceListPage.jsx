@@ -14,6 +14,8 @@ import {
     InvoiceExpandedRow, 
     EditInvoice
 } from "@/components";
+import { useDeleteInvoice } from '@/hooks/useDeleteInvoice';
+import { toast } from 'sonner';
 
 const InvoiceListPage = () => {
   const { isDarkMode } = useTheme();
@@ -49,11 +51,70 @@ const InvoiceListPage = () => {
     setSelectedInvoice(null);
   };
 
-  const handleEditSuccess = () => {
-    handleFetchInvoices();  // recharger les données
+  // ✅ OPTIMISATION: Mise à jour locale au lieu de recharger tout
+  const handleEditSuccess = (updatedInvoice) => {
+    console.log('✅ Invoice updated locally:', updatedInvoice);
+    
+    // Mettre à jour la liste des factures localement
+    setInvoiceData(prevData => ({
+      ...prevData,
+      data: prevData.data.map(invoice => 
+        invoice._id === updatedInvoice._id ? updatedInvoice : invoice
+      )
+    }));
+    
+    // Mettre à jour la facture sélectionnée si c'est la même
+    if (selectedInvoice?._id === updatedInvoice._id) {
+      setSelectedInvoice(updatedInvoice);
+    }
+    
     closeEditModal();
   };
 
+  // ✅ OPTIMISATION: Mise à jour locale pour la suppression
+  const handleDeleteSuccess = (deletedInvoiceId) => {
+    // Mettre à jour la liste localement
+    setInvoiceData(prevData => ({
+      ...prevData,
+      data: prevData.data.filter(invoice => 
+        invoice._id !== deletedInvoiceId && invoice.id !== deletedInvoiceId
+      ),
+      total: prevData.total - 1
+    }));
+    
+    // Supprimer de la liste des lignes étendues
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(deletedInvoiceId);
+      return newSet;
+    });
+  };
+
+  const { removeInvoice, loading: deleteLoading, error: deleteError, message: deleteMessage } = useDeleteInvoice();
+
+  const handleDeleteInvoice = async (invoice) => {
+    const invoiceId = invoice._id || invoice.id;
+    const success = await removeInvoice(invoiceId);
+    
+    if (success) {
+      toast.success(deleteMessage || 'Invoice deleted successfully!');
+      handleDeleteSuccess(invoiceId); // ✅ Mise à jour locale
+    } else {
+      toast.error(deleteError || 'Failed to delete invoice.');
+    }
+  };
+
+  // ✅ FONCTION: Mise à jour d'une facture spécifique (utilisée par InvoiceRow)
+  const handleUpdateInvoice = (updatedInvoice) => {
+    console.log('🔄 Updating invoice locally from row:', updatedInvoice);
+    
+    setInvoiceData(prevData => ({
+      ...prevData,
+      data: prevData.data.map(invoice => 
+        invoice._id === updatedInvoice._id ? updatedInvoice : invoice
+      )
+    }));
+  };
 
   // Debounce hook for vendor search
   const useDebounce = (value, delay) => {
@@ -252,7 +313,9 @@ const InvoiceListPage = () => {
                 isExpanded={expandedRows.has(invoice.id || invoice._id)}
                 onToggleExpand={toggleRowExpansion}
                 onExportPDF={exportToPDF}
+                onDelete={handleDeleteInvoice}
                 onEdit={handleEdit}
+                onUpdate={handleUpdateInvoice} // ✅ AJOUT: Passer la fonction de mise à jour
               />,
               ...(expandedRows.has(invoice.id || invoice._id)
                 ? [
@@ -278,7 +341,7 @@ const InvoiceListPage = () => {
           open={editModalOpen}
           onClose={closeEditModal}
           invoice={selectedInvoice}
-          onSuccess={handleEditSuccess}
+          onSuccess={handleEditSuccess} // ✅ Utilise la nouvelle fonction optimisée
         />
       )}
 

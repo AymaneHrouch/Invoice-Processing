@@ -99,3 +99,16 @@ export const uploadAndExtractText = async (file) => {
     throw new Error('Error while extracting text from the file.');
   }
 };
+
+// Delete an invoice by ID
+export const deleteInvoice = async (id) => {
+  try {
+    const response = await api.delete(`/invoices/${id}`);
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.data && error.response.data.detail) {
+      throw new Error(error.response.data.detail);
+    }
+    throw new Error('Error while deleting the invoice.');
+  }
+};

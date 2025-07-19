@@ -10,16 +10,41 @@ import {
 } from "@/constants";
 import { EditInvoice } from "@/components/invoice";
 import { ChevronDown, ChevronUp, Download, SquarePen, Trash2 } from "lucide-react";
-import { fetchInvoices } from "@/api";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 const InvoiceRow = ({ 
   invoice, 
   isExpanded, 
   onToggleExpand, 
-  onExportPDF,
-  onEdit
+  onExportPDF, 
+  onDelete,
+  onUpdate // ✅ AJOUT: Nouveau prop pour la mise à jour
 }) => {
   const { isDarkMode } = useTheme();
+
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  // ✅ CORRECTION: Cette fonction doit appeler onUpdate du parent
+  const handleEditSuccess = (updatedInvoice) => {
+    console.log('✅ Invoice updated successfully:', updatedInvoice);
+    
+    // Appeler la fonction de mise à jour du composant parent
+    if (onUpdate) {
+      onUpdate(updatedInvoice);
+    }
+  };
 
   return (
     <>
@@ -148,18 +173,44 @@ const InvoiceRow = ({
               title="Edit"
               className={`p-2 rounded-md border border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700 transition cursor-pointer 
                 ${isDarkMode ? "border-green-400 text-green-400 hover:bg-green-900/20 hover:text-green-300" : ""}`}
-              onClick={() => onEdit(invoice)}
+              onClick={() => { 
+                setSelectedInvoice(invoice); 
+                setEditModalOpen(true); 
+              }}
             >
               <SquarePen className="w-4 h-4" />
             </button>
-            <button
-              title="Delete"
-              className={`p-2 rounded-md border border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700 transition cursor-pointer 
-                ${isDarkMode ? "border-red-400 text-red-400 hover:bg-red-900/20 hover:text-red-300" : ""}`}
-              onClick={() => onDelete(invoice)}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <button
+                  title="Delete"
+                  className={`p-2 rounded-md border border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700 transition cursor-pointer 
+                    ${isDarkMode ? "border-red-400 text-red-400 hover:bg-red-900/20 hover:text-red-300" : ""}`}
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete invoice <b>#{invoice.invoice_number}</b>? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      setDeleteDialogOpen(false);
+                      await onDelete(invoice);
+                    }}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <button
               title="Export PDF"
               className={`p-2 rounded-md border border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer 
@@ -171,6 +222,20 @@ const InvoiceRow = ({
           </div>
         </td>
       </tr>
+      
+      {/* Edit Invoice Modal */}
+      {editModalOpen && selectedInvoice && (
+        <EditInvoice
+          key={selectedInvoice._id} 
+          open={editModalOpen}
+          onClose={() => {
+            setEditModalOpen(false);
+            setSelectedInvoice(null); // ✅ Reset aussi selectedInvoice
+          }}
+          invoice={selectedInvoice}
+          onSuccess={handleEditSuccess} // ✅ CORRECTION: Enlever les parenthèses ()
+        />
+      )}
     </>
   );
 };
