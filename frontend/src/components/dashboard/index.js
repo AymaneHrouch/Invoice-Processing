@@ -5,4 +5,7 @@ export { default as TopVendors } from './TopVendors';
 export { default as TopCategories } from './TopCategories';
 export { default as GrowthIndicator } from './GrowthIndicator';
 export { default as StatsCard } from './StatsCard';
+export { default as MonthlyChart } from './MonthlyChart';
+export { default as CategoryDistribution } from './CategoryDistribution';
+export { default as InsightsPanel } from './InsightsPanel';
 export { DashboardLoading, DashboardError } from './DashboardStates';

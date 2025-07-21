@@ -32,3 +32,7 @@ def latest_invoices(limit: int = Query(5, ge=1, le=10)):
 def top_categories(limit: int = Query(5, ge=1, le=10),
                    currency: Literal["MAD", "USD", "EUR"] = Query("MAD")):
     return dashboard.get_top_categories(limit, currency)
+
+@router.get("/monthly_chart")
+def monthly_chart(currency: Literal["MAD", "USD", "EUR"] = Query("MAD")):
+    return dashboard.get_monthly_chart_data(currency)

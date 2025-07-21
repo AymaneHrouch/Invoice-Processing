@@ -7,6 +7,9 @@ import {
   RecentInvoices,
   TopVendors,
   TopCategories,
+  MonthlyChart,
+  CategoryDistribution,
+  InsightsPanel,
   DashboardLoading,
   DashboardError,
 } from '@/components/dashboard';
@@ -63,10 +66,26 @@ const DashboardPage = () => {
 
       <DashboardStatsGrid stats={dashboardData.stats} />
 
+      {/* Monthly Chart */}
+      <div className="mb-8">
+        <MonthlyChart currency="MAD" />
+      </div>
+
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <RecentInvoices invoices={dashboardData.recentInvoices} />
         <TopVendors vendors={dashboardData.topVendors} />
+        <div></div> {/* Empty space for 3rd column */}
+      </div>
+
+      {/* Category Distribution and Insights - 50% each */}
+      <div className="flex gap-6 mb-8">
+        <div className="w-1/2">
+          <CategoryDistribution currency="MAD" />
+        </div>
+        <div className="w-1/2">
+          <InsightsPanel currency="MAD" />
+        </div>
       </div>
 
       <TopCategories categories={dashboardData.categoryBreakdown} />

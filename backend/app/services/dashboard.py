@@ -182,3 +182,61 @@ def get_pending_invoices():
     return invoice_collection.count_documents({
         "status": "pending",
     })
+
+def get_monthly_chart_data(currency: Literal["MAD", "USD", "EUR"] = "MAD"):
+    """
+    Get monthly data for chart showing both invoice count and expenses
+    Returns data for the last 12 months
+    """
+    from datetime import datetime, timedelta
+    from calendar import month_abbr
+    
+    now = datetime.now()
+    months_data = []
+    
+    # Get data for last 12 months
+    for i in range(11, -1, -1):
+        # Calculate the month and year
+        target_date = now.replace(day=1) - timedelta(days=32 * i)
+        month_start = target_date.replace(day=1)
+        
+        # Calculate next month for range
+        if month_start.month == 12:
+            month_end = month_start.replace(year=month_start.year + 1, month=1)
+        else:
+            month_end = month_start.replace(month=month_start.month + 1)
+        
+        # Get invoice count for this month
+        invoice_count = invoice_collection.count_documents({
+            "invoice_date": {"$gte": month_start, "$lt": month_end}
+        })
+        
+        # Get total expenses for this month
+        invoices = invoice_collection.find({
+            "invoice_date": {"$gte": month_start, "$lt": month_end},
+            "total_amount": {"$ne": None},
+            "currency": {"$in": list(EXCHANGE_RATES.keys())}
+        })
+        
+        total_expenses = 0
+        for invoice in invoices:
+            amount = float(invoice["total_amount"])
+            invoice_currency = invoice["currency"]
+            
+            # Convert to target currency
+            if invoice_currency != currency:
+                # Convert to MAD first, then to target currency
+                amount_in_mad = amount / EXCHANGE_RATES[invoice_currency]
+                amount = amount_in_mad * EXCHANGE_RATES[currency]
+            
+            total_expenses += amount
+        
+        months_data.append({
+            "month": month_abbr[month_start.month],
+            "year": month_start.year,
+            "invoices": invoice_count,
+            "expenses": round(total_expenses, 2),
+            "currency": currency
+        })
+    
+    return months_data
