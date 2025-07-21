@@ -36,3 +36,7 @@ def top_categories(limit: int = Query(5, ge=1, le=10),
 @router.get("/monthly_chart")
 def monthly_chart(currency: Literal["MAD", "USD", "EUR"] = Query("MAD")):
     return dashboard.get_monthly_chart_data(currency)
+
+@router.get("/weekly_pattern")
+def weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = Query("MAD")):
+    return dashboard.get_weekly_pattern(currency)

@@ -74,9 +74,12 @@ const AdvancedInsightsPanel = ({ currency = 'MAD' }) => {
         setLoading(true);
 
         // Fetch real data from existing endpoints
-        const [topCategoriesRes] = await Promise.all([
+        const [topCategoriesRes, weeklyPatternRes] = await Promise.all([
           axios.get(
             `http://localhost:8000/dashboard/top_categories?limit=10&currency=${currency}`,
+          ),
+          axios.get(
+            `http://localhost:8000/dashboard/weekly_pattern?currency=${currency}`,
           ),
         ]);
 
@@ -91,15 +94,7 @@ const AdvancedInsightsPanel = ({ currency = 'MAD' }) => {
         );
 
         setInsights({
-          weeklyPattern: [
-            { day: 'Mon', invoices: 12, amount: 45600 },
-            { day: 'Tue', invoices: 18, amount: 67800 },
-            { day: 'Wed', invoices: 15, amount: 52300 },
-            { day: 'Thu', invoices: 22, amount: 78900 },
-            { day: 'Fri', invoices: 25, amount: 89200 },
-            { day: 'Sat', invoices: 8, amount: 28400 },
-            { day: 'Sun', invoices: 3, amount: 12700 },
-          ],
+          weeklyPattern: weeklyPatternRes.data,
           invoiceStats: {
             avgAmount: totalAmount / totalInvoices,
             totalAmount,
@@ -220,7 +215,14 @@ const AdvancedInsightsPanel = ({ currency = 'MAD' }) => {
             <p
               className={`text-xs mt-2 flex-shrink-0 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
             >
-              Peak activity: Thursday-Friday
+              {/* Dynamic peak day based on real data */}
+              {insights.weeklyPattern.length > 0 &&
+                `Peak activity: ${
+                  insights.weeklyPattern.reduce(
+                    (peak, day) => (day.invoices > peak.invoices ? day : peak),
+                    insights.weeklyPattern[0],
+                  )?.day || 'N/A'
+                }`}
             </p>
           </Card>
         </div>
