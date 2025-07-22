@@ -1,2 +1,6 @@
-export { createInvoice, updateInvoice, fetchInvoices } from './invoice';
-export { getTopVendors } from './dashboard';
+export {
+  createInvoice,
+  updateInvoice,
+  fetchInvoices,
+  uploadAndExtractText,
+} from './invoice';

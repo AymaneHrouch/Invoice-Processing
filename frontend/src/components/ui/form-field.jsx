@@ -1,22 +1,28 @@
 import React from 'react';
 import { Label } from './label';
 import { Input } from './input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './select';
 
-export const FormField = ({ 
-  type = 'text', 
-  label, 
-  value, 
-  onChange, 
-  placeholder, 
-  options = [], 
+export const FormField = ({
+  type = 'text',
+  label,
+  value,
+  onChange,
+  placeholder,
+  options = [],
   required = false,
   error,
   min,
   max,
   step,
   className = '',
-  ...props 
+  ...props
 }) => {
   const renderInput = () => {
     switch (type) {
@@ -27,7 +33,7 @@ export const FormField = ({
               <SelectValue placeholder={placeholder} />
             </SelectTrigger>
             <SelectContent>
-              {options.map(option => (
+              {options.map((option) => (
                 <SelectItem key={option} value={option}>
                   {option}
                 </SelectItem>
@@ -35,7 +41,7 @@ export const FormField = ({
             </SelectContent>
           </Select>
         );
-      
+
       case 'number':
         return (
           <Input
@@ -50,18 +56,18 @@ export const FormField = ({
             {...props}
           />
         );
-      
+
       case 'date':
         return (
           <Input
             type="date"
-            value={value}
+            value={value || ''}
             onChange={onChange}
             className={className}
             {...props}
           />
         );
-      
+
       default:
         return (
           <Input
@@ -78,13 +84,16 @@ export const FormField = ({
 
   return (
     <div className="space-y-2">
-      <Label htmlFor={props.id} className={required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ''}>
+      <Label
+        htmlFor={props.id}
+        className={
+          required ? 'after:content-["*"] after:ml-0.5 after:text-red-500' : ''
+        }
+      >
         {label}
       </Label>
       {renderInput()}
-      {error && (
-        <p className="text-sm text-red-500 mt-1">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
     </div>
   );
 };
