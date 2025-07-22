@@ -1,17 +1,17 @@
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
-from typing import List, Optional, Annotated, Any
+from typing import List, Optional
 from bson import ObjectId
 from pydantic import BaseModel, Field, ConfigDict, field_validator
-from datetime import date
 
 
 class InvoiceItem(BaseModel):
     """Invoice item model"""
+    name: str = Field(..., description="Item name")
     description: str = Field(..., description="Item description")
     quantity: int = Field(..., gt=0, description="Item quantity")
-    unit_price: Decimal = Field(..., gt=0, description="Price per unit")
-    total: Decimal = Field(..., gt=0, description="Total price for this item")
+    unit_price: Decimal = Field(..., ge=0, description="Price per unit")
+    total: Decimal = Field(..., ge=0, description="Total price for this item")
 
     model_config = ConfigDict(
         json_encoders={
@@ -167,6 +167,7 @@ class InvoiceUpdate(BaseModel):
     """Schema for updating invoices (all fields optional)"""
     invoice_number: Optional[str] = None
     invoice_date: Optional[datetime] = None
+    invoice_due_date: Optional[datetime] = None
     vendor_name: Optional[str] = None
     total_amount: Optional[Decimal] = None
     currency: Optional[str] = None
