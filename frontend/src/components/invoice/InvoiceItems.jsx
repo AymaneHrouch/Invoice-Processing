@@ -11,11 +11,11 @@ const InvoiceItems = ({ items = [], currency = 'MAD', onItemsChange }) => {
     description: '',
     quantity: 1,
     unit_price: 0,
-    total: 0
+    total: 0,
   });
 
   const addItem = () => {
-    if (newItem.name.trim() && newItem.description.trim()) {
+    if (newItem.name.trim()) {
       const total = calculateItemTotal(newItem.quantity, newItem.unit_price);
       const item = { ...newItem, total: parseFloat(total) };
       const updatedItems = [...items, item];
@@ -25,7 +25,7 @@ const InvoiceItems = ({ items = [], currency = 'MAD', onItemsChange }) => {
         description: '',
         quantity: 1,
         unit_price: 0,
-        total: 0
+        total: 0,
       });
     }
   };
@@ -48,7 +48,7 @@ const InvoiceItems = ({ items = [], currency = 'MAD', onItemsChange }) => {
         <Package className="w-5 h-5" />
         Items
       </h3>
-      
+
       {/* Add new item form */}
       <Card className="bg-transparent border-dashed">
         <CardContent className="p-4">
@@ -57,30 +57,42 @@ const InvoiceItems = ({ items = [], currency = 'MAD', onItemsChange }) => {
             <div className="grid grid-cols-1">
               <Input
                 value={newItem.name}
-                onChange={(e) => setNewItem(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) =>
+                  setNewItem((prev) => ({ ...prev, name: e.target.value }))
+                }
                 onKeyPress={handleKeyPress}
                 placeholder="Item name"
                 className="text-base"
               />
             </div>
-            
+
             {/* Deuxième ligne: Description complète */}
             <div className="grid grid-cols-1">
               <Input
                 value={newItem.description}
-                onChange={(e) => setNewItem(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) =>
+                  setNewItem((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
+                }
                 onKeyPress={handleKeyPress}
                 placeholder="Item description"
                 className="text-base"
               />
             </div>
-            
+
             {/* Troisième ligne: Quantité et Prix unitaire */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 type="number"
                 value={newItem.quantity}
-                onChange={(e) => setNewItem(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+                onChange={(e) =>
+                  setNewItem((prev) => ({
+                    ...prev,
+                    quantity: parseInt(e.target.value) || 1,
+                  }))
+                }
                 placeholder="Quantity"
                 min="1"
                 className="text-base"
@@ -89,20 +101,31 @@ const InvoiceItems = ({ items = [], currency = 'MAD', onItemsChange }) => {
                 type="number"
                 step="0.01"
                 value={newItem.unit_price}
-                onChange={(e) => setNewItem(prev => ({ ...prev, unit_price: parseFloat(e.target.value) || 0 }))}
+                onChange={(e) =>
+                  setNewItem((prev) => ({
+                    ...prev,
+                    unit_price: parseFloat(e.target.value) || 0,
+                  }))
+                }
                 placeholder="Unit price"
                 className="text-base"
               />
             </div>
           </div>
-          
+
           <div className="flex justify-between items-center mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              Total: <span className="font-semibold text-gray-900 dark:text-white">
-                {calculateItemTotal(newItem.quantity, newItem.unit_price)} {currency}
+              Total:{' '}
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {calculateItemTotal(newItem.quantity, newItem.unit_price)}{' '}
+                {currency}
               </span>
             </div>
-            <Button onClick={addItem} type="button" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+            <Button
+              onClick={addItem}
+              type="button"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            >
               <Plus className="w-4 h-4" />
               Add Item
             </Button>
@@ -114,7 +137,10 @@ const InvoiceItems = ({ items = [], currency = 'MAD', onItemsChange }) => {
       {items.length > 0 && (
         <div className="space-y-3">
           {items.map((item, index) => (
-            <Card key={index} className="border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
+            <Card
+              key={index}
+              className="border-l-4 border-l-blue-500 hover:shadow-md transition-shadow"
+            >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 space-y-2">

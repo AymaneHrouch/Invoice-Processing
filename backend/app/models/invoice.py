@@ -12,8 +12,8 @@ class InvoiceItem(BaseModel):
     name: str = Field(..., description="Item name")
     description: str = Field(..., description="Item description")
     quantity: int = Field(..., gt=0, description="Item quantity")
-    unit_price: Decimal = Field(..., gt=0, description="Price per unit")
-    total: Decimal = Field(..., gt=0, description="Total price for this item")
+    unit_price: Decimal = Field(..., ge=0, description="Price per unit")
+    total: Decimal = Field(..., ge=0, description="Total price for this item")
 
     model_config = ConfigDict(
         json_encoders={
