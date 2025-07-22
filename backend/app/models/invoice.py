@@ -1,25 +1,19 @@
 from datetime import datetime, date
 from decimal import Decimal
-from typing import List, Optional, Annotated
-from bson import ObjectId
-from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
-
-
-from datetime import datetime
-from decimal import Decimal
-from typing import List, Optional, Annotated, Any
+from typing import List, Optional
 from bson import ObjectId
 from pydantic import BaseModel, Field, ConfigDict, field_validator
-from datetime import date
+
 
 
 
 class InvoiceItem(BaseModel):
     """Invoice item model"""
+    name: str = Field(..., description="Item name")
     description: str = Field(..., description="Item description")
     quantity: int = Field(..., gt=0, description="Item quantity")
-    unit_price: Decimal = Field(..., gt=0, description="Price per unit")
-    total: Decimal = Field(..., gt=0, description="Total price for this item")
+    unit_price: Decimal = Field(..., ge=0, description="Price per unit")
+    total: Decimal = Field(..., ge=0, description="Total price for this item")
 
     model_config = ConfigDict(
         json_encoders={
@@ -37,8 +31,10 @@ class Invoice(BaseModel):
     # Basic invoice information
     invoice_number: str = Field(..., description="Unique invoice number")
     invoice_date: datetime = Field(..., description="Invoice date")
+    invoice_due_date: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
-    
+    updated_at: Optional[datetime] = None
+
     # Vendor information
     vendor_name: str = Field(..., description="Vendor name")
     
@@ -93,6 +89,7 @@ class InvoiceCreate(BaseModel):
     """Schema for creating invoices (without id)"""
     invoice_number: str = Field(..., min_length=1, description="Unique invoice number")
     invoice_date: Optional[datetime] = None
+    invoice_due_date: Optional[datetime] = None
     vendor_name: str = Field(..., min_length=1, description="Vendor name")
     total_amount: Decimal = Field(..., gt=0, description="Total invoice amount")
     currency: str = Field(default="MAD", description="Currency code")
@@ -145,6 +142,22 @@ class InvoiceCreate(BaseModel):
             return datetime.combine(v, datetime.min.time())
         return v
 
+    @field_validator('invoice_due_date', mode='before')
+    @classmethod
+    def validate_invoice_due_date(cls, v):
+        """Convert string dates to datetime objects or return None"""
+        if v is None or v == "":
+            return None
+        if isinstance(v, str):
+            try:
+                date_obj = datetime.strptime(v, "%Y-%m-%d").date()
+                return datetime.combine(date_obj, datetime.min.time())
+            except ValueError:
+                raise ValueError('Invalid due date format. Use YYYY-MM-DD')
+        elif isinstance(v, date):
+            return datetime.combine(v, datetime.min.time())
+        return v
+        
     model_config = ConfigDict(
         json_encoders={
             Decimal: lambda v: float(v)
@@ -156,6 +169,7 @@ class InvoiceUpdate(BaseModel):
     """Schema for updating invoices (all fields optional)"""
     invoice_number: Optional[str] = None
     invoice_date: Optional[datetime] = None
+    invoice_due_date: Optional[datetime] = None
     vendor_name: Optional[str] = None
     total_amount: Optional[Decimal] = None
     currency: Optional[str] = None
@@ -166,6 +180,18 @@ class InvoiceUpdate(BaseModel):
     status: Optional[str] = None
 
 
-class InvoiceResponse(Invoice):
+class InvoiceResponse(BaseModel):
     """Response schema for invoices"""
-    pass
+    invoice_number: Optional[str] = None
+    invoice_date: Optional[datetime] = None
+    invoice_due_date: Optional[datetime] = None
+    vendor_name: Optional[str] = None
+    total_amount: Optional[Decimal] = None
+    currency: Optional[str] = None
+    items: Optional[List[InvoiceItem]] = None
+    category: Optional[str] = None
+    tags: Optional[List[str]] = None
+    source_type: Optional[str] = None
+    status: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None

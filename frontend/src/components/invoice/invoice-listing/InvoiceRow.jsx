@@ -9,17 +9,42 @@ import {
   getSourceIcon,
 } from "@/constants";
 import { EditInvoice } from "@/components/invoice";
+import { ChevronDown, ChevronUp, Download, SquarePen, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 const InvoiceRow = ({ 
   invoice, 
   isExpanded, 
   onToggleExpand, 
-  onExportPDF 
+  onExportPDF, 
+  onDelete,
+  onUpdate // ✅ AJOUT: Nouveau prop pour la mise à jour
 }) => {
   const { isDarkMode } = useTheme();
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  // ✅ CORRECTION: Cette fonction doit appeler onUpdate du parent
+  const handleEditSuccess = (updatedInvoice) => {
+    console.log('✅ Invoice updated successfully:', updatedInvoice);
+    
+    // Appeler la fonction de mise à jour du composant parent
+    if (onUpdate) {
+      onUpdate(updatedInvoice);
+    }
+  };
 
   return (
     <>
@@ -44,7 +69,7 @@ const InvoiceRow = ({
                 : "text-gray-500 hover:text-gray-700 hover:bg-gray-200"
             }`}
           >
-            {isExpanded ? "▼" : "▶"}
+            {isExpanded ? <ChevronUp /> : <ChevronDown />}
           </Button>
         </td>
         <td
@@ -144,36 +169,56 @@ const InvoiceRow = ({
           }`}
         >
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className={`text-xs border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 ${
-                isDarkMode
-                  ? "border-blue-400 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300"
-                  : ""
-              }`}
+            <button
+              title="Edit"
+              className={`p-2 rounded-md border border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700 transition cursor-pointer 
+                ${isDarkMode ? "border-green-400 text-green-400 hover:bg-green-900/20 hover:text-green-300" : ""}`}
+              onClick={() => { 
+                setSelectedInvoice(invoice); 
+                setEditModalOpen(true); 
+              }}
             >
-              View
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={`text-xs border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700 ${
-                isDarkMode
-                  ? "border-green-400 text-green-400 hover:bg-green-900/20 hover:text-green-300"
-                  : ""
-              }`}
-              onClick={() => { setSelectedInvoice(invoice); setEditModalOpen(true); }}
-            >
-              Edit
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
+              <SquarePen className="w-4 h-4" />
+            </button>
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <button
+                  title="Delete"
+                  className={`p-2 rounded-md border border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700 transition cursor-pointer 
+                    ${isDarkMode ? "border-red-400 text-red-400 hover:bg-red-900/20 hover:text-red-300" : ""}`}
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete invoice <b>#{invoice.invoice_number}</b>? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={async () => {
+                      setDeleteDialogOpen(false);
+                      await onDelete(invoice);
+                    }}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <button
+              title="Export PDF"
+              className={`p-2 rounded-md border border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer 
+                ${isDarkMode ? "border-blue-400 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300" : ""}`}
               onClick={() => onExportPDF(invoice)}
             >
-              pdf
-            </Button>
+              <Download className="w-4 h-4" />
+            </button>
           </div>
         </td>
       </tr>
@@ -181,10 +226,14 @@ const InvoiceRow = ({
       {/* Edit Invoice Modal */}
       {editModalOpen && selectedInvoice && (
         <EditInvoice
+          key={selectedInvoice._id} 
           open={editModalOpen}
-          onClose={() => setEditModalOpen(false)}
+          onClose={() => {
+            setEditModalOpen(false);
+            setSelectedInvoice(null); // ✅ Reset aussi selectedInvoice
+          }}
           invoice={selectedInvoice}
-          onSuccess={() => { setEditModalOpen(false); setSelectedInvoice(null); fetchInvoices(); }}
+          onSuccess={handleEditSuccess} // ✅ CORRECTION: Enlever les parenthèses ()
         />
       )}
     </>

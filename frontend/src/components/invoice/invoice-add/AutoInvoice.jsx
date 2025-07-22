@@ -16,6 +16,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { categories, currencies } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useAddInvoice } from '@/hooks/useAddInvoice';
+import { uploadAndExtractText } from '@/api';
 
 const AutoInvoice = () => {
   const { isDarkMode } = useTheme();
@@ -24,6 +25,8 @@ const AutoInvoice = () => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [extractedText, setExtractedText] = useState('');
+  const [extractError, setExtractError] = useState('');
   const [formData, setFormData] = useState({
     supplier: '',
     date: '',
@@ -31,7 +34,7 @@ const AutoInvoice = () => {
     currency: 'EUR',
     invoice_number: '',
     category: '',
-    items: [],
+    items: [], // Each item should have a 'name' field
     tags: []
   });
 
@@ -56,7 +59,7 @@ const AutoInvoice = () => {
     }
   };
 
-  const handleFilesUpload = (files) => {
+  const handleFilesUpload = async (files) => {
     const validFiles = files.filter(file => {
       const validTypes = ['.pdf', '.png', '.jpg', '.jpeg'];
       const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
@@ -70,36 +73,22 @@ const AutoInvoice = () => {
     if (validFiles.length > 0) {
       setUploadedFiles(prev => [...prev, ...validFiles]);
       setIsProcessing(true);
-      
-      // Simulate AI processing for each file
-      setTimeout(() => {
-        const extractedData = {
-          supplier: 'Tech Solutions Inc.',
-          date: '2024-12-15',
-          amount: '1250.00',
-          currency: 'EUR',
-          invoice_number: 'INV-2024-001',
-          category: 'Services',
-          items: [
-            {
-              description: 'Web Development Services',
-              quantity: 40,
-              unit_price: 25.00,
-              total: 1000.00
-            },
-            {
-              description: 'Project Management',
-              quantity: 10,
-              unit_price: 25.00,
-              total: 250.00
-            }
-          ],
-          tags: ['Web', 'Development', 'Q4']
-        };
-        
-        setFormData(extractedData);
-        setIsProcessing(false);
-      }, 2000);
+      setExtractedText('');
+      setExtractError('');
+      try {
+        // Pour l'instant, on ne traite que le premier fichier
+        const file = validFiles[0];
+        const result = await uploadAndExtractText(file);
+        if (result.success && result.text) {
+          setExtractedText(result.text);
+        } else {
+          setExtractError(result.message || 'No text extracted.');
+        }
+      } catch (err) {
+        setExtractError(err.message || 'Error extracting text.');
+      }
+      setIsProcessing(false);
+      // Ici, on ne remplit pas encore formData automatiquement
     }
   };
 
@@ -245,6 +234,29 @@ const AutoInvoice = () => {
                   Processing {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''} with AI...
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* Affichage du texte extrait ou erreur */}
+          {extractedText && !isProcessing && (
+            <div className="mt-6">
+              <Alert className={isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'}>
+                <Eye className="w-4 h-4 text-blue-600" />
+                <AlertDescription className={isDarkMode ? 'text-blue-300' : 'text-blue-800'}>
+                  <strong>Extracted Text:</strong>
+                  <pre className="mt-2 whitespace-pre-wrap break-words text-xs max-h-60 overflow-auto">{extractedText}</pre>
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+          {extractError && !isProcessing && (
+            <div className="mt-6">
+              <Alert className={isDarkMode ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-200'}>
+                <X className="w-4 h-4 text-red-600" />
+                <AlertDescription className={isDarkMode ? 'text-red-300' : 'text-red-800'}>
+                  {extractError}
+                </AlertDescription>
+              </Alert>
             </div>
           )}
 

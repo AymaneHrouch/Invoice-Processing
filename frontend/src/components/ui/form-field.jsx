@@ -55,7 +55,7 @@ export const FormField = ({
         return (
           <Input
             type="date"
-            value={value}
+            value={value || ''}
             onChange={onChange}
             className={className}
             {...props}

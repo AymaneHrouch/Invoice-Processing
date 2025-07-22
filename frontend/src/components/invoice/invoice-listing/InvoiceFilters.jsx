@@ -93,12 +93,13 @@ const InvoiceFilters = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="Services">Services</SelectItem>
+                <SelectItem value="Equipment">Equipment</SelectItem>
                 <SelectItem value="Software">Software</SelectItem>
-                <SelectItem value="Hardware">Hardware</SelectItem>
-                <SelectItem value="Professional Services">
-                  Professional Services
-                </SelectItem>
-                <SelectItem value="Consulting">Consulting</SelectItem>
+                <SelectItem value="Travel">Travel</SelectItem>
+                <SelectItem value="Marketing">Marketing</SelectItem>
+                <SelectItem value="Utilities">Utilities</SelectItem>
+                <SelectItem value="Others">Others</SelectItem>
               </SelectContent>
             </Select>
           </div>

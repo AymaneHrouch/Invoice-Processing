@@ -12,7 +12,7 @@ from pymongo.errors import DuplicateKeyError
 from pymongo import ASCENDING, DESCENDING
 import json
 
-from app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate
+from app.models.invoice import Invoice, InvoiceCreate, InvoiceResponse, InvoiceUpdate
 from app.database import get_invoices_collection
 
 # Set up logger
@@ -42,7 +42,7 @@ class InvoiceCRUD:
             collection = get_invoices_collection()
             
             # Convert Pydantic model to dict
-            invoice_dict = invoice_data.model_dump()
+            invoice_dict = invoice_data.model_dump(exclude_unset=True, exclude_none=True)
             logger.debug(f"Invoice dict after model_dump: {invoice_dict}")
             
             # Convert date to datetime for MongoDB storage or set default
@@ -233,9 +233,10 @@ class InvoiceCRUD:
             logger.debug(f"ObjectId converted successfully: {object_id}")
             
             # Convert update data to dict, excluding None values
-            logger.debug("Converting update_data to dict...")
+            logger.debug("Converting update_data to dict...");
             update_dict = update_data.model_dump(exclude_unset=True, exclude_none=True)
-            logger.debug(f"Update dict: {update_dict}")
+            update_dict["updated_at"] = datetime.utcnow()
+            logger.debug(f"Update dict: {update_dict}");
             
             # Convert Decimal objects to floats for MongoDB compatibility
             logger.debug("Converting Decimal objects to floats...")

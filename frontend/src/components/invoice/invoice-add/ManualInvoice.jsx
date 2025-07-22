@@ -1,38 +1,131 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { Save, Building } from 'lucide-react';
 import { toast } from 'sonner';
-
-import { 
-  Plus, X, Save, Trash2, DollarSign, Hash, 
-  Building, Tag, CalendarDays, Package
-} from 'lucide-react';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TabsContent } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { categories, currencies } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useAddInvoice } from '@/hooks/useAddInvoice';
-import { useInvoiceForm } from '@/hooks/useInvoiceForm';
 import { FormField } from '@/components/ui/form-field';
 import { InvoiceTags, InvoiceItems } from '@/components/invoice';
+
+// ✅ Fonction utilitaire pour formater les dates
+const formatDateForInput = (dateString) => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) return date.toISOString().split('T')[0];
+    return '';
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return '';
+  }
+};
 
 const ManualInvoice = () => {
   const { isDarkMode } = useTheme();
   const { addInvoice, loading, error, success, message, reset } = useAddInvoice();
   
-  const {
-    formData,
-    errors,
-    updateField,
-    updateItems,
-    updateTags,
-    validateForm,
-    resetForm,
-    getFormDataForSubmission
-  } = useInvoiceForm();
+  // ✅ État local direct
+  const [formData, setFormData] = useState({
+    vendor_name: '',
+    invoice_number: '',
+    invoice_date: formatDateForInput(new Date()),
+    invoice_due_date: '',
+    total_amount: '',
+    currency: 'MAD',
+    category: '',
+    items: [],
+    tags: [],
+    source_type: 'manual',
+    status: 'pending'
+  });
   
+  const [errors, setErrors] = useState({});
+
+  // ✅ Fonction pour mettre à jour un champ
+  const updateField = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Supprimer l'erreur pour ce champ
+    if (errors[field]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
+
+  // ✅ Fonction pour mettre à jour les items
+  const updateItems = (items) => {
+    const processedItems = items.map(item => ({
+      name: item.name || '',
+      description: item.description || '',
+      quantity: Number(item.quantity) || 1,
+      unit_price: Number(item.unit_price) || 0,
+      total: Number(item.total) || 0
+    }));
+    
+    setFormData(prev => ({
+      ...prev,
+      items: processedItems
+    }));
+  };
+
+  // ✅ Fonction pour mettre à jour les tags
+  const updateTags = (tags) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: Array.isArray(tags) ? tags : []
+    }));
+  };
+
+  // ✅ Validation du formulaire
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.vendor_name?.trim()) {
+      newErrors.vendor_name = 'Supplier name is required!';
+    }
+    if (!formData.invoice_number?.trim()) {
+      newErrors.invoice_number = 'Invoice number is required!';
+    }
+    if (!formData.total_amount || parseFloat(formData.total_amount) <= 0) {
+      newErrors.total_amount = 'Amount must be greater than 0!';
+    }
+    if (!formData.category?.trim()) {
+      newErrors.category = 'Category is required!';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // ✅ Réinitialiser le formulaire
+  const resetForm = () => {
+    setFormData({
+      vendor_name: '',
+      invoice_number: '',
+      invoice_date: formatDateForInput(new Date()),
+      invoice_due_date: '',
+      total_amount: '',
+      currency: 'MAD',
+      category: '',
+      items: [],
+      tags: [],
+      source_type: 'manual',
+      status: 'pending'
+    });
+    setErrors({});
+  };
+
+  // ✅ Soumission du formulaire
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -41,7 +134,14 @@ const ManualInvoice = () => {
       return;
     }
     
-    const invoiceData = getFormDataForSubmission();
+    // Préparer les données pour l'envoi
+    const invoiceData = {
+      ...formData,
+      total_amount: parseFloat(formData.total_amount),
+      invoice_date: formData.invoice_date?.trim() || null,
+      invoice_due_date: formData.invoice_due_date?.trim() || null
+    };
+    
     const result = await addInvoice(invoiceData);
     
     if (result) {
@@ -91,7 +191,7 @@ const ManualInvoice = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             <FormField
               id="total_amount"
               type="number"
@@ -118,6 +218,14 @@ const ManualInvoice = () => {
               label="Date"
               value={formData.invoice_date}
               onChange={(e) => updateField('invoice_date', e.target.value)}
+              className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
+            />
+            <FormField
+              id="invoice_due_date"
+              type="date"
+              label="Due Date"
+              value={formData.invoice_due_date}
+              onChange={(e) => updateField('invoice_due_date', e.target.value)}
               className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
             />
             <FormField
