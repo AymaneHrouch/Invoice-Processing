@@ -12,6 +12,7 @@ const CategoryDistribution = ({ currency = 'MAD' }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [period, setPeriod] = useState('1year');
 
   // Enhanced color palette for better visual appeal
   const COLORS = [
@@ -33,7 +34,7 @@ const CategoryDistribution = ({ currency = 'MAD' }) => {
         setLoading(true);
         setError(null);
         const response = await axios.get(
-          `http://localhost:8000/dashboard/top_categories?limit=10&currency=${currency}`,
+          `http://localhost:8000/dashboard/top_categories?limit=10&currency=${currency}&period=${period}`,
         );
 
         // Transform data for the pie chart
@@ -65,7 +66,7 @@ const CategoryDistribution = ({ currency = 'MAD' }) => {
     };
 
     fetchCategoryData();
-  }, [currency]);
+  }, [currency, period]);
 
   const onPieClick = (_, index) => {
     const clickedCategory = chartData[index];
@@ -165,18 +166,45 @@ const CategoryDistribution = ({ currency = 'MAD' }) => {
             </div>
           </div>
 
-          {/* Total Summary */}
-          <div className="text-right">
-            <p
-              className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-            >
-              {totalAmount.toLocaleString()} {currency}
-            </p>
-            <p
-              className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
-            >
-              {totalInvoices} invoices
-            </p>
+          {/* Controls and Summary */}
+          <div className="flex items-center gap-4">
+            {/* Period Selector */}
+            <div className="flex items-center gap-2">
+              <label
+                className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+              >
+                Period:
+              </label>
+              <select
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                  isDarkMode
+                    ? 'bg-slate-700 border-slate-600 text-white hover:border-slate-500'
+                    : 'bg-white border-gray-300 text-gray-900 hover:border-gray-400'
+                } focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+              >
+                <option value="3months">Last 3 Months</option>
+                <option value="6months">Last 6 Months</option>
+                <option value="1year">Last Year</option>
+                <option value="2years">Last 2 Years</option>
+                <option value="all">All Time</option>
+              </select>
+            </div>
+
+            {/* Total Summary */}
+            <div className="text-right">
+              <p
+                className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+              >
+                {totalAmount.toLocaleString()} {currency}
+              </p>
+              <p
+                className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+              >
+                {totalInvoices} invoices
+              </p>
+            </div>
           </div>
         </div>
 

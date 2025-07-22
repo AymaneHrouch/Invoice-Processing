@@ -20,6 +20,7 @@ const MonthlyChart = ({ currency = 'MAD' }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeView, setActiveView] = useState('expenses'); // 'expenses' or 'invoices'
+  const [period, setPeriod] = useState('1year');
 
   useEffect(() => {
     const fetchChartData = async () => {
@@ -27,7 +28,7 @@ const MonthlyChart = ({ currency = 'MAD' }) => {
         setLoading(true);
         setError(null);
         const response = await axios.get(
-          `http://localhost:8000/dashboard/monthly_chart?currency=${currency}`,
+          `http://localhost:8000/dashboard/monthly_chart?currency=${currency}&period=${period}`,
         );
         setChartData(response.data);
       } catch (err) {
@@ -39,7 +40,7 @@ const MonthlyChart = ({ currency = 'MAD' }) => {
     };
 
     fetchChartData();
-  }, [currency]);
+  }, [currency, period]);
 
   const formatTooltipValue = (value, name) => {
     if (name === 'expenses') {
@@ -118,40 +119,66 @@ const MonthlyChart = ({ currency = 'MAD' }) => {
           </div>
         </div>
 
-        {/* Toggle Buttons */}
-        <div
-          className={`flex rounded-lg p-1 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}
-        >
-          <button
-            onClick={() => setActiveView('expenses')}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeView === 'expenses'
-                ? isDarkMode
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-blue-600 text-white'
-                : isDarkMode
-                  ? 'text-gray-300 hover:text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-            }`}
+        {/* Controls */}
+        <div className="flex items-center gap-4">
+          {/* Period Selector */}
+          <div className="flex items-center gap-2">
+            <label
+              className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+            >
+              Period:
+            </label>
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                isDarkMode
+                  ? 'bg-slate-700 border-slate-600 text-white hover:border-slate-500'
+                  : 'bg-white border-gray-300 text-gray-900 hover:border-gray-400'
+              } focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
+            >
+              <option value="3months">Last 3 Months</option>
+              <option value="6months">Last 6 Months</option>
+              <option value="1year">Last Year</option>
+              <option value="2years">Last 2 Years</option>
+            </select>
+          </div>
+
+          {/* Toggle Buttons */}
+          <div
+            className={`flex rounded-lg p-1 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}
           >
-            <DollarSign className="w-4 h-4" />
-            Expenses
-          </button>
-          <button
-            onClick={() => setActiveView('invoices')}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-              activeView === 'invoices'
-                ? isDarkMode
-                  ? 'bg-green-600 text-white'
-                  : 'bg-green-600 text-white'
-                : isDarkMode
-                  ? 'text-gray-300 hover:text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            Invoices
-          </button>
+            <button
+              onClick={() => setActiveView('expenses')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeView === 'expenses'
+                  ? isDarkMode
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-blue-600 text-white'
+                  : isDarkMode
+                    ? 'text-gray-300 hover:text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <DollarSign className="w-4 h-4" />
+              Expenses
+            </button>
+            <button
+              onClick={() => setActiveView('invoices')}
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                activeView === 'invoices'
+                  ? isDarkMode
+                    ? 'bg-green-600 text-white'
+                    : 'bg-green-600 text-white'
+                  : isDarkMode
+                    ? 'text-gray-300 hover:text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              Invoices
+            </button>
+          </div>
         </div>
       </div>
 
@@ -243,7 +270,15 @@ const MonthlyChart = ({ currency = 'MAD' }) => {
             <p
               className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
             >
-              Total (12 months)
+              Total (
+              {period === '3months'
+                ? '3 months'
+                : period === '6months'
+                  ? '6 months'
+                  : period === '1year'
+                    ? '12 months'
+                    : '24 months'}
+              )
             </p>
           </div>
           <div className="text-center">
