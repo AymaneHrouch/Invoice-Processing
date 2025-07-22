@@ -1,39 +1,50 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent } from "@/components/ui/card";
-import { useTheme } from "@/contexts";
-import { exportToPDF } from "@/constants/exportToPDF";
-import { fetchInvoices } from "@/api/invoice";
-import { 
-    InvoicePagination, 
-    InvoiceHeader, 
-    InvoiceFilters, 
-    InvoiceTableHeader, 
-    InvoiceRow, 
-    InvoiceExpandedRow 
-} from "@/components";
+import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent } from '@/components/ui/card';
+import { useTheme } from '@/contexts';
+import { exportToPDF } from '@/constants/exportToPDF';
+import { fetchInvoices } from '@/api/invoice';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  InvoicePagination,
+  InvoiceHeader,
+  InvoiceFilters,
+  InvoiceTableHeader,
+  InvoiceRow,
+  InvoiceExpandedRow,
+} from '@/components';
 
 const InvoiceListPage = () => {
   const { isDarkMode } = useTheme();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+
+  const initialStatus = searchParams.get('status') || 'all';
+  const initialVendorName = searchParams.get('vendor_name') || '';
+  const initialCategory = searchParams.get('category') || 'all';
+  const initialSortBy = searchParams.get('sort_by') || 'created_at';
+  const initialOrder = searchParams.get('order') || 'desc';
+  const initialPage = parseInt(searchParams.get('page'), 10) || 1;
   const [invoiceData, setInvoiceData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialPage);
   const [perPage] = useState(10);
-  const [sortBy, setSortBy] = useState("created_at");
-  const [order, setOrder] = useState("desc");
+  const [sortBy, setSortBy] = useState(initialSortBy);
+  const [order, setOrder] = useState(initialOrder);
   const [expandedRows, setExpandedRows] = useState(new Set());
 
   // Filter states
   const [filters, setFilters] = useState({
-    status: "all",
-    vendor_name: "",
-    category: "all",
+    status: initialStatus,
+    vendor_name: initialVendorName,
+    category: initialCategory,
   });
 
   // Separate state for the vendor input to prevent immediate API calls
-  const [vendorSearchInput, setVendorSearchInput] = useState("");
+  const [vendorSearchInput, setVendorSearchInput] = useState(initialVendorName);
 
   // Debounce hook for vendor search
   const useDebounce = (value, delay) => {
@@ -64,6 +75,22 @@ const InvoiceListPage = () => {
     setPage(1);
   }, [debouncedVendorSearch]);
 
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (filters.status && filters.status !== 'all')
+      params.set('status', filters.status);
+    if (filters.vendor_name) params.set('vendor_name', filters.vendor_name);
+    if (filters.category && filters.category !== 'all')
+      params.set('category', filters.category);
+    if (sortBy && sortBy !== 'created_at') params.set('sort_by', sortBy);
+    if (order && order !== 'desc') params.set('order', order);
+    if (page && page !== 1) params.set('page', page);
+    // Only push if different
+    if (params.toString() !== location.search.replace(/^\?/, '')) {
+      navigate({ search: params.toString() }, { replace: false });
+    }
+  }, [filters, sortBy, order, page]);
+
   const toggleRowExpansion = (invoiceId) => {
     const newExpandedRows = new Set(expandedRows);
     if (newExpandedRows.has(invoiceId)) {
@@ -79,17 +106,23 @@ const InvoiceListPage = () => {
     currentPage = page,
     currentSortBy = sortBy,
     currentOrder = order,
-    currentFilters = filters
+    currentFilters = filters,
   ) => {
     try {
       setLoading(true);
       setError(null);
 
-      const data = await fetchInvoices(currentPage, perPage, currentSortBy, currentOrder, currentFilters);
+      const data = await fetchInvoices(
+        currentPage,
+        perPage,
+        currentSortBy,
+        currentOrder,
+        currentFilters,
+      );
       setInvoiceData(data);
     } catch (err) {
       setError(err.message);
-      console.error("Error fetching invoices:", err);
+      console.error('Error fetching invoices:', err);
     } finally {
       setLoading(false);
     }
@@ -105,7 +138,7 @@ const InvoiceListPage = () => {
   };
 
   const handleSort = (column) => {
-    const newOrder = sortBy === column && order === "asc" ? "desc" : "asc";
+    const newOrder = sortBy === column && order === 'asc' ? 'desc' : 'asc';
     setSortBy(column);
     setOrder(newOrder);
     setPage(1);
@@ -113,7 +146,7 @@ const InvoiceListPage = () => {
   };
 
   const handleFilterChange = (filterKey, value) => {
-    if (filterKey === "vendor_name") {
+    if (filterKey === 'vendor_name') {
       // Handle vendor search separately to avoid immediate API calls
       setVendorSearchInput(value);
       return;
@@ -126,8 +159,8 @@ const InvoiceListPage = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ status: "all", vendor_name: "", category: "all" });
-    setVendorSearchInput(""); // Also clear the vendor input
+    setFilters({ status: 'all', vendor_name: '', category: 'all' });
+    setVendorSearchInput(''); // Also clear the vendor input
     setPage(1);
   };
 
@@ -136,12 +169,12 @@ const InvoiceListPage = () => {
       <div className="max-w-full mx-auto my-8 px-6">
         <Card
           className={`border-0 shadow-lg ${
-            isDarkMode ? "bg-gray-800/50" : "bg-white/80"
+            isDarkMode ? 'bg-gray-800/50' : 'bg-white/80'
           } backdrop-blur-sm`}
         >
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-            <p className={isDarkMode ? "text-gray-300" : "text-gray-600"}>
+            <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
               Loading invoices...
             </p>
           </CardContent>
@@ -167,13 +200,13 @@ const InvoiceListPage = () => {
   if (!invoiceData || !invoiceData.data || invoiceData.data.length === 0) {
     return (
       <div className="max-w-full mx-auto my-8 px-6">
-        <InvoiceHeader 
-          invoiceData={invoiceData} 
-          sortBy={sortBy} 
-          order={order} 
-          onSort={handleSort} 
+        <InvoiceHeader
+          invoiceData={invoiceData}
+          sortBy={sortBy}
+          order={order}
+          onSort={handleSort}
         />
-        <InvoiceFilters 
+        <InvoiceFilters
           filters={filters}
           vendorSearchInput={vendorSearchInput}
           onFilterChange={handleFilterChange}
@@ -182,11 +215,11 @@ const InvoiceListPage = () => {
         <Alert className="border-blue-200 bg-blue-50">
           <AlertTitle className="text-blue-800">No invoices found</AlertTitle>
           <AlertDescription className="text-blue-600">
-            {(filters.status && filters.status !== "all") ||
+            {(filters.status && filters.status !== 'all') ||
             filters.vendor_name ||
-            (filters.category && filters.category !== "all")
-              ? "No invoices match the current filters. Try adjusting your search criteria."
-              : "There are no invoices to display."}
+            (filters.category && filters.category !== 'all')
+              ? 'No invoices match the current filters. Try adjusting your search criteria.'
+              : 'There are no invoices to display.'}
           </AlertDescription>
         </Alert>
       </div>
@@ -195,14 +228,14 @@ const InvoiceListPage = () => {
 
   return (
     <div className="max-w-full mx-auto my-8 px-6">
-      <InvoiceHeader 
-        invoiceData={invoiceData} 
-        sortBy={sortBy} 
-        order={order} 
-        onSort={handleSort} 
+      <InvoiceHeader
+        invoiceData={invoiceData}
+        sortBy={sortBy}
+        order={order}
+        onSort={handleSort}
       />
 
-      <InvoiceFilters 
+      <InvoiceFilters
         filters={filters}
         vendorSearchInput={vendorSearchInput}
         onFilterChange={handleFilterChange}
@@ -212,8 +245,8 @@ const InvoiceListPage = () => {
       <div
         className={`overflow-x-auto rounded-lg border shadow-lg ${
           isDarkMode
-            ? "border-gray-700 bg-gray-800"
-            : "border-gray-200 bg-white"
+            ? 'border-gray-700 bg-gray-800'
+            : 'border-gray-200 bg-white'
         }`}
       >
         <table className="w-full border-collapse text-sm">
@@ -240,7 +273,7 @@ const InvoiceListPage = () => {
         </table>
       </div>
 
-      <InvoicePagination 
+      <InvoicePagination
         invoiceData={invoiceData}
         loading={loading}
         onPageChange={handlePageChange}
