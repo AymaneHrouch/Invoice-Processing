@@ -23,4 +23,4 @@ export const useDeleteInvoice = () => {
   };
 
   return { removeInvoice, loading, error, message };
-}; 
+};

@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { Save, Building } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { categories, currencies } from '@/constants';
@@ -26,8 +32,9 @@ const formatDateForInput = (dateString) => {
 
 const ManualInvoice = () => {
   const { isDarkMode } = useTheme();
-  const { addInvoice, loading, error, success, message, reset } = useAddInvoice();
-  
+  const { addInvoice, loading, error, success, message, reset } =
+    useAddInvoice();
+
   // ✅ État local direct
   const [formData, setFormData] = useState({
     vendor_name: '',
@@ -40,21 +47,21 @@ const ManualInvoice = () => {
     items: [],
     tags: [],
     source_type: 'manual',
-    status: 'pending'
+    status: 'pending',
   });
-  
+
   const [errors, setErrors] = useState({});
 
   // ✅ Fonction pour mettre à jour un champ
   const updateField = (field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
-    
+
     // Supprimer l'erreur pour ce champ
     if (errors[field]) {
-      setErrors(prev => {
+      setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[field];
         return newErrors;
@@ -64,32 +71,32 @@ const ManualInvoice = () => {
 
   // ✅ Fonction pour mettre à jour les items
   const updateItems = (items) => {
-    const processedItems = items.map(item => ({
+    const processedItems = items.map((item) => ({
       name: item.name || '',
       description: item.description || '',
       quantity: Number(item.quantity) || 1,
       unit_price: Number(item.unit_price) || 0,
-      total: Number(item.total) || 0
+      total: Number(item.total) || 0,
     }));
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      items: processedItems
+      items: processedItems,
     }));
   };
 
   // ✅ Fonction pour mettre à jour les tags
   const updateTags = (tags) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      tags: Array.isArray(tags) ? tags : []
+      tags: Array.isArray(tags) ? tags : [],
     }));
   };
 
   // ✅ Validation du formulaire
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.vendor_name?.trim()) {
       newErrors.vendor_name = 'Supplier name is required!';
     }
@@ -120,7 +127,7 @@ const ManualInvoice = () => {
       items: [],
       tags: [],
       source_type: 'manual',
-      status: 'pending'
+      status: 'pending',
     });
     setErrors({});
   };
@@ -128,24 +135,24 @@ const ManualInvoice = () => {
   // ✅ Soumission du formulaire
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
-      toast.error("Please correct the errors in the form.");
+      toast.error('Please correct the errors in the form.');
       return;
     }
-    
+
     // Préparer les données pour l'envoi
     const invoiceData = {
       ...formData,
       total_amount: parseFloat(formData.total_amount),
       invoice_date: formData.invoice_date?.trim() || null,
-      invoice_due_date: formData.invoice_due_date?.trim() || null
+      invoice_due_date: formData.invoice_due_date?.trim() || null,
     };
-    
+
     const result = await addInvoice(invoiceData);
-    
+
     if (result) {
-      toast.success(message || "Invoice added successfully!");
+      toast.success(message || 'Invoice added successfully!');
       resetForm();
       reset();
     } else if (error) {
@@ -156,13 +163,19 @@ const ManualInvoice = () => {
 
   return (
     <TabsContent value="manual" className="space-y-6">
-      <Card className={`border-0 shadow-lg ${isDarkMode ? 'bg-gray-700/50' : 'bg-white/80'} backdrop-blur-sm`}>
+      <Card
+        className={`border-0 shadow-lg ${isDarkMode ? 'bg-gray-700/50' : 'bg-white/80'} backdrop-blur-sm`}
+      >
         <CardHeader className="pb-6">
-          <CardTitle className={`flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          <CardTitle
+            className={`flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+          >
             <Building className="w-5 h-5 text-blue-600" />
             Invoice Information
           </CardTitle>
-          <CardDescription className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>
+          <CardDescription
+            className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}
+          >
             Enter your invoice details manually
           </CardDescription>
         </CardHeader>
@@ -251,10 +264,7 @@ const ManualInvoice = () => {
 
           <Separator className={isDarkMode ? 'bg-gray-700' : 'bg-gray-200'} />
 
-          <InvoiceTags
-            tags={formData.tags}
-            onTagsChange={updateTags}
-          />
+          <InvoiceTags tags={formData.tags} onTagsChange={updateTags} />
         </CardContent>
       </Card>
 
@@ -270,7 +280,7 @@ const ManualInvoice = () => {
         </Button>
       </div>
     </TabsContent>
-  )
-}
+  );
+};
 
-export default ManualInvoice
+export default ManualInvoice;

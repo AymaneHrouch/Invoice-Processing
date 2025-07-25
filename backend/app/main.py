@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.database import close_database, init_database
 from app.routes.health import router as health_router
 from app.routes.invoices import router as invoices_router
+from app.routes.dashboard import router as dashboard_router
 from app.logging_config import setup_logging
 
 
@@ -64,7 +65,7 @@ app.add_middleware(
 
 app.include_router(health_router)
 app.include_router(invoices_router)
-
+app.include_router(dashboard_router)
 
 @app.get("/")
 async def root():

@@ -1,6 +1,6 @@
-export { 
-    createInvoice, 
-    updateInvoice, 
-    fetchInvoices, 
-    uploadAndExtractText 
-} from "./invoice";
+export {
+  createInvoice,
+  updateInvoice,
+  fetchInvoices,
+  uploadAndExtractText,
+} from './invoice';

@@ -30,7 +30,7 @@ const getDefaultForm = () => ({
   items: [],
   tags: [],
   source_type: 'manual',
-  status: 'pending'
+  status: 'pending',
 });
 
 // ✅ Fonction pour transformer les données initiales
@@ -47,16 +47,18 @@ const transformInitialData = (data) => {
     total_amount: data.total_amount?.toString() || '',
     currency: data.currency || 'MAD',
     category: data.category || '',
-    items: Array.isArray(data.items) ? data.items.map(item => ({
-      name: item.name || '',
-      description: item.description || '',
-      quantity: item.quantity || 1,
-      unit_price: item.unit_price || 0,
-      total: item.total || 0
-    })) : [],
+    items: Array.isArray(data.items)
+      ? data.items.map((item) => ({
+          name: item.name || '',
+          description: item.description || '',
+          quantity: item.quantity || 1,
+          unit_price: item.unit_price || 0,
+          total: item.total || 0,
+        }))
+      : [],
     tags: Array.isArray(data.tags) ? data.tags : [],
     source_type: data.source_type || 'manual',
-    status: data.status || 'pending'
+    status: data.status || 'pending',
   };
 };
 
@@ -67,7 +69,10 @@ export const useInvoiceForm = (initialData = null, mode = 'create') => {
 
   // ✅ State principal
   const [formData, setFormData] = useState(() => {
-    console.log('🚀 useInvoiceForm - Initial state creation:', { mode, initialData });
+    console.log('🚀 useInvoiceForm - Initial state creation:', {
+      mode,
+      initialData,
+    });
     return transformInitialData(mode === 'edit' ? initialData : null);
   });
 
@@ -81,17 +86,19 @@ export const useInvoiceForm = (initialData = null, mode = 'create') => {
       hasInitialData: !!initialData,
       initialDataKeys: initialData ? Object.keys(initialData) : [],
       lastInitialData: lastInitialDataRef.current,
-      isInitialized: isInitializedRef.current
+      isInitialized: isInitializedRef.current,
     });
 
     // Vérifier si initialData a vraiment changé
     const hasChanged = initialData !== lastInitialDataRef.current;
-    
+
     if (mode === 'edit' && hasChanged && initialData) {
-      console.log('📝 useInvoiceForm - Updating form data with new initial data');
+      console.log(
+        '📝 useInvoiceForm - Updating form data with new initial data',
+      );
       const transformedData = transformInitialData(initialData);
       console.log('📝 useInvoiceForm - Transformed data:', transformedData);
-      
+
       setFormData(transformedData);
       setErrors({});
       lastInitialDataRef.current = initialData;
@@ -112,46 +119,49 @@ export const useInvoiceForm = (initialData = null, mode = 'create') => {
     lastInitialDataRef.current = newData;
   }, []);
 
-  const updateField = useCallback((field, value) => {
-    console.log('✏️  useInvoiceForm - updateField:', field, value);
-    setFormData(prev => {
-      const newData = { ...prev, [field]: value };
-      console.log('✏️  useInvoiceForm - New form data:', newData);
-      return newData;
-    });
-    
-    // Nettoyer l'erreur pour ce champ
-    if (errors[field]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
+  const updateField = useCallback(
+    (field, value) => {
+      console.log('✏️  useInvoiceForm - updateField:', field, value);
+      setFormData((prev) => {
+        const newData = { ...prev, [field]: value };
+        console.log('✏️  useInvoiceForm - New form data:', newData);
+        return newData;
       });
-    }
-  }, [errors]);
+
+      // Nettoyer l'erreur pour ce champ
+      if (errors[field]) {
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors[field];
+          return newErrors;
+        });
+      }
+    },
+    [errors],
+  );
 
   const updateItems = useCallback((items) => {
     console.log('📦 useInvoiceForm - updateItems:', items);
-    const processedItems = items.map(item => ({
+    const processedItems = items.map((item) => ({
       name: item.name || '',
       description: item.description || '',
       quantity: Number(item.quantity) || 1,
       unit_price: Number(item.unit_price) || 0,
-      total: Number(item.total) || 0
+      total: Number(item.total) || 0,
     }));
-    
-    setFormData(prev => ({ ...prev, items: processedItems }));
+
+    setFormData((prev) => ({ ...prev, items: processedItems }));
   }, []);
 
   const updateTags = useCallback((tags) => {
     console.log('🏷️  useInvoiceForm - updateTags:', tags);
-    setFormData(prev => ({ ...prev, tags: Array.isArray(tags) ? tags : [] }));
+    setFormData((prev) => ({ ...prev, tags: Array.isArray(tags) ? tags : [] }));
   }, []);
 
   const validateForm = useCallback(() => {
     console.log('✅ useInvoiceForm - validateForm called');
     const newErrors = {};
-    
+
     if (!formData.vendor_name?.trim()) {
       newErrors.vendor_name = 'Supplier name is required!';
     }
@@ -167,7 +177,10 @@ export const useInvoiceForm = (initialData = null, mode = 'create') => {
 
     setErrors(newErrors);
     const isValid = Object.keys(newErrors).length === 0;
-    console.log('✅ useInvoiceForm - Validation result:', { isValid, errors: newErrors });
+    console.log('✅ useInvoiceForm - Validation result:', {
+      isValid,
+      errors: newErrors,
+    });
     return isValid;
   }, [formData]);
 
@@ -184,18 +197,24 @@ export const useInvoiceForm = (initialData = null, mode = 'create') => {
       ...formData,
       total_amount: parseFloat(formData.total_amount) || 0,
       invoice_date: formData.invoice_date?.trim() || null,
-      invoice_due_date: formData.invoice_due_date?.trim() || null
+      invoice_due_date: formData.invoice_due_date?.trim() || null,
     };
-    
+
     console.log('📤 useInvoiceForm - getFormDataForSubmission:', submission);
     return submission;
   }, [formData]);
 
   // ✅ Legacy function pour compatibilité
-  const setInitialValues = useCallback((data) => {
-    console.log('🔧 useInvoiceForm - setInitialValues (legacy) called:', data);
-    forceUpdate(data);
-  }, [forceUpdate]);
+  const setInitialValues = useCallback(
+    (data) => {
+      console.log(
+        '🔧 useInvoiceForm - setInitialValues (legacy) called:',
+        data,
+      );
+      forceUpdate(data);
+    },
+    [forceUpdate],
+  );
 
   // ✅ Debug effect
   useEffect(() => {
@@ -203,7 +222,7 @@ export const useInvoiceForm = (initialData = null, mode = 'create') => {
       formDataVendor: formData.vendor_name,
       formDataNumber: formData.invoice_number,
       formDataAmount: formData.total_amount,
-      errorsCount: Object.keys(errors).length
+      errorsCount: Object.keys(errors).length,
     });
   }, [formData, errors]);
 
@@ -217,6 +236,6 @@ export const useInvoiceForm = (initialData = null, mode = 'create') => {
     resetForm,
     setInitialValues,
     forceUpdate, // ✅ Nouvelle fonction pour forcer la mise à jour
-    getFormDataForSubmission
+    getFormDataForSubmission,
   };
 };

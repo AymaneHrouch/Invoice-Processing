@@ -1,50 +1,50 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { useTheme } from "@/contexts";
+} from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { useTheme } from '@/contexts';
 
-const InvoiceFilters = ({ 
-  filters, 
-  vendorSearchInput, 
-  onFilterChange, 
-  onClearFilters 
+const InvoiceFilters = ({
+  filters,
+  vendorSearchInput,
+  onFilterChange,
+  onClearFilters,
 }) => {
   const { isDarkMode } = useTheme();
 
   return (
     <Card
       className={`mb-6 border-0 shadow-lg ${
-        isDarkMode ? "bg-gray-800/50" : "bg-white/80"
+        isDarkMode ? 'bg-gray-800/50' : 'bg-white/80'
       } backdrop-blur-sm`}
     >
       <CardHeader>
-        <CardTitle className={isDarkMode ? "text-white" : "text-gray-800"}>
+        <CardTitle className={isDarkMode ? 'text-white' : 'text-gray-800'}>
           Filters
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-2">
-            <Label className={isDarkMode ? "text-gray-300" : "text-gray-700"}>
+            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
               Status
             </Label>
             <Select
               value={filters.status}
-              onValueChange={(value) => onFilterChange("status", value)}
+              onValueChange={(value) => onFilterChange('status', value)}
             >
               <SelectTrigger
                 className={`h-11 ${
                   isDarkMode
-                    ? "bg-gray-700 border-gray-600 text-white"
-                    : "bg-white"
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white'
                 }`}
               >
                 <SelectValue placeholder="All Statuses" />
@@ -59,34 +59,34 @@ const InvoiceFilters = ({
           </div>
 
           <div className="space-y-2">
-            <Label className={isDarkMode ? "text-gray-300" : "text-gray-700"}>
+            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
               Vendor
             </Label>
             <Input
               value={vendorSearchInput}
-              onChange={(e) => onFilterChange("vendor_name", e.target.value)}
+              onChange={(e) => onFilterChange('vendor_name', e.target.value)}
               placeholder="Search vendor..."
               className={`h-11 ${
                 isDarkMode
-                  ? "bg-gray-700 border-gray-600 text-white"
-                  : "bg-white"
+                  ? 'bg-gray-700 border-gray-600 text-white'
+                  : 'bg-white'
               }`}
             />
           </div>
 
           <div className="space-y-2">
-            <Label className={isDarkMode ? "text-gray-300" : "text-gray-700"}>
+            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
               Category
             </Label>
             <Select
               value={filters.category}
-              onValueChange={(value) => onFilterChange("category", value)}
+              onValueChange={(value) => onFilterChange('category', value)}
             >
               <SelectTrigger
                 className={`h-11 ${
                   isDarkMode
-                    ? "bg-gray-700 border-gray-600 text-white"
-                    : "bg-white"
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white'
                 }`}
               >
                 <SelectValue placeholder="All Categories" />

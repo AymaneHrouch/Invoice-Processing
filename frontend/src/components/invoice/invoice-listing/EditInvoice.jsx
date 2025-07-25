@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader as CardHeaderUI, CardTitle as CardTitleUI } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader as CardHeaderUI,
+  CardTitle as CardTitleUI,
+} from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { categories, currencies } from '@/constants';
 import { useTheme } from '@/contexts';
@@ -41,7 +46,7 @@ const formatDateForInput = (dateString) => {
 const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   const { isDarkMode } = useTheme();
   const { editInvoice, loading, error, message, reset } = useEditInvoice();
-  
+
   // ✅ État local direct - plus simple et plus fiable
   const [formData, setFormData] = useState({
     vendor_name: '',
@@ -53,18 +58,18 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     category: '',
     items: [],
     tags: [],
-    status: 'pending'
+    status: 'pending',
   });
-  
+
   const [errors, setErrors] = useState({});
 
   // ✅ Effet pour charger les données de la facture
   useEffect(() => {
     console.log('🔄 EditInvoice - invoice prop changed:', invoice);
-    
+
     if (invoice && open) {
       console.log('📝 Loading invoice data into form...');
-      
+
       setFormData({
         vendor_name: invoice.vendor_name || '',
         invoice_number: invoice.invoice_number || '',
@@ -73,20 +78,22 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
         total_amount: invoice.total_amount?.toString() || '',
         currency: invoice.currency || 'MAD',
         category: invoice.category || '',
-        items: Array.isArray(invoice.items) ? invoice.items.map(item => ({
-          name: item.name || '',
-          description: item.description || '',
-          quantity: item.quantity || 1,
-          unit_price: item.unit_price || 0,
-          total: item.total || 0
-        })) : [],
+        items: Array.isArray(invoice.items)
+          ? invoice.items.map((item) => ({
+              name: item.name || '',
+              description: item.description || '',
+              quantity: item.quantity || 1,
+              unit_price: item.unit_price || 0,
+              total: item.total || 0,
+            }))
+          : [],
         tags: Array.isArray(invoice.tags) ? invoice.tags : [],
-        status: invoice.status || 'pending'
+        status: invoice.status || 'pending',
       });
-      
+
       // Reset des erreurs
       setErrors({});
-      
+
       console.log('✅ Invoice data loaded successfully');
     }
   }, [invoice, open]); // ✅ Dépend aussi de 'open' pour recharger à chaque ouverture
@@ -94,15 +101,15 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   // ✅ Fonction pour mettre à jour un champ
   const updateField = (field, value) => {
     console.log('✏️ Updating field:', field, '=', value);
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
-    
+
     // Supprimer l'erreur pour ce champ
     if (errors[field]) {
-      setErrors(prev => {
+      setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[field];
         return newErrors;
@@ -113,35 +120,35 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   // ✅ Fonction pour mettre à jour les items
   const updateItems = (items) => {
     console.log('📦 Updating items:', items);
-    
-    const processedItems = items.map(item => ({
+
+    const processedItems = items.map((item) => ({
       name: item.name || '',
       description: item.description || '',
       quantity: Number(item.quantity) || 1,
       unit_price: Number(item.unit_price) || 0,
-      total: Number(item.total) || 0
+      total: Number(item.total) || 0,
     }));
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      items: processedItems
+      items: processedItems,
     }));
   };
 
   // ✅ Fonction pour mettre à jour les tags
   const updateTags = (tags) => {
     console.log('🏷️ Updating tags:', tags);
-    
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
-      tags: Array.isArray(tags) ? tags : []
+      tags: Array.isArray(tags) ? tags : [],
     }));
   };
 
   // ✅ Validation du formulaire
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.vendor_name?.trim()) {
       newErrors.vendor_name = 'Supplier name is required!';
     }
@@ -162,36 +169,36 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   // ✅ Soumission du formulaire
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     console.log('📤 Form submission - formData:', formData);
-    
+
     if (!validateForm()) {
-      toast.error("Please correct the errors in the form.");
+      toast.error('Please correct the errors in the form.');
       return;
     }
-    
+
     // Préparer les données pour l'envoi
     const invoiceData = {
       ...formData,
       total_amount: parseFloat(formData.total_amount),
       invoice_date: formData.invoice_date?.trim() || null,
-      invoice_due_date: formData.invoice_due_date?.trim() || null
+      invoice_due_date: formData.invoice_due_date?.trim() || null,
     };
-    
+
     console.log('🚀 Submitting invoice data:', invoiceData);
-    
+
     const result = await editInvoice(invoice._id, invoiceData);
-    
+
     if (result) {
-      toast.success(message || "Invoice modified successfully!");
+      toast.success(message || 'Invoice modified successfully!');
       reset();
-      
+
       // ✅ SOLUTION: Passer les données mises à jour au parent
       if (onSuccess) {
         // Appeler onSuccess avec les nouvelles données
         onSuccess({
-          ...invoice,  // Garder l'ID et autres données non modifiées
-          ...invoiceData  // Nouvelles données
+          ...invoice, // Garder l'ID et autres données non modifiées
+          ...invoiceData, // Nouvelles données
         });
       }
       onClose();
@@ -207,7 +214,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       vendor_name: formData.vendor_name,
       invoice_number: formData.invoice_number,
       total_amount: formData.total_amount,
-      category: formData.category
+      category: formData.category,
     });
   }, [formData]);
 
@@ -228,10 +235,16 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
 
         {/* Contenu scrollable avec scrollbar stylée */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-8 py-6 scrollbar-thin scrollbar-track-gray-100 dark:scrollbar-track-gray-800 scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-400 dark:hover:scrollbar-thumb-gray-500">
-          <form onSubmit={handleSubmit} className="space-y-6" id="edit-invoice-form">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-6"
+            id="edit-invoice-form"
+          >
             <Card className="border-0 shadow-none bg-transparent">
               <CardHeaderUI className="px-0 pb-4">
-                <CardTitleUI className={`flex items-center gap-2 text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                <CardTitleUI
+                  className={`flex items-center gap-2 text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                >
                   Invoice Details
                 </CardTitleUI>
               </CardHeaderUI>
@@ -250,13 +263,15 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                     id="invoice_number"
                     label="Number"
                     value={formData.invoice_number}
-                    onChange={(e) => updateField('invoice_number', e.target.value)}
+                    onChange={(e) =>
+                      updateField('invoice_number', e.target.value)
+                    }
                     placeholder="INV-2024-001"
                     required
                     error={errors.invoice_number}
                   />
                 </div>
-                
+
                 {/* Première ligne: Amount, Currency, Category */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <FormField
@@ -264,7 +279,9 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                     type="number"
                     label="Amount"
                     value={formData.total_amount}
-                    onChange={(e) => updateField('total_amount', e.target.value)}
+                    onChange={(e) =>
+                      updateField('total_amount', e.target.value)
+                    }
                     placeholder="0.00"
                     step="0.01"
                     required
@@ -296,34 +313,35 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                     type="date"
                     label="Invoice Date"
                     value={formData.invoice_date}
-                    onChange={(e) => updateField('invoice_date', e.target.value)}
+                    onChange={(e) =>
+                      updateField('invoice_date', e.target.value)
+                    }
                   />
                   <FormField
                     id="invoice_due_date"
                     type="date"
                     label="Due Date"
                     value={formData.invoice_due_date}
-                    onChange={(e) => updateField('invoice_due_date', e.target.value)}
+                    onChange={(e) =>
+                      updateField('invoice_due_date', e.target.value)
+                    }
                   />
                 </div>
-                
+
                 <Separator />
-                
+
                 <InvoiceItems
                   items={formData.items}
                   currency={formData.currency}
                   onItemsChange={updateItems}
                 />
-                
+
                 <Separator />
-                
-                <InvoiceTags
-                  tags={formData.tags}
-                  onTagsChange={updateTags}
-                />
+
+                <InvoiceTags tags={formData.tags} onTagsChange={updateTags} />
               </CardContent>
             </Card>
-            
+
             {/* Espace pour éviter que le contenu soit masqué par le footer */}
             <div className="pb-20"></div>
           </form>
@@ -333,19 +351,19 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
         <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
           <DialogFooter className="px-8 py-5 flex justify-end gap-3">
             <DialogClose asChild>
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 className="border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 Cancel
               </Button>
             </DialogClose>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               form="edit-invoice-form"
-              size="lg" 
-              className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 text-white font-medium px-6" 
+              size="lg"
+              className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 text-white font-medium px-6"
               disabled={loading}
             >
               <Save className="w-5 h-5 mr-2" />
@@ -354,47 +372,47 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
           </DialogFooter>
         </div>
       </DialogContent>
-      
+
       <style jsx>{`
         /* Scrollbar styling for Webkit browsers */
         .scrollbar-thin::-webkit-scrollbar {
           width: 8px;
         }
-        
+
         .scrollbar-track-gray-100::-webkit-scrollbar-track {
           background: #f3f4f6;
           border-radius: 4px;
         }
-        
+
         .dark .scrollbar-track-gray-800::-webkit-scrollbar-track {
           background: #1f2937;
           border-radius: 4px;
         }
-        
+
         .scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
           background: #d1d5db;
           border-radius: 4px;
         }
-        
+
         .dark .scrollbar-thumb-gray-600::-webkit-scrollbar-thumb {
           background: #4b5563;
           border-radius: 4px;
         }
-        
+
         .hover\\:scrollbar-thumb-gray-400:hover::-webkit-scrollbar-thumb {
           background: #9ca3af;
         }
-        
+
         .dark .hover\\:scrollbar-thumb-gray-500:hover::-webkit-scrollbar-thumb {
           background: #6b7280;
         }
-        
+
         /* Pour Firefox */
         .scrollbar-thin {
           scrollbar-width: thin;
           scrollbar-color: #d1d5db #f3f4f6;
         }
-        
+
         .dark .scrollbar-thin {
           scrollbar-color: #4b5563 #1f2937;
         }

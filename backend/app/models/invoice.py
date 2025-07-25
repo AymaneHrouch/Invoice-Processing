@@ -5,8 +5,6 @@ from bson import ObjectId
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
-
-
 class InvoiceItem(BaseModel):
     """Invoice item model"""
     name: str = Field(..., description="Item name")
@@ -24,10 +22,10 @@ class InvoiceItem(BaseModel):
 
 class Invoice(BaseModel):
     """Invoice model with Pydantic validation"""
-    
+
     # MongoDB ObjectId (as string for JSON schema compatibility)
     id: Optional[str] = Field(default=None, alias="_id", description="MongoDB ObjectId as string")
-    
+
     # Basic invoice information
     invoice_number: str = Field(..., description="Unique invoice number")
     invoice_date: datetime = Field(..., description="Invoice date")
@@ -37,18 +35,18 @@ class Invoice(BaseModel):
 
     # Vendor information
     vendor_name: str = Field(..., description="Vendor name")
-    
+
     # Financial information
     total_amount: Decimal = Field(..., gt=0, description="Total invoice amount")
     currency: str = Field(default="MAD", description="Currency code")
-    
+
     # Invoice items
     items: List[InvoiceItem] = Field(default_factory=list, description="List of invoice items")
-    
+
     # Categorization
     category: str = Field(..., description="Invoice category")
     tags: List[str] = Field(default_factory=list, description="Invoice tags")
-    
+
     # Processing information
     source_type: str = Field(..., description="Source type (pdf/image)")
     status: str = Field(default="pending", description="Processing status")
@@ -157,7 +155,7 @@ class InvoiceCreate(BaseModel):
         elif isinstance(v, date):
             return datetime.combine(v, datetime.min.time())
         return v
-        
+
     model_config = ConfigDict(
         json_encoders={
             Decimal: lambda v: float(v)
