@@ -156,3 +156,76 @@ export const getSourceIcon = (sourceType) => {
   };
   return icons[sourceType] || <File />;
 };
+
+// Mock data generator for demonstration
+export const generateMockData = (fileName) => {
+  const mockSuppliers = [
+    'Acme Corp',
+    'Tech Solutions Ltd',
+    'Global Services Inc',
+    'Premium Supplies Co',
+  ];
+  const mockCategories = [
+    'Office Supplies',
+    'Software',
+    'Consulting',
+    'Equipment',
+    'Marketing',
+  ];
+  const mockCurrencies = ['EUR', 'USD', 'GBP'];
+
+  const randomSupplier =
+    mockSuppliers[Math.floor(Math.random() * mockSuppliers.length)];
+  const randomCategory =
+    mockCategories[Math.floor(Math.random() * mockCategories.length)];
+  const randomCurrency =
+    mockCurrencies[Math.floor(Math.random() * mockCurrencies.length)];
+  const randomAmount = (Math.random() * 5000 + 100).toFixed(2);
+  const randomDate = new Date(
+    Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000,
+  )
+    .toISOString()
+    .split('T')[0];
+  const randomDueDate = new Date(
+    Date.now() + Math.random() * 90 * 24 * 60 * 60 * 1000,
+  )
+    .toISOString()
+    .split('T')[0];
+  const invoiceNumber = `INV-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+  const mockItems = [
+    {
+      name: 'Professional Consulting Services',
+      description: 'Monthly consulting and advisory services',
+      quantity: 1,
+      unit_price: (randomAmount * 0.6).toFixed(2),
+      total: (randomAmount * 0.6).toFixed(2),
+    },
+    {
+      name: 'Additional Support',
+      description: 'Technical support and maintenance fees',
+      quantity: 1,
+      unit_price: (randomAmount * 0.4).toFixed(2),
+      total: (randomAmount * 0.4).toFixed(2),
+    },
+  ];
+
+  const mockTags = ['urgent', 'quarterly', 'approved'].slice(
+    0,
+    Math.floor(Math.random() * 3) + 1,
+  );
+
+  return {
+    supplier: randomSupplier,
+    date: randomDate,
+    due_date: randomDueDate,
+    amount: randomAmount,
+    currency: randomCurrency,
+    invoice_number: invoiceNumber,
+    category: randomCategory,
+    items: mockItems,
+    tags: mockTags,
+    extractedText: `Invoice from ${randomSupplier}\nDate: ${randomDate}\nDue Date: ${randomDueDate}\nAmount: ${randomAmount} ${randomCurrency}\nInvoice #: ${invoiceNumber}\n\n${mockItems.map((item) => `${item.name}: ${item.quantity} x ${item.unit_price}`).join('\n')}`,
+    fileName: fileName,
+  };
+};
