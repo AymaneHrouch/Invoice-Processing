@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 from datetime import datetime
 
 from fastapi import APIRouter, Query
@@ -27,20 +27,30 @@ def top_vendors(limit: int = Query(5, ge=1, le=10),
 
 @router.get("/latest_invoices")
 def latest_invoices(limit: int = Query(5, ge=1, le=10)):
-    return dashboard.get_latest_invoices(limit)
+    try:
+        return dashboard.get_latest_invoices(limit)
+    except Exception as e:
+        print(f"Error in latest_invoices endpoint: {e}")
+        return []
 
 @router.get("/top_categories")
 def top_categories(limit: int = Query(5, ge=1, le=10),
                    currency: Literal["MAD", "USD", "EUR"] = Query("MAD"),
-                   period: Literal["3months", "6months", "1year", "2years", "all"] = Query("1year")):
-    return dashboard.get_top_categories(limit, currency, period)
+                   period: Literal["3months", "6months", "1year", "2years", "all"] = Query("1year"),
+                   start_date: Optional[datetime] = Query(None, description="Start date (YYYY-MM-DD format)"),
+                   end_date: Optional[datetime] = Query(None, description="End date (YYYY-MM-DD format)")):
+    return dashboard.get_top_categories(limit, currency, period, start_date, end_date)
 
 @router.get("/monthly_chart")
 def monthly_chart(currency: Literal["MAD", "USD", "EUR"] = Query("MAD"),
-                  period: Literal["3months", "6months", "1year", "2years"] = Query("1year")):
-    return dashboard.get_monthly_chart_data(currency, period)
+                  period: Literal["3months", "6months", "1year", "2years"] = Query("1year"),
+                  start_date: Optional[datetime] = Query(None, description="Start date (YYYY-MM-DD format)"),
+                  end_date: Optional[datetime] = Query(None, description="End date (YYYY-MM-DD format)")):
+    return dashboard.get_monthly_chart_data(currency, period, start_date, end_date)
 
 @router.get("/weekly_pattern")
 def weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = Query("MAD"),
-                   period: Literal["4weeks", "8weeks", "3months", "6months"] = Query("8weeks")):
-    return dashboard.get_weekly_pattern(currency, period)
+                   period: Literal["4weeks", "8weeks", "3months", "6months"] = Query("8weeks"),
+                   start_date: Optional[datetime] = Query(None, description="Start date (YYYY-MM-DD format)"),
+                   end_date: Optional[datetime] = Query(None, description="End date (YYYY-MM-DD format)")):
+    return dashboard.get_weekly_pattern(currency, period, start_date, end_date)
