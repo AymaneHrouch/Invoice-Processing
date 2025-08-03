@@ -1,5 +1,5 @@
 [project]
-name = "Invoice Processing API"
+name = "Invoice-Processing-API"
 version = "0.1.0"
 description = "Invoice Processing API"
 readme = "README.md"
