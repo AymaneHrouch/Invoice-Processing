@@ -1,160 +1,98 @@
-import { categories, currencies } from '@/constants';
-import { useTheme } from '@/contexts';
 import {
-  X,
-  FileText,
   Eye,
   Save,
-  Trash2,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
   DollarSign,
   Hash,
   Building,
-  Tag,
   CalendarDays,
   Package,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
+  CircleDollarSign,
 } from 'lucide-react';
-import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { FormField } from '@/components/ui/form-field';
+import { Alert } from '@/components/ui/alert';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import InvoiceTags from '../InvoiceTags';
+import InvoiceItems from '../InvoiceItems';
+import { useInvoiceSubmission } from '@/hooks';
+import { useTheme } from '@/contexts';
+import { currencies, categories } from '@/constants';
 
-const ExtractedDataForm = ({
+export const ExtractedDataForm = ({
   uploadedFiles,
-  setUploadedFiles,
   extractedData,
-  setExtractedData,
   currentInvoiceIndex,
   setCurrentInvoiceIndex,
+  updateFormData,
+  onInvoiceProcessed,
 }) => {
   const { isDarkMode } = useTheme();
 
-  const [loading, setLoading] = useState(false);
-
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [message, setMessage] = useState('');
+  const { loading, error, success, message, submitInvoice } =
+    useInvoiceSubmission();
 
   const currentFormData = extractedData[currentInvoiceIndex] || {};
 
-  const updateFormData = (field, value) => {
-    if (extractedData.length > 0) {
-      const newData = [...extractedData];
-      newData[currentInvoiceIndex] = {
-        ...newData[currentInvoiceIndex],
-        [field]: value,
-      };
-      setExtractedData(newData);
-    }
+  // Navigation handlers
+  const handlePrevious = () => {
+    setCurrentInvoiceIndex(Math.max(0, currentInvoiceIndex - 1));
   };
 
-  const updateItem = (itemIndex, field, value) => {
-    if (extractedData.length > 0) {
-      const newData = [...extractedData];
-      const newItems = [...newData[currentInvoiceIndex].items];
-      newItems[itemIndex] = {
-        ...newItems[itemIndex],
-        [field]: value,
-      };
-      newData[currentInvoiceIndex].items = newItems;
-      setExtractedData(newData);
-    }
+  const handleNext = () => {
+    setCurrentInvoiceIndex(
+      Math.min(extractedData.length - 1, currentInvoiceIndex + 1),
+    );
   };
 
-  const addItem = () => {
-    if (extractedData.length > 0) {
-      const newData = [...extractedData];
-      newData[currentInvoiceIndex].items.push({
-        name: '',
-        description: '',
-        quantity: 1,
-        unit_price: '0.00',
-        total: '0.00',
-      });
-      setExtractedData(newData);
-    }
+  const handleFieldChange = (field) => (value) => {
+    updateFormData(field, value);
   };
 
-  const removeItem = (itemIndex) => {
-    if (extractedData.length > 0) {
-      const newData = [...extractedData];
-      newData[currentInvoiceIndex].items = newData[
-        currentInvoiceIndex
-      ].items.filter((_, i) => i !== itemIndex);
-      setExtractedData(newData);
-    }
+  const handleTagsChange = (newTags) => {
+    updateFormData('tags', newTags);
   };
 
-  const removeTag = (tagToRemove) => {
-    if (extractedData.length > 0) {
-      const newData = [...extractedData];
-      newData[currentInvoiceIndex].tags = newData[
-        currentInvoiceIndex
-      ].tags.filter((tag) => tag !== tagToRemove);
-      setExtractedData(newData);
-    }
+  const handleItemsChange = (newItems) => {
+    updateFormData('items', newItems);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const currentData = extractedData[currentInvoiceIndex];
 
-    if (!currentData.supplier || !currentData.amount || !currentData.date) {
-      alert('Please fill in the required fields: supplier, amount, date.');
-      return;
-    }
+    const result = await submitInvoice(currentFormData);
 
-    setLoading(true);
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setSuccess(true);
-      setMessage(`Invoice ${currentInvoiceIndex + 1} saved successfully!`);
-
-      // Remove the processed invoice from the list
-      const newExtractedData = extractedData.filter(
-        (_, i) => i !== currentInvoiceIndex,
-      );
-      const newUploadedFiles = uploadedFiles.filter(
-        (_, i) => i !== currentInvoiceIndex,
-      );
-
-      setExtractedData(newExtractedData);
-      setUploadedFiles(newUploadedFiles);
-
-      if (newExtractedData.length > 0) {
-        setCurrentInvoiceIndex(Math.max(0, currentInvoiceIndex - 1));
-      } else {
-        setCurrentInvoiceIndex(0);
-      }
-
-      setTimeout(() => {
-        setSuccess(false);
-        setMessage('');
-      }, 3000);
-    } catch (err) {
-      setError('Failed to save invoice');
-    } finally {
-      setLoading(false);
+    if (result.success) {
+      onInvoiceProcessed?.(currentInvoiceIndex);
     }
   };
 
+  // Validation
+  const isFormValid = () => {
+    return (
+      currentFormData.supplier && currentFormData.amount && currentFormData.date
+    );
+  };
+
   return (
-    <div
-      className={`border-0 shadow-lg ${isDarkMode ? 'bg-gray-800/50' : 'bg-white/80'} backdrop-blur-sm rounded-lg overflow-hidden`}
+    <Card
+      className={`shadow-lg ${isDarkMode ? 'bg-gray-800/50' : 'bg-white/80'} backdrop-blur-sm pt-0`}
     >
-      <div
-        className={`p-6 border-b ${isDarkMode ? 'bg-gradient-to-r from-green-900/20 to-blue-900/20 border-gray-600' : 'bg-gradient-to-r from-green-50 to-blue-50 border-gray-200'}`}
+      {/* Header with Navigation */}
+      <CardHeader
+        className={`${isDarkMode ? 'bg-gradient-to-r from-green-900/20 to-blue-900/20' : 'bg-gradient-to-r from-green-50 to-blue-50'} py-6`}
       >
         <div className="flex items-center justify-between">
           <div>
-            <h3
-              className={`flex items-center gap-2 text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-            >
+            <CardTitle className="flex items-center gap-2">
               <Eye className="w-5 h-5 text-green-600" />
               Extracted Data
-            </h3>
+            </CardTitle>
             <p
-              className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}
+              className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
             >
               Review and modify the extracted information if necessary
             </p>
@@ -169,36 +107,29 @@ const ExtractedDataForm = ({
                 {currentInvoiceIndex + 1} of {extractedData.length}
               </span>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() =>
-                    setCurrentInvoiceIndex(Math.max(0, currentInvoiceIndex - 1))
-                  }
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrevious}
                   disabled={currentInvoiceIndex === 0}
-                  className={`p-2 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'}`}
                 >
                   <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() =>
-                    setCurrentInvoiceIndex(
-                      Math.min(
-                        extractedData.length - 1,
-                        currentInvoiceIndex + 1,
-                      ),
-                    )
-                  }
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNext}
                   disabled={currentInvoiceIndex === extractedData.length - 1}
-                  className={`p-2 rounded-lg border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-300 hover:bg-gray-50'}`}
                 >
                   <ChevronRight className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
             </div>
           )}
         </div>
-      </div>
+      </CardHeader>
 
-      <div className="p-6 space-y-6">
+      <CardContent className="p-6 space-y-6">
         {/* File Info */}
         <div
           className={`${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'} border rounded-lg p-3`}
@@ -232,288 +163,117 @@ const ExtractedDataForm = ({
           </div>
         )}
 
-        {/* Form Fields */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label
-              className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-            >
-              <Building className="w-4 h-4" />
-              Supplier *
-            </label>
-            <input
-              type="text"
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Basic Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FormField
+              label="Supplier"
               value={currentFormData.supplier || ''}
-              onChange={(e) => updateFormData('supplier', e.target.value)}
-              className={`w-full h-11 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+              onChange={handleFieldChange('supplier')}
+              placeholder="Enter supplier name"
+              required
+              icon={Building}
             />
-          </div>
 
-          <div className="space-y-2">
-            <label
-              className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-            >
-              <Hash className="w-4 h-4" />
-              Invoice Number
-            </label>
-            <input
-              type="text"
+            <FormField
+              label="Invoice Number"
               value={currentFormData.invoice_number || ''}
-              onChange={(e) => updateFormData('invoice_number', e.target.value)}
-              className={`w-full h-11 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+              onChange={handleFieldChange('invoice_number')}
+              placeholder="Enter invoice number"
+              icon={Hash}
             />
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-          <div className="space-y-2">
-            <label
-              className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-            >
-              <DollarSign className="w-4 h-4" />
-              Amount *
-            </label>
-            <input
+          {/* Financial Information */}
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+            <FormField
               type="number"
-              step="0.01"
+              label="Amount"
               value={currentFormData.amount || ''}
-              onChange={(e) => updateFormData('amount', e.target.value)}
-              className={`w-full h-11 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+              onChange={handleFieldChange('amount')}
+              placeholder="0.00"
+              step="0.01"
+              required
+              icon={DollarSign}
             />
-          </div>
 
-          <div className="space-y-2">
-            <label
-              className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-            >
-              Currency
-            </label>
-            <select
+            <FormField
+              type="select"
+              label="Currency"
               value={currentFormData.currency || 'EUR'}
-              onChange={(e) => updateFormData('currency', e.target.value)}
-              className={`w-full h-11 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-            >
-              {currencies.map((currency) => (
-                <option key={currency} value={currency}>
-                  {currency}
-                </option>
-              ))}
-            </select>
-          </div>
+              onChange={handleFieldChange('currency')}
+              options={currencies}
+              placeholder="Select currency"
+              icon={CircleDollarSign}
+            />
 
-          <div className="space-y-2">
-            <label
-              className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-            >
-              <CalendarDays className="w-4 h-4" />
-              Date *
-            </label>
-            <input
+            <FormField
               type="date"
+              label="Date"
               value={currentFormData.date || ''}
-              onChange={(e) => updateFormData('date', e.target.value)}
-              className={`w-full h-11 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+              onChange={handleFieldChange('date')}
             />
-          </div>
 
-          <div className="space-y-2">
-            <label
-              className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-            >
-              <CalendarDays className="w-4 h-4" />
-              Due Date
-            </label>
-            <input
+            <FormField
               type="date"
+              label="Due Date"
               value={currentFormData.due_date || ''}
-              onChange={(e) => updateFormData('due_date', e.target.value)}
-              className={`w-full h-11 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+              onChange={handleFieldChange('due_date')}
+            />
+
+            <FormField
+              type="select"
+              label="Category"
+              value={currentFormData.category || ''}
+              onChange={handleFieldChange('category')}
+              options={categories}
+              placeholder="Select category"
+              icon={Package}
+              required
             />
           </div>
 
-          <div className="space-y-2">
-            <label
-              className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-            >
-              <Package className="w-4 h-4" />
-              Category
-            </label>
-            <select
-              value={currentFormData.category || ''}
-              onChange={(e) => updateFormData('category', e.target.value)}
-              className={`w-full h-11 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-            >
-              <option value="">Select category</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+          {/* Invoice Items */}
+          {currentFormData.items && (
+            <InvoiceItems
+              items={currentFormData.items}
+              currency={currentFormData.currency || 'EUR'}
+              onItemsChange={handleItemsChange}
+            />
+          )}
 
-        {/* Items Section */}
-        {currentFormData.items && currentFormData.items.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3
-                className={`text-lg font-semibold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-              >
-                <Package className="w-5 h-5" />
-                Invoice Items
-              </h3>
-              <button
-                onClick={addItem}
-                className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Item
-              </button>
-            </div>
-            <div className="space-y-4">
-              {currentFormData.items.map((item, index) => (
-                <div
-                  key={index}
-                  className={`border-l-4 border-l-green-500 rounded-lg border p-4 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-                    <div className="md:col-span-2">
-                      <label
-                        className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-                      >
-                        Item Name
-                      </label>
-                      <input
-                        type="text"
-                        value={item.name || ''}
-                        onChange={(e) =>
-                          updateItem(index, 'name', e.target.value)
-                        }
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label
-                        className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-                      >
-                        Description
-                      </label>
-                      <input
-                        type="text"
-                        value={item.description || ''}
-                        onChange={(e) =>
-                          updateItem(index, 'description', e.target.value)
-                        }
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-                      >
-                        Quantity
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={item.quantity || 1}
-                        onChange={(e) =>
-                          updateItem(index, 'quantity', e.target.value)
-                        }
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
-                      >
-                        Unit Price
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={item.unit_price || ''}
-                        onChange={(e) =>
-                          updateItem(index, 'unit_price', e.target.value)
-                        }
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between mt-4">
-                    <div
-                      className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
-                    >
-                      Total:{' '}
-                      {(
-                        (parseFloat(item.quantity) || 0) *
-                        (parseFloat(item.unit_price) || 0)
-                      ).toFixed(2)}{' '}
-                      {currentFormData.currency}
-                    </div>
-                    <button
-                      onClick={() => removeItem(index)}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          {/* Tags */}
+          {currentFormData.tags && (
+            <InvoiceTags
+              tags={currentFormData.tags}
+              onTagsChange={handleTagsChange}
+            />
+          )}
 
-        {/* Tags Section */}
-        {currentFormData.tags && currentFormData.tags.length > 0 && (
-          <div className="space-y-4">
-            <label
-              className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+          {/* Alerts */}
+          {success && <Alert type="success" message={message} />}
+          {error && <Alert type="error" message={error} />}
+
+          {/* Submit Button */}
+          <div className="flex justify-end pt-4 border-t">
+            <Button
+              type="submit"
+              disabled={loading || !isFormValid()}
+              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
             >
-              <Tag className="w-4 h-4" />
-              Extracted Tags
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {currentFormData.tags.map((tag, index) => (
-                <span
-                  key={index}
-                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-800'}`}
-                >
-                  {tag}
-                  <button
-                    onClick={() => removeTag(tag)}
-                    className={`ml-1 rounded-full p-0.5 ${isDarkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'}`}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
+              {loading ? (
+                <LoadingSpinner size="sm" className="mr-2" />
+              ) : (
+                <Save className="w-5 h-5 mr-2" />
+              )}
+              Save Invoice{' '}
+              {extractedData.length > 1
+                ? `(${currentInvoiceIndex + 1}/${extractedData.length})`
+                : ''}
+            </Button>
           </div>
-        )}
-
-        {/* Submit Button */}
-        <div className="flex justify-end pt-4">
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-            ) : (
-              <Save className="w-5 h-5 mr-2" />
-            )}
-            Save Invoice{' '}
-            {extractedData.length > 1
-              ? `(${currentInvoiceIndex + 1}/${extractedData.length})`
-              : ''}
-          </button>
-        </div>
-      </div>
-    </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 };
-
-export default ExtractedDataForm;

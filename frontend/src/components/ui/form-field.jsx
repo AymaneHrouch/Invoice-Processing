@@ -1,4 +1,3 @@
-import React from 'react';
 import { Label } from './label';
 import { Input } from './input';
 import {
@@ -8,6 +7,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from './select';
+import { Popover, PopoverContent, PopoverTrigger } from './popover';
+import { CalendarIcon } from 'lucide-react';
+import { Button } from './button';
+import { Calendar } from './calendar';
+import { useState } from 'react';
+import { format } from 'date-fns';
 
 export const FormField = ({
   type = 'text',
@@ -21,63 +26,101 @@ export const FormField = ({
   min,
   max,
   step,
-  className = '',
+  className = 'w-full',
+  icon: Icon,
   ...props
 }) => {
+  const [date, setDate] = useState(value ? new Date(value) : null);
+
   const renderInput = () => {
     switch (type) {
       case 'select':
         return (
-          <Select value={value} onValueChange={onChange}>
-            <SelectTrigger className={className}>
-              <SelectValue placeholder={placeholder} />
-            </SelectTrigger>
-            <SelectContent>
-              {options.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="relative">
+            {Icon && (
+              <Icon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+            )}
+            <Select value={value} onValueChange={onChange}>
+              <SelectTrigger className={`${className} ${Icon ? 'pl-10' : ''}`}>
+                <SelectValue placeholder={placeholder} />
+              </SelectTrigger>
+              <SelectContent>
+                {options.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         );
 
       case 'number':
         return (
-          <Input
-            type="number"
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            min={min}
-            max={max}
-            step={step}
-            className={className}
-            {...props}
-          />
+          <div className="relative">
+            {Icon && (
+              <Icon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+            )}
+            <Input
+              type="number"
+              value={value}
+              onChange={onChange}
+              placeholder={placeholder}
+              min={min}
+              max={max}
+              step={step}
+              className={`${className} ${Icon ? 'pl-10' : ''}`}
+              {...props}
+            />
+          </div>
         );
 
       case 'date':
         return (
-          <Input
-            type="date"
-            value={value || ''}
-            onChange={onChange}
-            className={className}
-            {...props}
-          />
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={`w-full justify-start text-left font-normal ${!date ? 'text-muted-foreground' : ''} ${Icon ? 'pl-10' : ''}`}
+              >
+                <CalendarIcon className={`h-4 w-4 ${Icon ? 'ml-2' : 'mr-2'}`} />
+                {date ? format(date, 'PPP') : placeholder || 'Pick a date'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-auto p-0 overflow-hidden"
+              align="start"
+              side="bottom"
+              sideOffset={4}
+            >
+              <Calendar
+                mode="single"
+                selected={date}
+                onSelect={(selectedDate) => {
+                  setDate(selectedDate);
+                  onChange?.(selectedDate);
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
         );
 
       default:
         return (
-          <Input
-            type={type}
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            className={className}
-            {...props}
-          />
+          <div className="relative">
+            {Icon && (
+              <Icon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+            )}
+            <Input
+              type={type}
+              value={value}
+              onChange={onChange}
+              placeholder={placeholder}
+              className={`${className} ${Icon ? 'pl-10' : ''}`}
+              {...props}
+            />
+          </div>
         );
     }
   };

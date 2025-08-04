@@ -1,37 +1,75 @@
 import { useState } from 'react';
-import UploadCard from './UploadCard';
-import ExtractedDataForm from './ExtractedDataForm';
+import { useFileUpload, useInvoiceData } from '@/hooks';
+import { UploadCard } from './UploadCard';
+import { ExtractedDataForm } from './ExtractedDataForm';
 
 const AutoInvoice = () => {
-  // Mock constants
-  const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [extractedData, setExtractedData] = useState([]);
-  const [currentInvoiceIndex, setCurrentInvoiceIndex] = useState(0);
+  const {
+    uploadedFiles,
+    isProcessing,
+    error: uploadError,
+    uploadFiles,
+    removeFile,
+  } = useFileUpload();
+
+  const {
+    extractedData,
+    setExtractedData,
+    currentInvoiceIndex,
+    setCurrentInvoiceIndex,
+    updateFormData,
+    removeInvoice,
+  } = useInvoiceData();
+
+  const [success, setSuccess] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleFilesUpload = async (files) => {
+    const result = await uploadFiles(files);
+    if (result.success) {
+      setExtractedData(result.data);
+      setCurrentInvoiceIndex(0);
+      setSuccess(true);
+      setMessage(
+        `Successfully processed ${files.length} file${files.length > 1 ? 's' : ''}`,
+      );
+      setTimeout(() => {
+        setSuccess(false);
+        setMessage('');
+      }, 3000);
+    }
+  };
+
+  const handleInvoiceProcessed = (invoiceIndex) => {
+    removeInvoice(invoiceIndex);
+    setSuccess(true);
+    setMessage(`Invoice ${invoiceIndex + 1} processed successfully!`);
+    setTimeout(() => {
+      setSuccess(false);
+      setMessage('');
+    }, 3000);
+  };
 
   return (
     <div data-tab="file" className="space-y-6">
-      {/* Upload Card */}
       <UploadCard
         uploadedFiles={uploadedFiles}
-        setUploadedFiles={setUploadedFiles}
         isProcessing={isProcessing}
-        setIsProcessing={setIsProcessing}
-        extractedData={extractedData}
-        setExtractedData={setExtractedData}
-        currentInvoiceIndex={currentInvoiceIndex}
-        setCurrentInvoiceIndex={setCurrentInvoiceIndex}
+        onFilesUpload={handleFilesUpload}
+        onRemoveFile={removeFile}
+        error={uploadError}
+        success={success}
+        message={message}
       />
 
-      {/* Extracted Data Form with Carousel */}
       {extractedData.length > 0 && !isProcessing && (
         <ExtractedDataForm
           uploadedFiles={uploadedFiles}
-          setUploadedFiles={setUploadedFiles}
           extractedData={extractedData}
-          setExtractedData={setExtractedData}
           currentInvoiceIndex={currentInvoiceIndex}
           setCurrentInvoiceIndex={setCurrentInvoiceIndex}
+          updateFormData={updateFormData}
+          onInvoiceProcessed={handleInvoiceProcessed}
         />
       )}
     </div>

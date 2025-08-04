@@ -1,13 +1,28 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Upload, FileText, Edit, Sparkles } from 'lucide-react';
+import Cookies from 'js-cookie';
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ManualInvoice, AutoInvoice } from '@/components';
 import { useTheme } from '@/contexts';
 
+const TAB_COOKIE_KEY = 'lastInvoiceTab';
+
 const InvoiceAddPage = () => {
   const { isDarkMode } = useTheme();
   const [activeTab, setActiveTab] = useState('manual');
+
+  useEffect(() => {
+    const savedTab = Cookies.get(TAB_COOKIE_KEY);
+    if (savedTab === 'manual' || savedTab === 'file') {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    Cookies.set(TAB_COOKIE_KEY, tab, { expires: 7 });
+  };
 
   return (
     <main
@@ -40,7 +55,11 @@ const InvoiceAddPage = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="w-full"
+      >
         <TabsList
           className={`grid w-full grid-cols-2 mb-8 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} p-1 h-auto`}
         >
