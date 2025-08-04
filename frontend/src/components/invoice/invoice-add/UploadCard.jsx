@@ -1,8 +1,7 @@
-import { generateMockData } from '@/constants';
 import { useTheme } from '@/contexts';
 import { Check, FileText, Sparkles, Upload, X } from 'lucide-react';
 import { useState, useRef } from 'react';
-
+import { uploadFiles } from '@/api';
 const UploadCard = ({
   uploadedFiles,
   setUploadedFiles,
@@ -88,14 +87,12 @@ const UploadCard = ({
       setCurrentInvoiceIndex(0);
 
       try {
-        // Simulate processing delay
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-
-        // Generate mock data for each file
-        const mockExtractedData = validFiles.map((file) =>
-          generateMockData(file.name),
-        );
-        setExtractedData(mockExtractedData);
+        const formData = new FormData();
+        validFiles.forEach((file) => {
+          formData.append('files', file);
+        });
+        const extractedData = await uploadFiles(formData);
+        setExtractedData(extractedData);
       } catch (err) {
         setError(err.message || 'Error processing files.');
       } finally {

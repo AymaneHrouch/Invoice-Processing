@@ -3,6 +3,10 @@ fastapi==0.115.12
 uvicorn==0.34.3
 python-dotenv>=1.0.0
 pydantic>=2.0.0
+python-multipart
+boto3
+google-cloud-documentai
+azure-ai-documentintelligence==1.0.0b4
 
 # Database
 pymongo>=4.0.0

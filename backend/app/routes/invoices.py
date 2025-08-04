@@ -4,14 +4,15 @@ Invoice REST API routes using PyMongo
 import logging
 from typing import List, Optional, Literal
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Query, Path, Body, Response
+from fastapi import APIRouter, HTTPException, Query, Path, Body, Response, UploadFile, File
 
 from app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate, InvoiceResponse
 from app.crud.invoice import InvoiceCRUD
+from app.services.invoices import extract_invoice_data
 
 # Set up logger
 logger = logging.getLogger(__name__)
-
+logging.basicConfig(level=logging.DEBUG)
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
 
@@ -39,6 +40,32 @@ def create_invoice(invoice_data: InvoiceCreate):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/upload")
+async def handle_upload_files(files: List[UploadFile] = File(...)):
+
+    extracted_data = []
+
+    for file in files:
+        file_bytes = await file.read()
+        try:
+
+            invoice_data = extract_invoice_data(file_bytes)
+
+            extracted_data.append({
+                "fileName": file.filename,
+                **invoice_data,
+            })
+
+        except Exception as e:
+            extracted_data.append({
+                "fileName": file.filename,
+                "error": str(e)
+            })
+
+    return {
+        "message": "Files uploaded successfully",
+        "extracted_data": extracted_data
+    }
 # ============= READ ENDPOINTS =============
 
 @router.get("/", response_model=list[Invoice],
@@ -91,7 +118,7 @@ def get_invoices(
 
 @router.get("/{invoice_id}", response_model=InvoiceResponse, summary="Get invoice by ID")
 def get_invoice_by_id(
-    invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice")
+        invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice")
 ):
     """
     Get a specific invoice by its MongoDB ObjectId
@@ -111,7 +138,7 @@ def get_invoice_by_id(
 
 @router.get("/by-number/{invoice_number}", response_model=InvoiceResponse, summary="Get invoice by invoice number")
 def get_invoice_by_number(
-    invoice_number: str = Path(..., description="Unique invoice number")
+        invoice_number: str = Path(..., description="Unique invoice number")
 ):
     """
     Get a specific invoice by its invoice number
@@ -129,7 +156,7 @@ def get_invoice_by_number(
 
 @router.get("/vendor/{vendor_name}", response_model=List[InvoiceResponse], summary="Get invoices by vendor name")
 def get_invoices_by_vendor_name(
-    vendor_name: str = Path(..., description="Name of the vendor")
+        vendor_name: str = Path(..., description="Name of the vendor")
 ):
     """
     Get all invoices from a specific vendor
@@ -147,7 +174,7 @@ def get_invoices_by_vendor_name(
 
 @router.post("/search/tags", response_model=List[InvoiceResponse], summary="Get invoices by tags")
 def get_invoices_by_tags(
-    tags: List[str] = Body(..., description="List of tags to search for")
+        tags: List[str] = Body(..., description="List of tags to search for")
 ):
     """
     Get invoices that contain any of the specified tags
@@ -159,7 +186,7 @@ def get_invoices_by_tags(
     try:
         if not tags:
             raise HTTPException(status_code=400, detail="Tags list cannot be empty")
-        
+
         invoices = InvoiceCRUD.get_invoices_by_tags(tags)
         return invoices
     except Exception as e:
@@ -168,7 +195,7 @@ def get_invoices_by_tags(
 
 @router.get("/tags/{tag}", response_model=List[InvoiceResponse], summary="Get invoices by single tag")
 def get_invoices_by_single_tag(
-    tag: str = Path(..., description="Tag to search for")
+        tag: str = Path(..., description="Tag to search for")
 ):
     """
     Get invoices that contain a specific tag
@@ -186,18 +213,18 @@ def get_invoices_by_single_tag(
 
 @router.put("/{invoice_id}", response_model=InvoiceResponse, summary="Update invoice by ID")
 def update_invoice_by_id(
-    invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
-    update_data: InvoiceUpdate = Body(..., description="Fields to update")
+        invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
+        update_data: InvoiceUpdate = Body(..., description="Fields to update")
 ):
     try:
         logger.debug(f"Updating invoice with ID: {invoice_id}")
         logger.debug(f"Update data: {update_data}")
-        
+
         invoice = InvoiceCRUD.update_invoice(invoice_id, update_data)
         if not invoice:
             logger.debug(f"Invoice not found for ID: {invoice_id}")
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
-        
+
         logger.debug(f"Invoice updated successfully: {invoice}")
         return invoice
     except ValueError as e:
@@ -212,8 +239,8 @@ def update_invoice_by_id(
 
 @router.put("/by-number/{invoice_number}", response_model=InvoiceResponse, summary="Update invoice by invoice number")
 def update_invoice_by_number(
-    invoice_number: str = Path(..., description="Unique invoice number"),
-    update_data: InvoiceUpdate = Body(..., description="Fields to update")
+        invoice_number: str = Path(..., description="Unique invoice number"),
+        update_data: InvoiceUpdate = Body(..., description="Fields to update")
 ):
     """
     Update an invoice by its invoice number
@@ -226,7 +253,7 @@ def update_invoice_by_number(
         existing_invoice = InvoiceCRUD.get_invoice_by_number(invoice_number)
         if not existing_invoice:
             raise HTTPException(status_code=404, detail=f"Invoice {invoice_number} not found")
-        
+
         # Update using the ID
         invoice = InvoiceCRUD.update_invoice(str(existing_invoice.id), update_data)
         return invoice
@@ -236,8 +263,8 @@ def update_invoice_by_number(
 
 @router.patch("/{invoice_id}/status", summary="Update invoice status by ID")
 def update_invoice_status_by_id(
-    invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
-    status: str = Body(..., description="New status value", embed=True)
+        invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
+        status: str = Body(..., description="New status value", embed=True)
 ):
     """
     Update only the status of an invoice by its ID
@@ -265,7 +292,7 @@ def update_invoice_status_by_id(
 
 @router.delete("/{invoice_id}", summary="Delete invoice by ID")
 def delete_invoice_by_id(
-    invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice")
+        invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice")
 ):
     """
     Delete an invoice by its MongoDB ObjectId
@@ -290,8 +317,8 @@ def delete_invoice_by_id(
 
 @router.post("/search/date-range", response_model=List[InvoiceResponse], summary="Search invoices by date range")
 def search_invoices_by_date_range(
-    start_date: datetime = Body(..., description="Start date for the search"),
-    end_date: datetime = Body(..., description="End date for the search")
+        start_date: datetime = Body(..., description="Start date for the search"),
+        end_date: datetime = Body(..., description="End date for the search")
 ):
     """
     Search invoices within a specific date range
@@ -302,7 +329,7 @@ def search_invoices_by_date_range(
     try:
         if start_date > end_date:
             raise HTTPException(status_code=400, detail="Start date must be before end date")
-        
+
         invoices = InvoiceCRUD.get_invoices_by_date_range(start_date, end_date)
         return invoices
     except Exception as e:
@@ -311,7 +338,7 @@ def search_invoices_by_date_range(
 
 @router.get("/search/text/{search_term}", response_model=List[InvoiceResponse], summary="Full-text search")
 def search_invoices_by_text(
-    search_term: str = Path(..., description="Search term to look for across multiple fields")
+        search_term: str = Path(..., description="Search term to look for across multiple fields")
 ):
     """
     Full-text search across invoice fields
@@ -329,7 +356,7 @@ def search_invoices_by_text(
 
 @router.get("/vendor/{vendor_name}/total", summary="Get total amount for vendor")
 def get_vendor_total_amount(
-    vendor_name: str = Path(..., description="Name of the vendor")
+        vendor_name: str = Path(..., description="Name of the vendor")
 ):
     """
     Get the total amount of all invoices for a specific vendor

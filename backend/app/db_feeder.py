@@ -59,8 +59,8 @@ def generate_invoice() -> dict:
 
     invoice = {
         "invoice_number": f"INV-{fake.unique.random_int(1000, 9999)}",
-        "invoice_date": now - datetime.timedelta(days=random.randint(0, 60)),
-        "invoice_due_date": (now - datetime.timedelta(days=random.randint(0, 60))) + datetime.timedelta(days=random.randint(5, 30)),
+        "invoice_date": now - datetime.timedelta(days=random.randint(0, 365)),
+        "invoice_due_date": (now - datetime.timedelta(days=random.randint(0, 356))) + datetime.timedelta(days=random.randint(5, 30)),
         "vendor_name": fake.company(),
         "items": items,
         "total_amount": round(total, 2),  # float
@@ -79,4 +79,4 @@ async def seed_invoices(n: int = 100):
     result = collection.insert_many(invoices)
     print(f"Inserted {len(result.inserted_ids)} invoices.")
 if __name__ == "__main__":
-    asyncio.run(seed_invoices(100))
+    asyncio.run(seed_invoices(1000))
