@@ -129,17 +129,22 @@ const Sidebar = () => {
       >
         {!isCollapsed && (
           <div
-            className="flex items-center gap-3 cursor-pointer"
-            onClick={() => navigate('/')}
+            className="flex items-center gap-3 cursor-pointer h-16 overflow-hidden"
+            onClick={() => navigate('/dashboard')}
           >
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+            <img
+              alt="Logo"
+              src={isDarkMode ? '/invoice-logo-dark.png' : '/invoice-logo.png'}
+              className="w-full object-cover object-center"
+            />
+            {/* <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
               <FileText className="w-5 h-5 text-white" />
             </div>
             <span
               className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
             >
               InvoiceFlow
-            </span>
+            </span> */}
           </div>
         )}
 
