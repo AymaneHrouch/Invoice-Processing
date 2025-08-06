@@ -1,5 +1,7 @@
 import { categories, currencies } from '@/constants';
 import { useTheme } from '@/contexts';
+import { useAddInvoice } from '@/hooks/useAddInvoice';
+import { InvoiceTags } from '@/components';
 import {
   X,
   FileText,
@@ -19,78 +21,117 @@ import {
 import { useState } from 'react';
 
 const ExtractedDataForm = ({
-  uploadedFiles,
-  setUploadedFiles,
   extractedData,
-  setExtractedData,
+  updateExtractedData,
+  removeProcessedInvoice,
   currentInvoiceIndex,
   setCurrentInvoiceIndex,
 }) => {
   const { isDarkMode } = useTheme();
+  const { addInvoice, loading, error, success, message, reset } =
+    useAddInvoice();
 
-  const [loading, setLoading] = useState(false);
+  // Refined validation function
+  const validateForm = (formData) => {
+    const newErrors = [];
 
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-  const [message, setMessage] = useState('');
+    // Required fields validation
+    if (!formData.supplier?.trim()) {
+      newErrors.push('Supplier name is required');
+    }
+    if (!formData.invoice_number?.trim()) {
+      newErrors.push('Invoice number is required');
+    }
+    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      newErrors.push('Amount must be greater than 0');
+    }
+    if (!formData.category?.trim()) {
+      newErrors.push('Category is required');
+    }
+    if (!formData.date) {
+      newErrors.push('Invoice date is required');
+    }
 
-  const currentFormData = extractedData[currentInvoiceIndex] || {};
+    // Items validation
+    if (!formData.items || formData.items.length === 0) {
+      newErrors.push('At least one item is required');
+    } else {
+      formData.items.forEach((item, index) => {
+        if (!item.name?.trim()) {
+          newErrors.push(`Item ${index + 1}: Name is required`);
+        }
+        if (!item.description?.trim()) {
+          newErrors.push(`Item ${index + 1}: Description is required`);
+        }
+        if (!item.quantity || parseInt(item.quantity) <= 0) {
+          newErrors.push(`Item ${index + 1}: Quantity must be greater than 0`);
+        }
+        if (item.unit_price === undefined || parseFloat(item.unit_price) < 0) {
+          newErrors.push(`Item ${index + 1}: Unit price must be 0 or greater`);
+        }
+      });
+    }
+
+    return newErrors;
+  };
+
+  const currentFormData = {
+    ...extractedData[currentInvoiceIndex],
+    tags: extractedData[currentInvoiceIndex]?.tags || [],
+  } || { tags: [] };
 
   const updateFormData = (field, value) => {
     if (extractedData.length > 0) {
-      const newData = [...extractedData];
-      newData[currentInvoiceIndex] = {
-        ...newData[currentInvoiceIndex],
-        [field]: value,
-      };
-      setExtractedData(newData);
+      const newData = { ...extractedData[currentInvoiceIndex], [field]: value };
+      updateExtractedData(currentInvoiceIndex, newData);
     }
   };
 
   const updateItem = (itemIndex, field, value) => {
     if (extractedData.length > 0) {
-      const newData = [...extractedData];
-      const newItems = [...newData[currentInvoiceIndex].items];
+      const currentData = extractedData[currentInvoiceIndex];
+      const newItems = [...currentData.items];
       newItems[itemIndex] = {
         ...newItems[itemIndex],
         [field]: value,
       };
-      newData[currentInvoiceIndex].items = newItems;
-      setExtractedData(newData);
+      const newData = { ...currentData, items: newItems };
+      updateExtractedData(currentInvoiceIndex, newData);
     }
   };
 
   const addItem = () => {
     if (extractedData.length > 0) {
-      const newData = [...extractedData];
-      newData[currentInvoiceIndex].items.push({
-        name: '',
-        description: '',
-        quantity: 1,
-        unit_price: '0.00',
-        total: '0.00',
-      });
-      setExtractedData(newData);
+      const currentData = extractedData[currentInvoiceIndex];
+      const newItems = [
+        ...currentData.items,
+        {
+          name: '',
+          description: '',
+          quantity: 1,
+          unit_price: '0.00',
+          total: '0.00',
+        },
+      ];
+      const newData = { ...currentData, items: newItems };
+      updateExtractedData(currentInvoiceIndex, newData);
     }
   };
 
   const removeItem = (itemIndex) => {
     if (extractedData.length > 0) {
-      const newData = [...extractedData];
-      newData[currentInvoiceIndex].items = newData[
-        currentInvoiceIndex
-      ].items.filter((_, i) => i !== itemIndex);
-      setExtractedData(newData);
+      const currentData = extractedData[currentInvoiceIndex];
+      const newItems = currentData.items.filter((_, i) => i !== itemIndex);
+      const newData = { ...currentData, items: newItems };
+      updateExtractedData(currentInvoiceIndex, newData);
     }
   };
 
-  const removeTag = (tagToRemove) => {
+  const handleTagsChange = (newTags) => {
     if (extractedData.length > 0) {
-      const newData = [...extractedData];
-      newData[currentInvoiceIndex].tags = newData[
-        currentInvoiceIndex
-      ].tags.filter((tag) => tag !== tagToRemove);
-      setExtractedData(newData);
+      const currentData = extractedData[currentInvoiceIndex];
+      const newData = { ...currentData, tags: newTags || [] };
+      updateExtractedData(currentInvoiceIndex, newData);
     }
   };
 
@@ -98,43 +139,42 @@ const ExtractedDataForm = ({
     e.preventDefault();
     const currentData = extractedData[currentInvoiceIndex];
 
-    if (!currentData.supplier || !currentData.amount || !currentData.date) {
-      alert('Please fill in the required fields: supplier, amount, date.');
+    // Validate form data
+    const validationErrors = validateForm(currentData);
+
+    if (validationErrors.length > 0) {
+      alert(validationErrors.join('\n'));
       return;
     }
 
-    setLoading(true);
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setSuccess(true);
-      setMessage(`Invoice ${currentInvoiceIndex + 1} saved successfully!`);
+    // Prepare data for API
+    const invoiceData = {
+      invoice_number: currentData.invoice_number?.trim(),
+      invoice_date: currentData.date,
+      invoice_due_date: currentData.due_date,
+      vendor_name: currentData.supplier?.trim(),
+      total_amount: parseFloat(currentData.amount),
+      currency: currentData.currency || 'MAD',
+      items:
+        currentData.items?.map((item) => ({
+          name: item.name?.trim(),
+          description: item.description?.trim(),
+          quantity: parseInt(item.quantity),
+          unit_price: parseFloat(item.unit_price),
+          total: parseFloat(item.total || item.quantity * item.unit_price),
+        })) || [],
+      category: currentData.category?.trim(),
+      tags: currentData.tags || [],
+      source_type: 'pdf',
+      status: 'pending',
+    };
 
-      // Remove the processed invoice from the list
-      const newExtractedData = extractedData.filter(
-        (_, i) => i !== currentInvoiceIndex,
-      );
-      const newUploadedFiles = uploadedFiles.filter(
-        (_, i) => i !== currentInvoiceIndex,
-      );
+    const result = await addInvoice(invoiceData);
 
-      setExtractedData(newExtractedData);
-      setUploadedFiles(newUploadedFiles);
-
-      if (newExtractedData.length > 0) {
-        setCurrentInvoiceIndex(Math.max(0, currentInvoiceIndex - 1));
-      } else {
-        setCurrentInvoiceIndex(0);
-      }
-
-      setTimeout(() => {
-        setSuccess(false);
-        setMessage('');
-      }, 3000);
-    } catch (err) {
-      setError('Failed to save invoice');
-    } finally {
-      setLoading(false);
+    if (result) {
+      // Remove the processed invoice on success
+      removeProcessedInvoice(currentInvoiceIndex);
+      reset(); // Reset the hook state
     }
   };
 
@@ -466,29 +506,35 @@ const ExtractedDataForm = ({
         )}
 
         {/* Tags Section */}
-        {currentFormData.tags && currentFormData.tags.length > 0 && (
-          <div className="space-y-4">
-            <label
-              className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+        <div className="space-y-4">
+          <InvoiceTags
+            tags={currentFormData.tags || []}
+            onTagsChange={handleTagsChange}
+          />
+        </div>
+
+        {/* Success/Error Messages */}
+        {success && message && (
+          <div
+            className={`${isDarkMode ? 'bg-green-900/20 border-green-700' : 'bg-green-50 border-green-200'} border rounded-lg p-3`}
+          >
+            <div
+              className={`flex items-center gap-2 ${isDarkMode ? 'text-green-300' : 'text-green-800'}`}
             >
-              <Tag className="w-4 h-4" />
-              Extracted Tags
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {currentFormData.tags.map((tag, index) => (
-                <span
-                  key={index}
-                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-800'}`}
-                >
-                  {tag}
-                  <button
-                    onClick={() => removeTag(tag)}
-                    className={`ml-1 rounded-full p-0.5 ${isDarkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'}`}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              ))}
+              <Save className="w-4 h-4 text-green-600" />
+              <span>{message}</span>
+            </div>
+          </div>
+        )}
+        {error && (
+          <div
+            className={`${isDarkMode ? 'bg-red-900/20 border-red-700' : 'bg-red-50 border-red-200'} border rounded-lg p-3`}
+          >
+            <div
+              className={`flex items-center gap-2 ${isDarkMode ? 'text-red-300' : 'text-red-800'}`}
+            >
+              <X className="w-4 h-4 text-red-600" />
+              <span>{error}</span>
             </div>
           </div>
         )}
