@@ -3,6 +3,7 @@ export { default as DashboardStatsGrid } from './DashboardStatsGrid';
 export { default as RecentInvoices } from './RecentInvoices';
 export { default as TopVendors } from './TopVendors';
 export { default as TopCategories } from './TopCategories';
+export { default as CategoryInvoicesModal } from './CategoryInvoicesModal';
 export { default as GrowthIndicator } from './GrowthIndicator';
 export { default as StatsCard } from './StatsCard';
 export { default as MonthlyChart } from './MonthlyChart';

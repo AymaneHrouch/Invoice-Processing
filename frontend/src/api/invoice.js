@@ -105,3 +105,31 @@ export const deleteInvoice = async (id) => {
     throw new Error('Error while deleting the invoice.');
   }
 };
+
+// Get top invoices for a specific category
+export const getTopInvoicesByCategory = async (category, limit = 10) => {
+  try {
+    const params = new URLSearchParams({
+      category: category,
+      sort_by: 'total_amount',
+      order: 'desc',
+      per_page: limit.toString(),
+      page: '1',
+    });
+
+    const response = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/invoices/?${params}`,
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const invoicesList = await response.json();
+    return invoicesList;
+  } catch (error) {
+    throw new Error(
+      `Failed to fetch top invoices for category: ${error.message}`,
+    );
+  }
+};
