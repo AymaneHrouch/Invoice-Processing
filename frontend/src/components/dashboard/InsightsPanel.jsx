@@ -116,7 +116,7 @@ const AdvancedInsightsPanel = ({ currency = 'MAD' }) => {
 
   if (loading) {
     return (
-      <div className="h-[600px]">
+      <div className="h-[800px]">
         <Card
           className={`p-6 h-full ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
         >
@@ -136,7 +136,7 @@ const AdvancedInsightsPanel = ({ currency = 'MAD' }) => {
   }
 
   return (
-    <div className="h-[600px]">
+    <div className="h-[800px]">
       <Card
         className={`p-6 h-full flex flex-col ${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
       >

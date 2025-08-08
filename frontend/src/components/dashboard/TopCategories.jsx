@@ -1,11 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
+import PropTypes from 'prop-types';
 import { FiPieChart } from 'react-icons/fi';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTheme } from '@/contexts';
 import { formatCurrency } from '@/constants';
+import CategoryInvoicesModal from './CategoryInvoicesModal';
 
 const TopCategories = ({ categories = [] }) => {
   const { isDarkMode } = useTheme();
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleCategoryClick = (category) => {
+    setSelectedCategory(category);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedCategory(null);
+  };
 
   if (categories.length === 0) return null;
 
@@ -74,6 +88,7 @@ const TopCategories = ({ categories = [] }) => {
           {categories.map((category, index) => (
             <div
               key={category.category}
+              onClick={() => handleCategoryClick(category)}
               className={`group relative p-4 rounded-lg border transition-all duration-200 hover:shadow-md hover:scale-105 cursor-pointer ${
                 isDarkMode
                   ? 'border-slate-600 hover:border-slate-500 hover:bg-slate-700'
@@ -137,9 +152,26 @@ const TopCategories = ({ categories = [] }) => {
             </div>
           ))}
         </div>
+
+        {/* Category Invoices Modal */}
+        <CategoryInvoicesModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          category={selectedCategory}
+        />
       </CardContent>
     </Card>
   );
+};
+
+TopCategories.propTypes = {
+  categories: PropTypes.arrayOf(
+    PropTypes.shape({
+      category: PropTypes.string.isRequired,
+      percentage: PropTypes.number.isRequired,
+      total_amount: PropTypes.number.isRequired,
+    }),
+  ),
 };
 
 export default TopCategories;
