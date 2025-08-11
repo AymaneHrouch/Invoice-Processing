@@ -1,16 +1,33 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Upload, FileText, Edit, Sparkles } from 'lucide-react';
+import Cookies from 'js-cookie';
 
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AutoInvoice, ManualInvoice } from '@/components/invoice';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { ManualInvoice, AutoInvoice } from '@/components';
 import { useTheme } from '@/contexts';
+
+const TAB_COOKIE_KEY = 'lastInvoiceTab';
 
 const InvoiceAddPage = () => {
   const { isDarkMode } = useTheme();
   const [activeTab, setActiveTab] = useState('manual');
-  
+
+  useEffect(() => {
+    const savedTab = Cookies.get(TAB_COOKIE_KEY);
+    if (savedTab === 'manual' || savedTab === 'file') {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    Cookies.set(TAB_COOKIE_KEY, tab, { expires: 7 });
+  };
+
   return (
-    <main className={`min-h-screen w-full ${isDarkMode ? 'dark bg-gray-800' : 'bg-gray-50'} p-6 mx-auto rounded-lg shadow-md`}>
+    <main
+      className={`min-h-screen w-full ${isDarkMode ? 'dark bg-gray-800' : 'bg-gray-50'} p-6 mx-auto rounded-lg shadow-md`}
+    >
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-4">
@@ -23,10 +40,14 @@ const InvoiceAddPage = () => {
             </div>
           </div>
           <div>
-            <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <h1
+              className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+            >
               Add an invoice
             </h1>
-            <p className={`text-lg ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <p
+              className={`text-lg ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+            >
               Manage your invoices with a modern and intuitive interface.
             </p>
           </div>
@@ -34,17 +55,23 @@ const InvoiceAddPage = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className={`grid w-full grid-cols-2 mb-8 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} p-1 h-auto`}>
-          <TabsTrigger 
-            value="manual" 
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="w-full"
+      >
+        <TabsList
+          className={`grid w-full grid-cols-2 mb-8 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'} p-1 h-auto`}
+        >
+          <TabsTrigger
+            value="manual"
             className={`flex items-center gap-2 py-3 px-6 ${isDarkMode ? 'data-[state=active]:bg-gray-700' : 'data-[state=active]:bg-white'} data-[state=active]:shadow-sm`}
           >
             <Edit className="w-4 h-4" />
             Manual addition
           </TabsTrigger>
-          <TabsTrigger 
-            value="file" 
+          <TabsTrigger
+            value="file"
             className={`flex items-center gap-2 py-3 px-6 ${isDarkMode ? 'data-[state=active]:bg-gray-700' : 'data-[state=active]:bg-white'} data-[state=active]:shadow-sm`}
           >
             <Upload className="w-4 h-4" />
@@ -53,10 +80,14 @@ const InvoiceAddPage = () => {
         </TabsList>
 
         {/* Manual Invoice Tab Content */}
-        <ManualInvoice />
-        
+        <TabsContent value="manual">
+          <ManualInvoice />
+        </TabsContent>
+
         {/* Auto Invoice Tab Content */}
-        <AutoInvoice />
+        <TabsContent value="file">
+          <AutoInvoice />
+        </TabsContent>
       </Tabs>
     </main>
   );

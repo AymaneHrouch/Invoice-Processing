@@ -1,6 +1,3 @@
-export {
-  createInvoice,
-  updateInvoice,
-  fetchInvoices,
-  uploadAndExtractText,
-} from './invoice';
+export * from './invoice';
+export * from './fileUpload';
+export * from './dashboard';
