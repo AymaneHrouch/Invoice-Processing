@@ -25,6 +25,7 @@ const UploadCard = ({
   processingProgress,
   setProcessingProgress,
   setCurrentInvoiceIndex,
+  scrollToExtractedData,
 }) => {
   const { isDarkMode } = useTheme();
   const fileInputRef = useRef(null);
@@ -280,6 +281,10 @@ const UploadCard = ({
                         );
                         if (dataIndex !== -1) {
                           setCurrentInvoiceIndex(dataIndex);
+                          // Scroll to extracted data section with a small delay to ensure state is updated
+                          setTimeout(() => {
+                            scrollToExtractedData?.();
+                          }, 100);
                         }
                       }
                     }}
@@ -329,7 +334,6 @@ const UploadCard = ({
                     Error: {fileItem.error}
                   </div>
                 )}
-
               </div>
             ))}
           </div>
@@ -371,7 +375,6 @@ const UploadCard = ({
                   Processing files with AI...
                 </p>
               )}
-
             </div>
           </div>
         )}
@@ -406,4 +409,3 @@ const UploadCard = ({
 };
 
 export default UploadCard;
-

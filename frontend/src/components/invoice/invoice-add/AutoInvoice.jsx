@@ -1,8 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import UploadCard from './UploadCard';
 import ExtractedDataForm from './ExtractedDataForm';
 
 const AutoInvoice = () => {
+  // Ref for scrolling to extracted data section
+  const extractedDataRef = useRef(null);
   // Enhanced state management for files with status tracking
   const [files, setFiles] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -68,6 +70,16 @@ const AutoInvoice = () => {
     [files],
   );
 
+  // Function to scroll to extracted data section
+  const scrollToExtractedData = useCallback(() => {
+    if (extractedDataRef.current) {
+      extractedDataRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }
+  }, []);
+
   const removeFile = useCallback(
     (fileId) => {
       setFiles((prev) => {
@@ -119,17 +131,20 @@ const AutoInvoice = () => {
         setProcessingProgress={setProcessingProgress}
         currentInvoiceIndex={currentInvoiceIndex}
         setCurrentInvoiceIndex={setCurrentInvoiceIndex}
+        scrollToExtractedData={scrollToExtractedData}
       />
 
       {/* Extracted Data Form with Carousel */}
       {extractedData.length > 0 && (
-        <ExtractedDataForm
-          extractedData={extractedData}
-          updateExtractedData={updateExtractedData}
-          removeProcessedInvoice={removeProcessedInvoice}
-          currentInvoiceIndex={currentInvoiceIndex}
-          setCurrentInvoiceIndex={setCurrentInvoiceIndex}
-        />
+        <div ref={extractedDataRef}>
+          <ExtractedDataForm
+            extractedData={extractedData}
+            updateExtractedData={updateExtractedData}
+            removeProcessedInvoice={removeProcessedInvoice}
+            currentInvoiceIndex={currentInvoiceIndex}
+            setCurrentInvoiceIndex={setCurrentInvoiceIndex}
+          />
+        </div>
       )}
     </div>
   );
