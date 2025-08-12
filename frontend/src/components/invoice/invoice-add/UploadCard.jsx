@@ -329,6 +329,7 @@ const UploadCard = ({
                     Error: {fileItem.error}
                   </div>
                 )}
+
               </div>
             ))}
           </div>
@@ -370,10 +371,10 @@ const UploadCard = ({
                   Processing files with AI...
                 </p>
               )}
+
             </div>
           </div>
         )}
-
         {/* Success/Error Messages */}
         {success && (
           <div
@@ -405,3 +406,4 @@ const UploadCard = ({
 };
 
 export default UploadCard;
+

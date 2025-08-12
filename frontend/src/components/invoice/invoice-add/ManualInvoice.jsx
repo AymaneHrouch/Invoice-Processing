@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Save, Building } from 'lucide-react';
+import {
+  Save,
+  Building,
+  Hash,
+  DollarSign,
+  CircleDollarSign,
+  CalendarDays,
+  Package,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -164,9 +172,9 @@ const ManualInvoice = () => {
   return (
     <TabsContent value="manual" className="space-y-6">
       <Card
-        className={`border-0 shadow-lg ${isDarkMode ? 'bg-gray-700/50' : 'bg-white/80'} backdrop-blur-sm`}
+        className={`border-0 shadow-lg ${isDarkMode ? 'bg-gray-700/50' : 'bg-white/80'} backdrop-blur-sm pt-0 overflow-hidden`}
       >
-        <CardHeader className="pb-6">
+        <CardHeader className="py-6 bg-gradient-to-r from-blue-500/30 via-indigo-500/20 to-blue-700/10">
           <CardTitle
             className={`flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
           >
@@ -187,20 +195,20 @@ const ManualInvoice = () => {
               label="Supplier"
               value={formData.vendor_name}
               onChange={(e) => updateField('vendor_name', e.target.value)}
-              placeholder="Supplier name"
-              required
+              placeholder="Enter supplier name"
               error={errors.vendor_name}
-              className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
+              icon={Building}
+              required
             />
             <FormField
               id="invoice_number"
-              label="Number"
+              label="Invoice Number"
               value={formData.invoice_number}
               onChange={(e) => updateField('invoice_number', e.target.value)}
-              placeholder="INV-2024-001"
-              required
+              placeholder="Enter invoice number"
               error={errors.invoice_number}
-              className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
+              icon={Hash}
+              required
             />
           </div>
 
@@ -213,9 +221,9 @@ const ManualInvoice = () => {
               onChange={(e) => updateField('total_amount', e.target.value)}
               placeholder="0.00"
               step="0.01"
-              required
               error={errors.total_amount}
-              className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
+              icon={DollarSign}
+              required
             />
             <FormField
               type="select"
@@ -223,7 +231,8 @@ const ManualInvoice = () => {
               value={formData.currency}
               onChange={(value) => updateField('currency', value)}
               options={currencies}
-              className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
+              placeholder="Select currency"
+              icon={CircleDollarSign}
             />
             <FormField
               id="invoice_date"
@@ -231,7 +240,6 @@ const ManualInvoice = () => {
               label="Date"
               value={formData.invoice_date}
               onChange={(e) => updateField('invoice_date', e.target.value)}
-              className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
             />
             <FormField
               id="invoice_due_date"
@@ -239,7 +247,6 @@ const ManualInvoice = () => {
               label="Due Date"
               value={formData.invoice_due_date}
               onChange={(e) => updateField('invoice_due_date', e.target.value)}
-              className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
             />
             <FormField
               type="select"
@@ -248,9 +255,9 @@ const ManualInvoice = () => {
               onChange={(value) => updateField('category', value)}
               options={categories}
               placeholder="Select a category"
-              required
               error={errors.category}
-              className={`h-11 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white'}`}
+              icon={Package}
+              required
             />
           </div>
 

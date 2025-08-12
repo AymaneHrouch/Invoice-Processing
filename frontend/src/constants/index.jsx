@@ -30,6 +30,16 @@ export const categories = [
   'Others',
 ];
 
+export const InvoiceStatus = {
+  DRAFT: 'Draft',
+  SENT: 'Sent',
+  VIEWED: 'Viewed',
+  PAID: 'Paid',
+  OVERDUE: 'Overdue',
+  CANCELLED: 'Cancelled',
+  COMPLETED: 'Completed',
+};
+
 export const calculateItemTotal = (quantity, unitPrice) => {
   return (quantity * unitPrice).toFixed(2);
 };
@@ -229,3 +239,5 @@ export const generateMockData = (fileName) => {
     fileName: fileName,
   };
 };
+export const SUPPORTED_FILE_TYPES = ['.pdf', '.png', '.jpg', '.jpeg'];
+export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB

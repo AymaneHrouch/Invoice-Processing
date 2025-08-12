@@ -133,6 +133,7 @@ const ExtractedDataForm = ({
       const newData = { ...currentData, tags: newTags || [] };
       updateExtractedData(currentInvoiceIndex, newData);
     }
+
   };
 
   const handleSubmit = async (e) => {
@@ -195,6 +196,7 @@ const ExtractedDataForm = ({
             </h3>
             <p
               className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}
+
             >
               Review and modify the extracted information if necessary
             </p>
@@ -232,6 +234,7 @@ const ExtractedDataForm = ({
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
+
               </div>
             </div>
           )}
