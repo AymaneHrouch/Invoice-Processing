@@ -1,6 +1,6 @@
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, EmailStr, Field
+from app.models.user import UserLogin, UserRegister
 
 from app.utils.auth import create_access_token, verify_password, hash_password, get_current_user
 from app.database import get_database
@@ -11,14 +11,8 @@ user_collection = db["users"]
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
 
-class UserRegister(BaseModel):
-    full_name: str = Field(..., min_length=3, max_length=50)
-    email: EmailStr
-    password: str = Field(..., min_length=8)
+
 
 @router.post("/register")
 async def register(user: UserRegister):

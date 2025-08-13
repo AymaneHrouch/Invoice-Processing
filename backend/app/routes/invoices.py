@@ -5,10 +5,12 @@ import logging
 from typing import List, Optional, Literal
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, Query, Path, Body, Response, UploadFile, File
+from fastapi.params import Depends
 
 from app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate, InvoiceResponse
 from app.crud.invoice import InvoiceCRUD
 from app.services.invoices import extract_invoice_data
+from app.utils.auth import require_admin
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -292,7 +294,8 @@ def update_invoice_status_by_id(
 
 @router.delete("/{invoice_id}", summary="Delete invoice by ID")
 def delete_invoice_by_id(
-        invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice")
+        invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
+        current_user = Depends(require_admin)
 ):
     """
     Delete an invoice by its MongoDB ObjectId

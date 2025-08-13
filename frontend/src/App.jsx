@@ -1,9 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { NavBar, Sidebar } from '@/components';
+import { NavBar, Sidebar, AdminOnly } from '@/components';
 import { InvoiceAddPage, InvoiceListPage, DashboardPage } from '@/pages';
 import { useTheme, useAuth } from '@/contexts';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import UserManagement from './components/admin/UserManagement';
 // Protected route component
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -97,6 +98,16 @@ function App() {
                   to={isAuthenticated ? '/dashboard' : '/login'}
                   replace
                 />
+              }
+            />
+            <Route
+              path="/users"
+              element={
+                <ProtectedRoute>
+                  <AdminOnly>
+                    <UserManagement />
+                  </AdminOnly>
+                </ProtectedRoute>
               }
             />
           </Routes>

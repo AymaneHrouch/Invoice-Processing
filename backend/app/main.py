@@ -12,6 +12,7 @@ from app.routes.health import router as health_router
 from app.routes.invoices import router as invoices_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.auth import router as auth_router
+from app.routes.users import router as users_router
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -63,6 +64,7 @@ app.include_router(health_router)
 app.include_router(invoices_router)
 app.include_router(dashboard_router)
 app.include_router(auth_router)
+app.include_router(users_router)
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
