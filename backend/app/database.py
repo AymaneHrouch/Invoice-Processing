@@ -7,13 +7,15 @@ from dotenv import load_dotenv
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+logging.getLogger("pymongo").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 load_dotenv()
 
 MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = os.getenv("DB_NAME", "invoice_processing")
 
 # Set up logger
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 # Global client and database instances
 client = None
@@ -51,12 +53,12 @@ def init_database():
         except Exception:
             pass  # Indexes might already exist
         
-        logger.info("Database initialized successfully!")
+        # logger.info("Database initialized successfully!")
         return True
         
     except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
-        logger.info("Note: Database will be initialized when first accessed")
+        # logger.error(f"Failed to initialize database: {e}")
+        # logger.info("Note: Database will be initialized when first accessed")
         return False
 
 
@@ -65,7 +67,7 @@ def close_database():
     global client
     if client:
         client.close()
-        logger.info("Database connection closed!")
+        # logger.info("Database connection closed!")
 
 
 def get_database():
@@ -80,10 +82,10 @@ def get_invoices_collection():
     """Get invoices collection"""
     try:
         db = get_database()
-        logger.debug(f"Database name: {db.name}")
+        # logger.debug(f"Database name: {db.name}")
         collection = db["invoices"]
-        logger.debug(f"Collection name: {collection.name}")
+        # logger.debug(f"Collection name: {collection.name}")
         return collection
     except Exception as e:
-        logger.error(f"Error getting collection: {e}")
+        # logger.error(f"Error getting collection: {e}")
         raise e

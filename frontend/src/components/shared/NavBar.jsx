@@ -14,11 +14,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-import { useTheme } from '@/contexts';
+import { useAuth, useTheme } from '@/contexts';
 
 const NavBar = () => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { isDarkMode, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
 
   return (
     <nav
@@ -65,19 +66,19 @@ const NavBar = () => {
               <Avatar className="w-8 h-8">
                 <AvatarImage src="/api/placeholder/32/32" />
                 <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
-                  JD
+                  {user.full_name[0].toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="text-left hidden sm:block">
                 <div
                   className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
-                  John Doe
+                  {user.full_name}
                 </div>
                 <div
                   className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
                 >
-                  Admin
+                  {user.role}
                 </div>
               </div>
               <ChevronDown className="w-4 h-4" />
@@ -102,6 +103,7 @@ const NavBar = () => {
                 <Separator className="my-2" />
                 <button
                   className={`w-full ${isDarkMode ? 'hover:bg-gray-700 text-red-400' : 'hover:bg-gray-50 text-red-600'} cursor-pointer`}
+                  onClick={logout}
                 >
                   <LogOut className="w-4 h-4" />
                   <span className="text-sm">Log out</span>
