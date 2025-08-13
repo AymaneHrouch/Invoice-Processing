@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { sidebarItems } from '@/constants';
-import { useTheme } from '@/contexts';
+import { useAuth, useTheme } from '@/contexts';
 
 import {
   FileText,
@@ -18,6 +18,7 @@ const Sidebar = () => {
   const { isDarkMode } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [invoicesExpanded, setInvoicesExpanded] = useState(true);
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -176,9 +177,7 @@ const Sidebar = () => {
         className={`p-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
       >
         <button
-          onClick={() => {
-            /* Handle logout */
-          }}
+          onClick={logout}
           className={`
             w-full 
             flex 

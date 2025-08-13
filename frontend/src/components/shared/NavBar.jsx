@@ -105,7 +105,6 @@ const NavBar = () => {
                   className={`w-full ${isDarkMode ? 'hover:bg-gray-700 text-red-400' : 'hover:bg-gray-50 text-red-600'} cursor-pointer`}
                   onClick={logout}
                 >
-                  <LogOut className="w-4 h-4" />
                   <span className="text-sm">Log out</span>
                 </button>
               </div>
