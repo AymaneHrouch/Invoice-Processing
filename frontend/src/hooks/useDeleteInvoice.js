@@ -15,7 +15,9 @@ export const useDeleteInvoice = () => {
       setMessage(result.message || 'Invoice deleted successfully');
       return true;
     } catch (err) {
-      setError(err.message || 'Failed to delete invoice');
+      console.log(err.message);
+      setError(err.message);
+      setMessage(err.message);
       return false;
     } finally {
       setLoading(false);

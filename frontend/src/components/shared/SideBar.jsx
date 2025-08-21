@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { sidebarItems } from '@/constants';
-import { useTheme } from '@/contexts';
+import { useAuth, useTheme } from '@/contexts';
 
 import {
   FileText,
@@ -18,8 +18,18 @@ const Sidebar = () => {
   const { isDarkMode } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [invoicesExpanded, setInvoicesExpanded] = useState(true);
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Filter sidebar items based on user role
+  const filteredSidebarItems = sidebarItems.filter((item) => {
+    // Show admin-only items only to admin users
+    if (item.adminOnly && user?.role !== 'ADMIN') {
+      return false;
+    }
+    return true;
+  });
 
   useEffect(() => {
     const sidebarState = Cookies.get(SIDEBAR_STATE_COOKIE);
@@ -168,7 +178,7 @@ const Sidebar = () => {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
-        {sidebarItems.map(renderSidebarItem)}
+        {filteredSidebarItems.map(renderSidebarItem)}
       </nav>
 
       {/* Bouton Déconnexion */}
@@ -176,9 +186,7 @@ const Sidebar = () => {
         className={`p-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
       >
         <button
-          onClick={() => {
-            /* Handle logout */
-          }}
+          onClick={logout}
           className={`
             w-full 
             flex 

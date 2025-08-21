@@ -7,6 +7,7 @@ import {
   Mail,
   Plus,
   UserPen,
+  Users,
 } from 'lucide-react';
 
 export const currencies = [
@@ -70,6 +71,13 @@ export const sidebarItems = [
         path: '/invoices/add',
       },
     ],
+  },
+  {
+    id: 'users',
+    label: 'User Management',
+    icon: Users,
+    path: '/users',
+    adminOnly: true,
   },
 ];
 export const formatDate = (dateString) => {
@@ -239,6 +247,5 @@ export const generateMockData = (fileName) => {
     fileName: fileName,
   };
 };
-
 export const SUPPORTED_FILE_TYPES = ['.pdf', '.png', '.jpg', '.jpeg'];
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB

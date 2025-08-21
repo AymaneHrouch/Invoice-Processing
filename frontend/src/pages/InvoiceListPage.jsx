@@ -116,7 +116,7 @@ const InvoiceListPage = () => {
       toast.success(deleteMessage || 'Invoice deleted successfully!');
       handleDeleteSuccess(invoiceId); // ✅ Mise à jour locale
     } else {
-      toast.error(deleteError || 'Failed to delete invoice.');
+      toast.error(deleteError || 'Admin Access Required');
     }
   };
 

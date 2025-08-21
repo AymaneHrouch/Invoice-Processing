@@ -1,3 +1,4 @@
+import { getAuthConfig } from '@/utils/auth';
 import api from './baseApi';
 
 // API pour la gestion des factures
@@ -96,7 +97,8 @@ export const uploadAndExtractText = async (file) => {
 // Delete an invoice by ID
 export const deleteInvoice = async (id) => {
   try {
-    const response = await api.delete(`/invoices/${id}`);
+    const authConfig = getAuthConfig();
+    const response = await api.delete(`/invoices/${id}`, authConfig);
     return response.data;
   } catch (error) {
     if (error.response && error.response.data && error.response.data.detail) {
