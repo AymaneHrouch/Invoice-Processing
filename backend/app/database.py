@@ -28,7 +28,8 @@ def init_database():
     
     try:
         # Create PyMongo client
-        client = MongoClient(MONGO_URL)
+        import certifi
+        client = MongoClient(MONGO_URL, tlsCAFile=certifi.where())
         db = client[DB_NAME]
         
         # Test the connection
