@@ -1,6 +1,6 @@
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.documentintelligence import DocumentIntelligenceClient
-from azure.ai.documentintelligence.models import AnalyzeDocumentRequest, Document
+from azure.ai.documentintelligence.models import AnalyzeDocumentRequest, AnalyzedDocument
 
 from app.services.ocr.invoice_parser import InvoiceParser
 
@@ -27,7 +27,7 @@ class AzureDocumentIntelligenceInvoiceParser(InvoiceParser):
         return invoice_data
 
 
-def map_fields_to_invoice(invoice_data: dict, invoice: Document) -> dict:
+def map_fields_to_invoice(invoice_data: dict, invoice: AnalyzedDocument) -> dict:
     fields = invoice.fields
 
     # Helper function to safely extract field values

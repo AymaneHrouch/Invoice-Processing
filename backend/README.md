@@ -220,6 +220,23 @@ The following indexes are automatically created for optimal performance:
 | `MONGO_URL` | `mongodb://localhost:27017` | MongoDB connection string |
 | `DB_NAME` | `invoice_processing` | Database name |
 
+````editorconfig
+MONGO_URL=mongodb://localhost:27017
+DB_NAME=invoice_processing
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/credentials.json
+GOOGLE_CLOUD_PROJECT_ID=your-project-id
+GOOGLE_CLOUD_PROJECT_LOCATION=us
+GOOGLE_CLOUD_PROCESSOR_ID=your-processor-id
+AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT=your-api-endpoint
+AZURE_DOCUMENT_INTELLIGENCE_KEY=you-api-key
+AWS_PROFILE_NAME=aws-profile-name
+AWS_REGION_NAME=us-east-1
+JWT_SECRET=secret  # genearte it with : python -c "import secrets; print(secrets.token_hex(32))"
+ADMIN_FULL_NAME=admin_full_name
+ADMIN_EMAIL=admin_email
+ADMIN_PASSWORD=admin_password
+````
+
 ## API Documentation
 
 Once the server is running, visit `http://localhost:8000/docs` for interactive API documentation powered by Swagger UI.
