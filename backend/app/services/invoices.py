@@ -1,11 +1,16 @@
+import logging
+
 from app.services.ocr.factory import get_invoice_parser
 
-invoice_parser = get_invoice_parser('azure_document_intelligence')
+logger = logging.getLogger(__name__)
+
+invoice_parser = get_invoice_parser("azure_document_intelligence")
 
 
 def extract_invoice_data(file: bytes):
     invoice_data = invoice_parser.extract_fields(file_path=None, file_bytes_source=file)
-    print(invoice_data)
+    logger.info("Extracted invoice data: vendor=%s, number=%s",
+                invoice_data.get("vendor_name"), invoice_data.get("invoice_number"))
 
     items = []
     for item in invoice_data.get("items", []):

@@ -1,8 +1,11 @@
 from datetime import datetime, timedelta
+import logging
 from typing import Literal
 
 from app.database import get_invoices_collection
 from app.models.invoice import Invoice
+
+logger = logging.getLogger(__name__)
 
 invoice_collection = get_invoices_collection()
 
@@ -19,7 +22,7 @@ def get_period_dates(period: str):
     Calculate start and end dates based on period
     """
     now = datetime.now()
-    
+
     if period == "3months":
         start_date = now - timedelta(days=90)
     elif period == "6months":
@@ -41,7 +44,7 @@ def get_period_dates(period: str):
         start_date = earliest_invoice["invoice_date"] if earliest_invoice else now - timedelta(days=365)
     else:
         start_date = now - timedelta(days=365)  # Default to 1 year
-    
+
     return start_date, now
 
 def get_invoice_growth():
@@ -215,13 +218,11 @@ def get_latest_invoices(limit: int = 5):
                 invoice = Invoice(**doc)
                 invoices.append(invoice)
             except Exception as e:
-                # Log the error and skip this document
-                print(f"Error converting document to Invoice: {e}")
-                print(f"Document: {doc}")
+                logger.warning("Error converting document to Invoice: %s", e)
                 continue
         return invoices
     except Exception as e:
-        print(f"Error in get_latest_invoices: {e}")
+        logger.exception("Error in get_latest_invoices: %s", e)
         return []
 
 def get_overdue_invoices():
@@ -241,15 +242,15 @@ def get_monthly_chart_data(currency: Literal["MAD", "USD", "EUR"] = "MAD", perio
     Get monthly data for chart showing both invoice count and expenses
     Returns data based on the specified period or date range
     """
-    from datetime import datetime, timedelta
     from calendar import month_abbr
-    
+    from datetime import datetime, timedelta
+
     # Use provided dates or calculate from period
     if start_date and end_date:
         # Use the provided date range
         query_start_date = start_date
         query_end_date = end_date
-        
+
         # Calculate number of months between start and end dates
         months_diff = (query_end_date.year - query_start_date.year) * 12 + (query_end_date.month - query_start_date.month)
         num_months = max(1, months_diff + 1)
@@ -257,7 +258,7 @@ def get_monthly_chart_data(currency: Literal["MAD", "USD", "EUR"] = "MAD", perio
         # Use period-based calculation
         now = datetime.now()
         query_end_date = now
-        
+
         # Determine number of months based on period
         if period == "3months":
             num_months = 3
@@ -269,50 +270,50 @@ def get_monthly_chart_data(currency: Literal["MAD", "USD", "EUR"] = "MAD", perio
             num_months = 24
         else:
             num_months = 12  # Default to 1 year
-        
+
         # Calculate start date from period
         query_start_date = now - timedelta(days=30 * num_months)
-    
+
     months_data = []
-    
+
     # Get data for the specified number of months within the date range
     current_date = query_start_date.replace(day=1)  # Start from beginning of first month
-    
+
     while current_date < query_end_date:
         # Calculate next month for range
         if current_date.month == 12:
             month_end = current_date.replace(year=current_date.year + 1, month=1)
         else:
             month_end = current_date.replace(month=current_date.month + 1)
-        
+
         # Don't go beyond the end date
         actual_end = min(month_end, query_end_date)
-        
+
         # Get invoice count for this month
         invoice_count = invoice_collection.count_documents({
             "invoice_date": {"$gte": current_date, "$lt": actual_end}
         })
-        
+
         # Get total expenses for this month
         invoices = invoice_collection.find({
             "invoice_date": {"$gte": current_date, "$lt": actual_end},
             "total_amount": {"$ne": None},
             "currency": {"$in": list(EXCHANGE_RATES.keys())}
         })
-        
+
         total_expenses = 0
         for invoice in invoices:
             amount = float(invoice["total_amount"])
             invoice_currency = invoice["currency"]
-            
+
             # Convert to target currency
             if invoice_currency != currency:
                 # Convert to MAD first, then to target currency
                 amount_in_mad = amount / EXCHANGE_RATES[invoice_currency]
                 amount = amount_in_mad * EXCHANGE_RATES[currency]
-            
+
             total_expenses += amount
-        
+
         months_data.append({
             "month": month_abbr[current_date.month],
             "month_year": f"{current_date.year}-{current_date.month:02d}",  # YYYY-MM format for frontend formatting
@@ -322,10 +323,10 @@ def get_monthly_chart_data(currency: Literal["MAD", "USD", "EUR"] = "MAD", perio
             "expenses": round(total_expenses, 2),
             "currency": currency
         })
-        
+
         # Move to next month
         current_date = month_end
-    
+
     return months_data
 
 def get_weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: str = "8weeks", start_date: datetime = None, end_date: datetime = None):
@@ -333,10 +334,10 @@ def get_weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: s
     Get weekly activity pattern showing average invoices and amounts per day of week
     """
     from datetime import datetime, timedelta
-    
+
     if currency not in EXCHANGE_RATES:
         raise ValueError(f"Unsupported currency: {currency}")
-    
+
     # Use provided dates or calculate from period
     if start_date and end_date:
         query_start_date, query_end_date = start_date, end_date
@@ -353,7 +354,7 @@ def get_weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: s
             query_start_date = query_end_date - timedelta(days=180)
         else:
             query_start_date = query_end_date - timedelta(weeks=8)  # Default to 8 weeks
-    
+
     # Initialize day counters
     day_data = {
         0: {"day": "Mon", "total_invoices": 0, "total_amount": 0, "weeks_count": 0},
@@ -364,36 +365,36 @@ def get_weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: s
         5: {"day": "Sat", "total_invoices": 0, "total_amount": 0, "weeks_count": 0},
         6: {"day": "Sun", "total_invoices": 0, "total_amount": 0, "weeks_count": 0},
     }
-    
+
     # Find all invoices in the date range
     invoices = invoice_collection.find({
         "invoice_date": {"$gte": query_start_date, "$lt": query_end_date},
         "total_amount": {"$ne": None},
         "currency": {"$in": list(EXCHANGE_RATES.keys())}
     })
-    
+
     # Track which weeks we have data for each day
     weeks_seen = set()
-    
+
     for invoice in invoices:
         invoice_date = invoice["invoice_date"]
         day_of_week = invoice_date.weekday()  # 0 = Monday, 6 = Sunday
         week_key = invoice_date.strftime("%Y-W%U")  # Year-Week identifier
         weeks_seen.add(week_key)
-        
+
         # Convert amount to target currency
         amount = float(invoice["total_amount"])
         invoice_currency = invoice["currency"]
         invoice_rate = EXCHANGE_RATES[invoice_currency]
         output_rate = EXCHANGE_RATES[currency]
         amount_in_output_currency = amount * invoice_rate / output_rate
-        
+
         day_data[day_of_week]["total_invoices"] += 1
         day_data[day_of_week]["total_amount"] += amount_in_output_currency
-    
+
     # Calculate weeks count (use actual weeks that had data)
     weeks_count = max(len(weeks_seen), 1)  # Avoid division by zero
-    
+
     # For longer periods, adjust the divisor to show realistic averages
     if period == "3months":
         period_weeks = 12  # ~3 months
@@ -402,21 +403,21 @@ def get_weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: s
     else:
         # For 4weeks and 8weeks, use actual weeks count
         period_weeks = weeks_count
-    
+
     # Use the actual weeks count or period weeks, whichever is smaller
     divisor = min(weeks_count, period_weeks) if weeks_count > 0 else 1
-    
+
     # Calculate averages and prepare response
     result = []
     for day_info in day_data.values():
         avg_invoices = round(day_info["total_invoices"] / divisor)
         avg_amount = round(day_info["total_amount"] / divisor, 2)
-        
+
         result.append({
             "day": day_info["day"],
             "invoices": avg_invoices,
             "amount": avg_amount,
             "currency": currency
         })
-    
+
     return result

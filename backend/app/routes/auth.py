@@ -1,18 +1,24 @@
-from bson import ObjectId
-from fastapi import APIRouter, HTTPException, Depends
-from fastapi.security import OAuth2PasswordRequestForm
-from app.models.user import UserLogin, UserRegister
+import logging
 
-from app.utils.auth import create_access_token, verify_password, hash_password, get_current_user
+from bson import ObjectId
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
+
 from app.database import get_database
+from app.models.user import UserRegister
+from app.utils.auth import (
+    create_access_token,
+    get_current_user,
+    hash_password,
+    verify_password,
+)
+
+logger = logging.getLogger(__name__)
 
 db = get_database()
 user_collection = db["users"]
 
-
 router = APIRouter(prefix="/auth", tags=["Authentication"])
-
-
 
 
 @router.post("/register")
@@ -31,6 +37,7 @@ async def register(user: UserRegister):
     }
 
     result = user_collection.insert_one(new_user)
+    logger.info("User registered: %s", user.email)
 
     token = create_access_token({"sub": str(result.inserted_id), "role": new_user["role"]})
 
@@ -44,9 +51,11 @@ async def register(user: UserRegister):
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
     db_user = user_collection.find_one({"email": form_data.username})
     if not db_user or not verify_password(form_data.password, db_user["hashed_password"]):
+        logger.warning("Failed login attempt for: %s", form_data.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token({"sub": str(db_user["_id"]), "role": db_user["role"]})
+    logger.info("User logged in: %s", form_data.username)
     return {"access_token": token, "token_type": "bearer"}
 
 
@@ -59,10 +68,7 @@ def get_current_user_endpoint(current_user: dict = Depends(get_current_user)):
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Convert ObjectId to string
     db_user["_id"] = str(db_user["_id"])
-
-    # Remove the password field if it exists
     db_user.pop("hashed_password", None)
 
     return db_user

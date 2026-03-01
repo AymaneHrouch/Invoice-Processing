@@ -1,107 +1,84 @@
 """
 CRUD operations for Invoice model using PyMongo
 """
-import logging
-from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
 from decimal import Decimal
-from bson.objectid import ObjectId
+import logging
+from typing import Any, Literal
+
 from bson.errors import InvalidId
-from pymongo.collection import Collection
-from pymongo.errors import DuplicateKeyError
+from bson.objectid import ObjectId
 from pymongo import ASCENDING, DESCENDING
-import json
+from pymongo.errors import DuplicateKeyError
 
-from app.models.invoice import Invoice, InvoiceCreate, InvoiceResponse, InvoiceUpdate
 from app.database import get_invoices_collection
+from app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate
 
-# Set up logger
-# logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def convert_decimals_to_floats(obj):
     """Convert Decimal objects to floats for MongoDB compatibility"""
     if isinstance(obj, Decimal):
         return float(obj)
-    elif isinstance(obj, dict):
+    if isinstance(obj, dict):
         return {key: convert_decimals_to_floats(value) for key, value in obj.items()}
-    elif isinstance(obj, list):
+    if isinstance(obj, list):
         return [convert_decimals_to_floats(item) for item in obj]
-    else:
-        return obj
+    return obj
 
 
 class InvoiceCRUD:
     """CRUD operations for Invoice documents using PyMongo"""
 
     @staticmethod
-    def create_invoice(invoice_data: InvoiceCreate) -> Optional[Invoice]:
+    def create_invoice(invoice_data: InvoiceCreate) -> Invoice | None:
         """Create a new invoice"""
         try:
-            # logger.info(f"Starting invoice creation with data: {invoice_data}")
             collection = get_invoices_collection()
-            
-            # Convert Pydantic model to dict
+
             invoice_dict = invoice_data.model_dump(exclude_unset=True, exclude_none=True)
-            # logger.debug(f"Invoice dict after model_dump: {invoice_dict}")
-            
-            # Convert date to datetime for MongoDB storage or set default
-            from datetime import datetime, date
+
+            from datetime import date, datetime
             if invoice_dict.get("invoice_date"):
                 if isinstance(invoice_dict["invoice_date"], date):
                     invoice_dict["invoice_date"] = datetime.combine(
-                        invoice_dict["invoice_date"], 
+                        invoice_dict["invoice_date"],
                         datetime.min.time()
                     )
             else:
-                # Set default invoice date to current date if not provided
                 invoice_dict["invoice_date"] = datetime.utcnow()
-            
-            # logger.debug(f"Invoice date after processing: {invoice_dict.get('invoice_date')}")
-            
-            # Convert Decimal objects to float for MongoDB storage
+
             def convert_decimals(obj):
                 if isinstance(obj, dict):
                     return {k: convert_decimals(v) for k, v in obj.items()}
-                elif isinstance(obj, list):
+                if isinstance(obj, list):
                     return [convert_decimals(item) for item in obj]
-                elif isinstance(obj, Decimal):
+                if isinstance(obj, Decimal):
                     return float(obj)
                 return obj
-            
+
             invoice_dict = convert_decimals(invoice_dict)
             invoice_dict["created_at"] = datetime.utcnow()
-            
-            # logger.debug(f"Final invoice dict before insertion: {invoice_dict}")
-            
-            # Insert the document
+
             result = collection.insert_one(invoice_dict)
-            # logger.info(f"Document inserted with ID: {result.inserted_id}")
-            
-            # Retrieve and return the created invoice
+            logger.info("Invoice inserted with ID: %s", result.inserted_id)
+
             created_invoice = collection.find_one({"_id": result.inserted_id})
-            # logger.debug(f"Retrieved invoice from DB: {created_invoice}")
-            
+
             if created_invoice:
-                invoice_obj = Invoice(**created_invoice)
-                # logger.info(f"Created Invoice object: {invoice_obj}")
-                return invoice_obj
-            else:
-                # logger.warning("No invoice found after insertion")
-                return None
-            
-        except DuplicateKeyError as e:
-            # logger.error(f"DuplicateKeyError: {e}")
+                return Invoice(**created_invoice)
+            logger.warning("No invoice found after insertion")
+            return None
+
+        except DuplicateKeyError:
             raise ValueError(f"Invoice number {invoice_data.invoice_number} already exists")
         except Exception as e:
-            # logger.error(f"Exception in create_invoice: {e}")
-            # logger.error(f"Exception type: {type(e)}")
-            import traceback
-            # logger.error(f"Traceback: {traceback.format_exc()}")
-            raise Exception(f"Failed to create invoice: {str(e)}")
+            logger.exception("Failed to create invoice: %s", e)
+            raise Exception(f"Failed to create invoice: {e!s}")
 
     @staticmethod
-    def get_invoice_by_id(invoice_id: str) -> Optional[Invoice]:
+    def get_invoice_by_id(invoice_id: str) -> Invoice | None:
         """Get invoice by ID"""
         try:
             collection = get_invoices_collection()
@@ -114,7 +91,7 @@ class InvoiceCRUD:
             return None
 
     @staticmethod
-    def get_invoice_by_number(invoice_number: str) -> Optional[Invoice]:
+    def get_invoice_by_number(invoice_number: str) -> Invoice | None:
         """Get invoice by invoice number"""
         try:
             collection = get_invoices_collection()
@@ -172,37 +149,37 @@ class InvoiceCRUD:
             raise Exception(f"Failed to retrieve invoices: {e!s}")
 
     @staticmethod
-    def get_invoices_by_vendor(vendor_name: str) -> List[Invoice]:
+    def get_invoices_by_vendor(vendor_name: str) -> list[Invoice]:
         """Get all invoices from a specific vendor"""
         try:
             collection = get_invoices_collection()
             cursor = collection.find({"vendor_name": vendor_name}).sort("invoice_date", DESCENDING)
-            
+
             invoices = []
             for invoice_data in cursor:
                 invoices.append(Invoice(**invoice_data))
-                
+
             return invoices
         except Exception as e:
-            raise Exception(f"Failed to retrieve invoices for vendor {vendor_name}: {str(e)}")
+            raise Exception(f"Failed to retrieve invoices for vendor {vendor_name}: {e!s}")
 
     @staticmethod
-    def get_invoices_by_tags(tags: List[str]) -> List[Invoice]:
+    def get_invoices_by_tags(tags: list[str]) -> list[Invoice]:
         """Get invoices that have any of the specified tags"""
         try:
             collection = get_invoices_collection()
             cursor = collection.find({"tags": {"$in": tags}}).sort("created_at", DESCENDING)
-            
+
             invoices = []
             for invoice_data in cursor:
                 invoices.append(Invoice(**invoice_data))
-                
+
             return invoices
         except Exception as e:
-            raise Exception(f"Failed to retrieve invoices by tags: {str(e)}")
+            raise Exception(f"Failed to retrieve invoices by tags: {e!s}")
 
     @staticmethod
-    def get_invoices_by_date_range(start_date: datetime, end_date: datetime) -> List[Invoice]:
+    def get_invoices_by_date_range(start_date: datetime, end_date: datetime) -> list[Invoice]:
         """Get invoices within a date range"""
         try:
             collection = get_invoices_collection()
@@ -212,85 +189,66 @@ class InvoiceCRUD:
                     "$lte": end_date
                 }
             }).sort("invoice_date", DESCENDING)
-            
+
             invoices = []
             for invoice_data in cursor:
                 invoices.append(Invoice(**invoice_data))
-                
+
             return invoices
         except Exception as e:
-            raise Exception(f"Failed to retrieve invoices by date range: {str(e)}")
+            raise Exception(f"Failed to retrieve invoices by date range: {e!s}")
 
     @staticmethod
-    def update_invoice(invoice_id: str, update_data: InvoiceUpdate) -> Optional[Invoice]:
+    def update_invoice(invoice_id: str, update_data: InvoiceUpdate) -> Invoice | None:
         """Update an invoice"""
         try:
-            # logger.info(f"Starting update for invoice_id: {invoice_id}")
             collection = get_invoices_collection()
-
-            # logger.debug("Converting ObjectId...")
             object_id = ObjectId(invoice_id)
-            # logger.debug(f"ObjectId converted successfully: {object_id}")
-            
-            # Convert update data to dict, excluding None values
-            # logger.debug("Converting update_data to dict...");
+
             update_dict = update_data.model_dump(exclude_unset=True, exclude_none=True)
             update_dict["updated_at"] = datetime.utcnow()
-            # logger.debug(f"Update dict: {update_dict}");
-            
-            # Convert Decimal objects to floats for MongoDB compatibility
-            # logger.debug("Converting Decimal objects to floats...")
             update_dict = convert_decimals_to_floats(update_dict)
-            # logger.debug(f"Update dict after conversion: {update_dict}")
 
             if not update_dict:
-                # logger.debug("No data to update, returning existing invoice")
-                # Nothing to update
                 return InvoiceCRUD.get_invoice_by_id(invoice_id)
-            
-            # Update the document
-            # logger.debug("Updating document in MongoDB...")
+
             result = collection.update_one(
                 {"_id": object_id},
                 {"$set": update_dict}
             )
-            # logger.info(f"Update result - matched_count: {result.matched_count}, modified_count: {result.modified_count}")
-            
+            logger.info("Update invoice %s — matched: %d, modified: %d",
+                        invoice_id, result.matched_count, result.modified_count)
+
             if result.matched_count > 0:
-                # logger.debug("Document found and updated, fetching updated invoice...")
                 return InvoiceCRUD.get_invoice_by_id(invoice_id)
 
-            # logger.warning(f"No document found with ID: {invoice_id}")
             return None
-            
+
         except InvalidId as e:
-            logger.error(f"InvalidId exception: {e}")
+            logger.warning("Invalid ObjectId: %s", e)
             return None
         except Exception as e:
-            logger.error(f"Exception in update_invoice: {e}")
-            logger.error(f"Exception type: {type(e)}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            raise Exception(f"Failed to update invoice: {str(e)}")
+            logger.exception("Failed to update invoice %s: %s", invoice_id, e)
+            raise Exception(f"Failed to update invoice: {e!s}")
 
     @staticmethod
-    def update_invoice_status(invoice_id: str, status: str) -> Optional[Invoice]:
+    def update_invoice_status(invoice_id: str, status: str) -> Invoice | None:
         """Update invoice status"""
         try:
             collection = get_invoices_collection()
             object_id = ObjectId(invoice_id)
-            
+
             result = collection.update_one(
                 {"_id": object_id},
                 {"$set": {"status": status}}
             )
-            
+
             if result.matched_count > 0:
                 return InvoiceCRUD.get_invoice_by_id(invoice_id)
             return None
-            
+
         except Exception as e:
-            raise Exception(f"Failed to update invoice status: {str(e)}")
+            raise Exception(f"Failed to update invoice status: {e!s}")
 
     @staticmethod
     def delete_invoice(invoice_id: str) -> bool:
@@ -298,12 +256,12 @@ class InvoiceCRUD:
         try:
             collection = get_invoices_collection()
             object_id = ObjectId(invoice_id)
-            
+
             result = collection.delete_one({"_id": object_id})
             return result.deleted_count > 0
-            
+
         except Exception as e:
-            raise Exception(f"Failed to delete invoice: {str(e)}")
+            raise Exception(f"Failed to delete invoice: {e!s}")
 
     @staticmethod
     def count_invoices() -> int:
@@ -312,31 +270,31 @@ class InvoiceCRUD:
             collection = get_invoices_collection()
             return collection.count_documents({})
         except Exception as e:
-            raise Exception(f"Failed to count invoices: {str(e)}")
+            raise Exception(f"Failed to count invoices: {e!s}")
 
     @staticmethod
     def get_total_amount_by_vendor(vendor_name: str) -> float:
         """Get total amount for a specific vendor"""
         try:
             collection = get_invoices_collection()
-            
+
             pipeline = [
                 {"$match": {"vendor_name": vendor_name}},
                 {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}}
             ]
-            
+
             result = list(collection.aggregate(pipeline))
             return float(result[0]["total"]) if result else 0.0
-            
+
         except Exception as e:
-            raise Exception(f"Failed to get total amount for vendor {vendor_name}: {str(e)}")
+            raise Exception(f"Failed to get total amount for vendor {vendor_name}: {e!s}")
 
     @staticmethod
-    def get_invoices_summary() -> Dict[str, Any]:
+    def get_invoices_summary() -> dict[str, Any]:
         """Get summary statistics"""
         try:
             collection = get_invoices_collection()
-            
+
             pipeline = [
                 {
                     "$group": {
@@ -349,7 +307,7 @@ class InvoiceCRUD:
                     }
                 }
             ]
-            
+
             result = list(collection.aggregate(pipeline))
             if result:
                 summary = result[0]
@@ -360,7 +318,7 @@ class InvoiceCRUD:
                     "min_amount": float(summary["min_amount"]),
                     "max_amount": float(summary["max_amount"])
                 }
-            
+
             return {
                 "total_count": 0,
                 "total_amount": 0.0,
@@ -368,33 +326,33 @@ class InvoiceCRUD:
                 "min_amount": 0.0,
                 "max_amount": 0.0
             }
-            
+
         except Exception as e:
-            raise Exception(f"Failed to get invoices summary: {str(e)}")
+            raise Exception(f"Failed to get invoices summary: {e!s}")
 
     @staticmethod
-    def get_invoices_by_status_count() -> Dict[str, int]:
+    def get_invoices_by_status_count() -> dict[str, int]:
         """Get count of invoices by status"""
         try:
             collection = get_invoices_collection()
-            
+
             pipeline = [
                 {"$group": {"_id": "$status", "count": {"$sum": 1}}},
                 {"$sort": {"count": -1}}
             ]
-            
+
             result = list(collection.aggregate(pipeline))
             return {item["_id"]: item["count"] for item in result}
-            
+
         except Exception as e:
-            raise Exception(f"Failed to get invoices by status count: {str(e)}")
+            raise Exception(f"Failed to get invoices by status count: {e!s}")
 
     @staticmethod
-    def search_invoices(search_term: str) -> List[Invoice]:
+    def search_invoices(search_term: str) -> list[Invoice]:
         """Search invoices by various fields"""
         try:
             collection = get_invoices_collection()
-            
+
             search_query = {
                 "$or": [
                     {"invoice_number": {"$regex": search_term, "$options": "i"}},
@@ -404,14 +362,14 @@ class InvoiceCRUD:
                     {"items.description": {"$regex": search_term, "$options": "i"}}
                 ]
             }
-            
+
             cursor = collection.find(search_query).sort("created_at", DESCENDING)
-            
+
             invoices = []
             for invoice_data in cursor:
                 invoices.append(Invoice(**invoice_data))
-                
+
             return invoices
-            
+
         except Exception as e:
-            raise Exception(f"Failed to search invoices: {str(e)}")
+            raise Exception(f"Failed to search invoices: {e!s}")

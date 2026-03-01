@@ -2,9 +2,8 @@ import asyncio
 import datetime
 import random
 
-from faker import Faker
-
 from database import get_invoices_collection
+from faker import Faker
 
 fake = Faker()
 

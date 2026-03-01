@@ -1,15 +1,17 @@
+import logging
+
 from bson import ObjectId
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.database import get_database
 from app.models.user import UserCreate, UserUpdate
-from fastapi import APIRouter, Depends,  HTTPException, status
+from app.utils.auth import hash_password, require_admin
 
-from app.utils.auth import require_admin, hash_password
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/users")
 db = get_database()
 user_collection = db["users"]
-
 
 
 @router.get("/")
@@ -24,7 +26,6 @@ def get_users(current_user=Depends(require_admin)):
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, current_user=Depends(require_admin)):
-    # Check if user already exists
     existing_user = user_collection.find_one({"email": user.email})
     if existing_user:
         raise HTTPException(
@@ -37,12 +38,11 @@ def create_user(user: UserCreate, current_user=Depends(require_admin)):
     user_doc = {
         "full_name": user.full_name,
         "email": user.email,
-        "hashed_password": hashed_password,  # match get_users pop
+        "hashed_password": hashed_password,
         "role": user.role
     }
-    print(user_doc)
     inserted_id = user_collection.insert_one(user_doc).inserted_id
-    print(f"[✓] User created with ID: {str(inserted_id)}")
+    logger.info("User created: %s (ID: %s)", user.email, inserted_id)
 
     return {
         "message": "User created successfully",
@@ -59,6 +59,7 @@ def delete_user(user_id: str, current_user=Depends(require_admin)):
         )
 
     user_collection.delete_one({"_id": ObjectId(user_id)})
+    logger.info("User deleted: %s", user_id)
     return {"message": "User deleted successfully"}
 
 @router.put("/{user_id}")
@@ -70,7 +71,6 @@ def update_user(user_id: str, user: UserUpdate, current_user=Depends(require_adm
             detail="User not found."
         )
 
-    # Prepare the fields to update
     update_data = {
         "full_name": user.full_name,
         "role": user.role
@@ -80,5 +80,6 @@ def update_user(user_id: str, user: UserUpdate, current_user=Depends(require_adm
         update_data["hashed_password"] = hash_password(user.password)
 
     user_collection.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
+    logger.info("User updated: %s", user_id)
 
     return {"message": "User updated successfully"}

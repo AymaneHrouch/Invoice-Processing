@@ -1,23 +1,19 @@
-import os
 import logging
-from pymongo import MongoClient
-from dotenv import load_dotenv
-
-# Import configuration to ensure environment variables are set
+import os
 import sys
+
+from dotenv import load_dotenv
+from pymongo import MongoClient
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-logging.getLogger("pymongo").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = os.getenv("DB_NAME", "invoice_processing")
 
-# Set up logger
-# logger = logging.getLogger(__name__)
-
-# Global client and database instances
 client = None
 db = None
 
@@ -25,25 +21,22 @@ db = None
 def init_database():
     """Initialize database connection"""
     global client, db
-    
+
     try:
-        # Create PyMongo client
         import certifi
         client = MongoClient(MONGO_URL, tlsCAFile=certifi.where())
         db = client[DB_NAME]
-        
-        # Test the connection
-        client.admin.command('ping')
-        
-        # Create indexes for the invoices collection
+
+        client.admin.command("ping")
+        logger.info("Connected to MongoDB (%s)", DB_NAME)
+
         invoices_collection = db["invoices"]
-        
-        # Create indexes for better performance (ignore errors if indexes already exist)
+
         try:
             invoices_collection.create_index("invoice_number", unique=True)
         except Exception:
-            pass  # Index might already exist
-            
+            pass
+
         try:
             invoices_collection.create_index("vendor_name")
             invoices_collection.create_index("invoice_date")
@@ -52,14 +45,13 @@ def init_database():
             invoices_collection.create_index("created_at")
             invoices_collection.create_index("tags")
         except Exception:
-            pass  # Indexes might already exist
-        
-        # logger.info("Database initialized successfully!")
+            pass
+
+        logger.info("Database initialized successfully.")
         return True
-        
+
     except Exception as e:
-        # logger.error(f"Failed to initialize database: {e}")
-        # logger.info("Note: Database will be initialized when first accessed")
+        logger.exception("Failed to initialize database: %s", e)
         return False
 
 
@@ -68,7 +60,7 @@ def close_database():
     global client
     if client:
         client.close()
-        # logger.info("Database connection closed!")
+        logger.info("Database connection closed.")
 
 
 def get_database():
@@ -83,10 +75,7 @@ def get_invoices_collection():
     """Get invoices collection"""
     try:
         db = get_database()
-        # logger.debug(f"Database name: {db.name}")
-        collection = db["invoices"]
-        # logger.debug(f"Collection name: {collection.name}")
-        return collection
+        return db["invoices"]
     except Exception as e:
-        # logger.error(f"Error getting collection: {e}")
-        raise e
+        logger.exception("Error getting invoices collection: %s", e)
+        raise

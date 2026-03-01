@@ -1,38 +1,44 @@
 from contextlib import asynccontextmanager
 import logging
-import sys
 import os
+import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.utils.auth import create_admin_user
 from app.database import close_database, init_database
+from app.logging_config import setup_logging
+from app.routes.auth import router as auth_router
+from app.routes.dashboard import router as dashboard_router
 from app.routes.health import router as health_router
 from app.routes.invoices import router as invoices_router
-from app.routes.dashboard import router as dashboard_router
-from app.routes.auth import router as auth_router
 from app.routes.users import router as users_router
+from app.utils.auth import create_admin_user
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+setup_logging()
+logger = logging.getLogger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    logger.info("=" * 60)
+    logger.info("INVOICE PROCESSING API — Starting up …")
+    logger.info("=" * 60)
     try:
-        init_database()  # PyMongo is synchronous
+        init_database()
         create_admin_user()
     except Exception as e:
-        pass
+        logger.exception("Failed during startup: %s", e)
 
     yield
 
-    # Shutdown
+    logger.info("Invoice Processing API shutting down.")
     try:
         close_database()
     except Exception as e:
-        pass
-
+        logger.exception("Failed during shutdown: %s", e)
 
 
 app = FastAPI(
@@ -65,6 +71,8 @@ app.include_router(invoices_router)
 app.include_router(dashboard_router)
 app.include_router(auth_router)
 app.include_router(users_router)
+
+
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
@@ -74,5 +82,5 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "app.main:app", host="localhost", port=8000, reload=True
+        "app.main:app", port=8000, log_config=None
     )

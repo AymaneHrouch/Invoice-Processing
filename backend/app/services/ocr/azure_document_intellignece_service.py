@@ -1,6 +1,9 @@
-from azure.core.credentials import AzureKeyCredential
 from azure.ai.documentintelligence import DocumentIntelligenceClient
-from azure.ai.documentintelligence.models import AnalyzeDocumentRequest, AnalyzedDocument
+from azure.ai.documentintelligence.models import (
+    AnalyzedDocument,
+    AnalyzeDocumentRequest,
+)
+from azure.core.credentials import AzureKeyCredential
 
 from app.services.ocr.invoice_parser import InvoiceParser
 
@@ -37,18 +40,18 @@ def map_fields_to_invoice(invoice_data: dict, invoice: AnalyzedDocument) -> dict
             return None
 
         try:
-            if field.type == 'currency':
+            if field.type == "currency":
                 return {
                     "value": field.value_currency.amount,
                     "currency": field.value_currency.currency_code
                 }
-            elif field.type == 'string':
+            if field.type == "string":
                 return field.value_string.strip()
-            elif field.type == "date":
+            if field.type == "date":
                 return field.value_date
-            elif field.type == "number":
+            if field.type == "number":
                 return field.value_number
-            elif field.type == "address":
+            if field.type == "address":
                 return {
                     "content": field.content,
                     "city": field.value_address.city,
@@ -84,62 +87,62 @@ def map_fields_to_invoice(invoice_data: dict, invoice: AnalyzedDocument) -> dict
         items = []
         for obj in items_field.value_array:
             item = {
-                "amount": get_field_value(obj.value_object, 'Amount'),
-                "date": get_field_value(obj.value_object, 'Date'),
-                "description": get_field_value(obj.value_object, 'Description'),
-                "product_code": get_field_value(obj.value_object, 'ProductCode'),
-                "quantity": get_field_value(obj.value_object, 'Quantity'),
-                "tax": get_field_value(obj.value_object, 'Tax'),
-                "tax_rate": get_field_value(obj.value_object, 'TaxRate'),
-                "unit": get_field_value(obj.value_object, 'Unit'),
-                "unit_price": get_field_value(obj.value_object, 'UnitPrice')
+                "amount": get_field_value(obj.value_object, "Amount"),
+                "date": get_field_value(obj.value_object, "Date"),
+                "description": get_field_value(obj.value_object, "Description"),
+                "product_code": get_field_value(obj.value_object, "ProductCode"),
+                "quantity": get_field_value(obj.value_object, "Quantity"),
+                "tax": get_field_value(obj.value_object, "Tax"),
+                "tax_rate": get_field_value(obj.value_object, "TaxRate"),
+                "unit": get_field_value(obj.value_object, "Unit"),
+                "unit_price": get_field_value(obj.value_object, "UnitPrice")
             }
             items.append(item)
         return items
 
     invoice_data.update({
         # Vendor Information
-        'vendor_name': get_field_value(fields, 'VendorName'),
-        'vendor_address': get_field_value(fields, 'VendorAddress'),
-        'vendor_address_recipient': get_field_value(fields, 'VendorAddressRecipient'),
+        "vendor_name": get_field_value(fields, "VendorName"),
+        "vendor_address": get_field_value(fields, "VendorAddress"),
+        "vendor_address_recipient": get_field_value(fields, "VendorAddressRecipient"),
 
         # Customer Information
-        'customer_name': get_field_value(fields, 'CustomerName'),
-        'customer_id': get_field_value(fields, 'CustomerId'),
-        'customer_address': get_field_value(fields, 'CustomerAddress'),
-        'customer_address_recipient': get_field_value(fields, 'CustomerAddressRecipient'),
+        "customer_name": get_field_value(fields, "CustomerName"),
+        "customer_id": get_field_value(fields, "CustomerId"),
+        "customer_address": get_field_value(fields, "CustomerAddress"),
+        "customer_address_recipient": get_field_value(fields, "CustomerAddressRecipient"),
 
         # Invoice Details
-        'invoice_number': get_field_value(fields, 'InvoiceId'),
-        'invoice_date': get_field_value(fields, 'InvoiceDate'),
-        'due_date': get_field_value(fields, 'DueDate'),
-        'purchase_order': get_field_value(fields, 'PurchaseOrder'),
+        "invoice_number": get_field_value(fields, "InvoiceId"),
+        "invoice_date": get_field_value(fields, "InvoiceDate"),
+        "due_date": get_field_value(fields, "DueDate"),
+        "purchase_order": get_field_value(fields, "PurchaseOrder"),
 
         # Financial Information
-        'subtotal': get_field_value(fields, 'SubTotal'),
-        'total_tax': get_field_value(fields, 'TotalTax'),
-        'total_amount': get_field_value(fields, 'InvoiceTotal'),
-        'amount_due': get_field_value(fields, 'AmountDue'),
-        'previous_unpaid_balance': get_field_value(fields, 'PreviousUnpaidBalance'),
+        "subtotal": get_field_value(fields, "SubTotal"),
+        "total_tax": get_field_value(fields, "TotalTax"),
+        "total_amount": get_field_value(fields, "InvoiceTotal"),
+        "amount_due": get_field_value(fields, "AmountDue"),
+        "previous_unpaid_balance": get_field_value(fields, "PreviousUnpaidBalance"),
 
         # Address Information
-        'billing_address': get_field_value(fields, 'BillingAddress'),
-        'billing_address_recipient': get_field_value(fields, 'BillingAddressRecipient'),
-        'shipping_address': get_field_value(fields, 'ShippingAddress'),
-        'shipping_address_recipient': get_field_value(fields, 'ShippingAddressRecipient'),
-        'service_address': get_field_value(fields, 'ServiceAddress'),
-        'service_address_recipient': get_field_value(fields, 'ServiceAddressRecipient'),
-        'remittance_address': get_field_value(fields, 'RemittanceAddress'),
-        'remittance_address_recipient': get_field_value(fields, 'RemittanceAddressRecipient'),
+        "billing_address": get_field_value(fields, "BillingAddress"),
+        "billing_address_recipient": get_field_value(fields, "BillingAddressRecipient"),
+        "shipping_address": get_field_value(fields, "ShippingAddress"),
+        "shipping_address_recipient": get_field_value(fields, "ShippingAddressRecipient"),
+        "service_address": get_field_value(fields, "ServiceAddress"),
+        "service_address_recipient": get_field_value(fields, "ServiceAddressRecipient"),
+        "remittance_address": get_field_value(fields, "RemittanceAddress"),
+        "remittance_address_recipient": get_field_value(fields, "RemittanceAddressRecipient"),
 
         # Service Dates
-        'service_start_date': get_field_value(fields, 'ServiceStartDate'),
-        'service_end_date': get_field_value(fields, 'ServiceEndDate'),
-        'payment_terms': get_field_value(fields, 'PaymentTerms'),
+        "service_start_date": get_field_value(fields, "ServiceStartDate"),
+        "service_end_date": get_field_value(fields, "ServiceEndDate"),
+        "payment_terms": get_field_value(fields, "PaymentTerms"),
         # Tax Details
-        "tax_details": get_tax_details(fields.get('TaxDetails')),
+        "tax_details": get_tax_details(fields.get("TaxDetails")),
         # Line Items
-        'items': get_items(fields.get("Items"))
+        "items": get_items(fields.get("Items"))
     })
 
     return invoice_data

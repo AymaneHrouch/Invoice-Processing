@@ -1,6 +1,6 @@
+from decimal import Decimal, InvalidOperation
 import mimetypes
 import re
-from decimal import Decimal, InvalidOperation
 
 from google.cloud import documentai_v1 as documentai
 
@@ -195,24 +195,24 @@ def extract_line_item(entity: documentai.Document.Entity) -> dict:
 
 
 def sanitize_decimal(value: str) -> Decimal:
-    cleaned = re.sub(r'[^\d.]', '', value)
+    cleaned = re.sub(r"[^\d.]", "", value)
     try:
         return Decimal(cleaned)
     except InvalidOperation:
-        return Decimal('0.0')
+        return Decimal("0.0")
 
 
 def extract_currency(value: str) -> str | None:
     currency_map = {
-        '$': 'USD',
-        '€': 'EUR',
-        'MAD': 'MAD',
-        'USD': 'USD',
-        'EUR': 'EUR'
+        "$": "USD",
+        "€": "EUR",
+        "MAD": "MAD",
+        "USD": "USD",
+        "EUR": "EUR"
     }
 
     # This regex looks for symbols or codes in a readable way
-    pattern = r'(?:\$|€|\bUSD\b|\bEUR\b|\bMAD\b)'
+    pattern = r"(?:\$|€|\bUSD\b|\bEUR\b|\bMAD\b)"
     match = re.search(pattern, value, re.IGNORECASE)
 
     if match:
