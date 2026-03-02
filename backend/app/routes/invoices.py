@@ -58,21 +58,37 @@ async def handle_upload_files(files: list[UploadFile] = File(...)):
             logger.info("Processing uploaded file: %s", file.filename)
             invoice_data = extract_invoice_data(file_bytes)
 
+            invoice_create = InvoiceCreate(
+                invoice_number=invoice_data.get("invoice_number") or f"AI-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+                invoice_date=invoice_data.get("date") or None,
+                invoice_due_date=invoice_data.get("due_date") or None,
+                vendor_name=invoice_data.get("supplier") or "Unknown",
+                total_amount=max(float(invoice_data.get("amount") or 0), 0.01),
+                currency=invoice_data.get("currency") or "MAD",
+                items=invoice_data.get("items", []),
+                category=invoice_data.get("category") or "Others",
+                tags=invoice_data.get("tags", []),
+                source_type="pdf",
+                status="extracted",
+            )
+            saved_invoice = InvoiceCRUD.create_invoice(invoice_create)
+            logger.info("Saved invoice from %s with ID: %s", file.filename, saved_invoice.id)
+
             extracted_data.append({
                 "fileName": file.filename,
+                "invoice_id": str(saved_invoice.id),
                 **invoice_data,
             })
-            logger.info("Extracted data from: %s", file.filename)
 
         except Exception as e:
-            logger.exception("Failed to extract data from %s: %s", file.filename, e)
+            logger.exception("Failed to process %s: %s", file.filename, e)
             extracted_data.append({
                 "fileName": file.filename,
                 "error": str(e)
             })
 
     return {
-        "message": "Files uploaded successfully",
+        "message": "Files processed and saved",
         "extracted_data": extracted_data
     }
 # ============= READ ENDPOINTS =============

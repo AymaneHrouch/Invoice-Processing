@@ -142,7 +142,6 @@ class InvoiceCreate(BaseModel):
         if v is None or v == "":
             return None
         if isinstance(v, str):
-            from datetime import datetime
             try:
                 # Parse as date first, then convert to datetime
                 date_obj = datetime.strptime(v, "%Y-%m-%d").date()

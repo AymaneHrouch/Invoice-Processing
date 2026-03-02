@@ -55,7 +55,7 @@ const ManualInvoice = () => {
     items: [],
     tags: [],
     source_type: 'manual',
-    status: 'extracted',
+    status: 'validated',
   });
 
   const [errors, setErrors] = useState({});
@@ -135,7 +135,7 @@ const ManualInvoice = () => {
       items: [],
       tags: [],
       source_type: 'manual',
-      status: 'extracted',
+      status: 'validated',
     });
     setErrors({});
   };

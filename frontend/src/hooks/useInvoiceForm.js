@@ -30,7 +30,7 @@ const getDefaultForm = () => ({
   items: [],
   tags: [],
   source_type: 'manual',
-  status: 'extracted',
+  status: 'validated',
 });
 
 // ✅ Fonction pour transformer les données initiales
