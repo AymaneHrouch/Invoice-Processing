@@ -13,6 +13,7 @@ import { categories, currencies } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useEditInvoice } from '@/hooks/useEditInvoice';
 import { FormField } from '@/components/ui/form-field';
+import { Label } from '@/components/ui/label';
 import { InvoiceTags, InvoiceItems } from '@/components/invoice';
 import {
   Dialog,
@@ -59,6 +60,9 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     items: [],
     tags: [],
     status: 'extracted',
+    direction: 'incoming',
+    is_exported: false,
+    is_paid: false,
   });
 
   const [errors, setErrors] = useState({});
@@ -89,6 +93,9 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
           : [],
         tags: Array.isArray(invoice.tags) ? invoice.tags : [],
         status: invoice.status || 'extracted',
+        direction: invoice.direction || 'incoming',
+        is_exported: Boolean(invoice.is_exported),
+        is_paid: Boolean(invoice.is_paid),
       });
 
       // Reset des erreurs
@@ -183,6 +190,10 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       total_amount: parseFloat(formData.total_amount),
       invoice_date: formData.invoice_date?.trim() || null,
       invoice_due_date: formData.invoice_due_date?.trim() || null,
+      status: formData.status,
+      direction: formData.direction,
+      is_exported: formData.is_exported,
+      is_paid: formData.is_paid,
     };
 
     console.log('🚀 Submitting invoice data:', invoiceData);
@@ -335,6 +346,89 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                   currency={formData.currency}
                   onItemsChange={updateItems}
                 />
+
+                <Separator />
+
+                {/* Status & Flags */}
+                <div>
+                  <h4
+                    className={`text-sm font-semibold mb-4 ${
+                      isDarkMode ? 'text-gray-200' : 'text-gray-800'
+                    }`}
+                  >
+                    Status & Flags
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <FormField
+                      type="select"
+                      label="Status"
+                      value={formData.status}
+                      onChange={(value) => updateField('status', value)}
+                      options={['extracted', 'validated']}
+                      placeholder="Select status"
+                    />
+                    <FormField
+                      type="select"
+                      label="Direction"
+                      value={formData.direction}
+                      onChange={(value) => updateField('direction', value)}
+                      options={['incoming', 'outgoing']}
+                      placeholder="Select direction"
+                    />
+                    <div className="flex flex-col gap-2">
+                      <Label
+                        className={`text-sm font-medium ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}
+                      >
+                        Exported
+                      </Label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.is_exported}
+                          onChange={(e) =>
+                            updateField('is_exported', e.target.checked)
+                          }
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span
+                          className={`text-sm ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}
+                        >
+                          {formData.is_exported ? 'Yes' : 'No'}
+                        </span>
+                      </label>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label
+                        className={`text-sm font-medium ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}
+                      >
+                        Paid
+                      </Label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.is_paid}
+                          onChange={(e) =>
+                            updateField('is_paid', e.target.checked)
+                          }
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span
+                          className={`text-sm ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}
+                        >
+                          {formData.is_paid ? 'Yes' : 'No'}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
 
                 <Separator />
 
