@@ -30,7 +30,7 @@ const getDefaultForm = () => ({
   items: [],
   tags: [],
   source_type: 'manual',
-  status: 'pending',
+  status: 'extracted',
 });
 
 // ✅ Fonction pour transformer les données initiales
@@ -58,7 +58,7 @@ const transformInitialData = (data) => {
       : [],
     tags: Array.isArray(data.tags) ? data.tags : [],
     source_type: data.source_type || 'manual',
-    status: data.status || 'pending',
+    status: data.status || 'extracted',
   };
 };
 

@@ -55,7 +55,7 @@ const ManualInvoice = () => {
     items: [],
     tags: [],
     source_type: 'manual',
-    status: 'pending',
+    status: 'extracted',
   });
 
   const [errors, setErrors] = useState({});
@@ -135,7 +135,7 @@ const ManualInvoice = () => {
       items: [],
       tags: [],
       source_type: 'manual',
-      status: 'pending',
+      status: 'extracted',
     });
     setErrors({});
   };

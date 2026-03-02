@@ -167,7 +167,7 @@ const ExtractedDataForm = ({
       category: currentData.category?.trim(),
       tags: currentData.tags || [],
       source_type: 'pdf',
-      status: 'pending',
+      status: 'extracted',
     };
 
     const result = await addInvoice(invoiceData);

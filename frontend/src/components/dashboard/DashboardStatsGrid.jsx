@@ -35,17 +35,17 @@ const DashboardStatsGrid = ({ stats }) => {
         isGrowthPositive={stats.growth?.amount > 0}
       />
 
-      {/* Pending Invoices */}
+      {/* Extracted Invoices (To Validate) */}
       <StatsCard
-        title="Pending Invoices"
-        value={stats.pendingInvoices || 0}
+        title="To Validate"
+        value={stats.extractedInvoices || 0}
         icon={FiClock}
-        iconColor="text-yellow-600 dark:text-yellow-400"
-        iconBgColor="bg-yellow-100 dark:bg-yellow-900"
+        iconColor="text-blue-600 dark:text-blue-400"
+        iconBgColor="bg-blue-100 dark:bg-blue-900"
         customContent={
-          <div className="flex items-center gap-1 text-sm text-yellow-600">
+          <div className="flex items-center gap-1 text-sm text-blue-600">
             <FiClock className="w-4 h-4" />
-            <span>Awaiting Payment</span>
+            <span>Extracted invoices</span>
           </div>
         }
       />

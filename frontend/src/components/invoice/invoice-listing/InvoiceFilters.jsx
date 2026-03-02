@@ -51,9 +51,8 @@ const InvoiceFilters = ({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processed">Processed</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="extracted">Extracted</SelectItem>
+                <SelectItem value="validated">Validated</SelectItem>
               </SelectContent>
             </Select>
           </div>

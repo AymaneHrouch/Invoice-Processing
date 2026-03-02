@@ -58,7 +58,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     category: '',
     items: [],
     tags: [],
-    status: 'pending',
+    status: 'extracted',
   });
 
   const [errors, setErrors] = useState({});
@@ -88,7 +88,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
             }))
           : [],
         tags: Array.isArray(invoice.tags) ? invoice.tags : [],
-        status: invoice.status || 'pending',
+        status: invoice.status || 'extracted',
       });
 
       // Reset des erreurs

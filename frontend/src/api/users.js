@@ -3,7 +3,7 @@ import api from './baseApi';
 
 export const getAllUsers = async () => {
   const authConfig = getAuthConfig();
-  const response = await api.get('/users', authConfig);
+  const response = await api.get('/users/', authConfig);
   return response.data;
 };
 

@@ -4,7 +4,7 @@ import api from './baseApi';
 // API pour la gestion des factures
 export const createInvoice = async (data) => {
   try {
-    const response = await api.post('/invoices', data);
+    const response = await api.post('/invoices/', data);
     return response.data;
   } catch (error) {
     if (error.response && error.response.data && error.response.data.detail) {
@@ -34,44 +34,24 @@ export const fetchInvoices = async (
   filters = {},
 ) => {
   try {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      per_page: perPage.toString(),
-      sort_by: sortBy,
-      order: order,
-    });
+    const params = {
+      page, per_page: perPage, sort_by: sortBy, order,
+      ...(filters.status && filters.status !== 'all' && { status: filters.status }),
+      ...(filters.vendor_name && { vendor_name: filters.vendor_name }),
+      ...(filters.category && filters.category !== 'all' && { category: filters.category }),
+    };
 
-    // Add filters if they exist
-    if (filters.status && filters.status !== 'all')
-      params.append('status', filters.status);
-    if (filters.vendor_name) params.append('vendor_name', filters.vendor_name);
-    if (filters.category && filters.category !== 'all')
-      params.append('category', filters.category);
+    const response = await api.get('/invoices/', { params });
+    const invoicesList = response.data;
+    const headers = response.headers;
 
-    const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/invoices/?${params}`,
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const invoicesList = await response.json();
-    console.log('invoicesList', invoicesList);
-    // Navigation
-    const total = parseInt(response.headers.get('X-Total-Count') || '0');
-    const totalPages = parseInt(response.headers.get('X-Total-Pages') || '1');
-    const hasNext = response.headers.get('X-Has-Next') === 'true';
-    const hasPrev = response.headers.get('X-Has-Prev') === 'true';
-
-    // Format the data to match the expected structure
     return {
-      page: page,
-      perPage: perPage,
-      total: total,
-      totalPages: totalPages,
-      hasNext: hasNext,
-      hasPrev: hasPrev,
+      page,
+      perPage,
+      total: parseInt(headers['x-total-count'] || '0'),
+      totalPages: parseInt(headers['x-total-pages'] || '1'),
+      hasNext: headers['x-has-next'] === 'true',
+      hasPrev: headers['x-has-prev'] === 'true',
       data: invoicesList,
     };
   } catch (error) {
@@ -111,24 +91,10 @@ export const deleteInvoice = async (id) => {
 // Get top invoices for a specific category
 export const getTopInvoicesByCategory = async (category, limit = 10) => {
   try {
-    const params = new URLSearchParams({
-      category: category,
-      sort_by: 'total_amount',
-      order: 'desc',
-      per_page: limit.toString(),
-      page: '1',
+    const response = await api.get('/invoices/', {
+      params: { category, sort_by: 'total_amount', order: 'desc', per_page: limit, page: 1 },
     });
-
-    const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/invoices/?${params}`,
-    );
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const invoicesList = await response.json();
-    return invoicesList;
+    return response.data;
   } catch (error) {
     throw new Error(
       `Failed to fetch top invoices for category: ${error.message}`,

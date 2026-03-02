@@ -96,7 +96,7 @@ def get_invoices(
     - **per_page**: Number of invoices to return
     - **sort_by**: Field to sort by
     - **order**: Sort order
-    - **status**: Filter by invoice status (e.g., 'pending', 'processed', 'paid')
+    - **status**: Filter by invoice status (e.g., 'extracted', 'validated')
     - **vendor_name**: Filter by vendor name (supports partial matching)
     - **category**: Filter by exact category match
     """
@@ -269,7 +269,7 @@ def update_invoice_status_by_id(
     Update only the status of an invoice by its ID
 
     - **invoice_id**: The MongoDB ObjectId of the invoice
-    - **status**: The new status (e.g., 'pending', 'processed', 'paid', 'cancelled')
+    - **status**: The new status (e.g., 'extracted', 'validated')
     """
     try:
         invoice = InvoiceCRUD.update_invoice_status(invoice_id, status)

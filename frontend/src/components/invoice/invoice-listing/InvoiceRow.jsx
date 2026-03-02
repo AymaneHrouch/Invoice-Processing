@@ -7,6 +7,7 @@ import {
   formatCurrency,
   getCategoryColor,
   getSourceIcon,
+  statusConfig,
 } from '@/constants';
 import { EditInvoice } from '@/components/invoice';
 import {
@@ -119,16 +120,10 @@ const InvoiceRow = ({
           }`}
         >
           <Badge
-            variant={
-              invoice.status?.toLowerCase() === 'paid'
-                ? 'default'
-                : invoice.status?.toLowerCase() === 'processed'
-                  ? 'secondary'
-                  : 'outline'
-            }
-            className="min-w-[70px] text-center justify-center"
+            variant={statusConfig[invoice.status]?.variant || 'outline'}
+            className={`min-w-[70px] text-center justify-center ${statusConfig[invoice.status]?.className || ''}`}
           >
-            {invoice.status}
+            {statusConfig[invoice.status]?.label || invoice.status}
           </Badge>
         </td>
         <td

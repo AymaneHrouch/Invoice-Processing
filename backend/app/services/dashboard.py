@@ -230,11 +230,11 @@ def get_overdue_invoices():
 
     return invoice_collection.count_documents({
         "invoice_due_date": {"$lt": today},
-        "status": {"$ne": "paid"}
+        "status": {"$ne": "validated"}
     })
-def get_pending_invoices():
+def get_extracted_invoices():
     return invoice_collection.count_documents({
-        "status": "pending",
+        "status": "extracted",
     })
 
 def get_monthly_chart_data(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: str = "1year", start_date: datetime = None, end_date: datetime = None):
