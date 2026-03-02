@@ -109,7 +109,7 @@ const InvoiceTableHeader = ({ showSelect, allSelected, onSelectAll }) => {
               : "text-gray-600 border-gray-200"
           }`}
         >
-          Exported
+          Paid
         </th>
         <th
           className={`px-3 py-4 text-center font-semibold border-b whitespace-nowrap ${
@@ -118,7 +118,7 @@ const InvoiceTableHeader = ({ showSelect, allSelected, onSelectAll }) => {
               : "text-gray-600 border-gray-200"
           }`}
         >
-          Paid
+          Exported
         </th>
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap ${

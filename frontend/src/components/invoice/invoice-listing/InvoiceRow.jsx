@@ -13,11 +13,9 @@ import { EditInvoice } from '@/components/invoice';
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  Check,
   ChevronDown,
   ChevronUp,
   Download,
-  Minus,
   SquarePen,
   Trash2,
 } from 'lucide-react';
@@ -234,11 +232,14 @@ const InvoiceRow = ({
             isDarkMode ? 'border-gray-600' : 'border-gray-100'
           }`}
         >
-          {invoice.is_exported ? (
-            <Check className="w-4 h-4 text-green-500 mx-auto" />
-          ) : (
-            <Minus className="w-4 h-4 text-gray-300 dark:text-gray-600 mx-auto" />
-          )}
+          <input
+            type="checkbox"
+            checked={Boolean(invoice.is_paid)}
+            onChange={(e) => handleToggleField('is_paid', e.target.checked)}
+            disabled={togglingField === 'is_paid'}
+            className="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4 cursor-pointer"
+            title="Toggle paid"
+          />
         </td>
         <td
           className={`px-3 py-4 border-b align-middle text-center ${
@@ -247,11 +248,12 @@ const InvoiceRow = ({
         >
           <input
             type="checkbox"
-            checked={Boolean(invoice.is_paid)}
-            onChange={(e) => handleToggleField('is_paid', e.target.checked)}
-            disabled={togglingField === 'is_paid'}
+            checked={Boolean(invoice.is_exported)}
+            readOnly
+            tabIndex={-1}
+            onClick={(e) => e.preventDefault()}
             className="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4 cursor-pointer"
-            title="Toggle paid"
+            title="Set automatically on export"
           />
         </td>
         <td
