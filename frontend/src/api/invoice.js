@@ -26,6 +26,21 @@ export const updateInvoice = async (id, data) => {
   }
 };
 
+export const batchUpdateInvoices = async (invoiceIds, updates) => {
+  try {
+    const response = await api.patch('/invoices/batch', {
+      invoice_ids: invoiceIds,
+      ...updates,
+    });
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.data && error.response.data.detail) {
+      throw new Error(error.response.data.detail);
+    }
+    throw new Error('Error while batch updating invoices.');
+  }
+};
+
 export const fetchInvoices = async (
   page = 1,
   perPage = 10,

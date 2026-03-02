@@ -39,15 +39,29 @@ const InvoiceRow = ({
   onToggleExpand,
   onExportPDF,
   onDelete,
-  onUpdate, // ✅ AJOUT: Nouveau prop pour la mise à jour
+  onUpdate,
+  onUpdateField,
+  isSelected,
+  onSelect,
 }) => {
   const { isDarkMode } = useTheme();
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [togglingField, setTogglingField] = useState(null);
 
-  // ✅ CORRECTION: Cette fonction doit appeler onUpdate du parent
+  const handleToggleField = async (field, value) => {
+    if (!onUpdateField || togglingField) return;
+    setTogglingField(field);
+    try {
+      const updated = await onUpdateField(invoice.id || invoice._id, { [field]: value });
+      if (onUpdate && updated) onUpdate(updated);
+    } finally {
+      setTogglingField(null);
+    }
+  };
+
   const handleEditSuccess = (updatedInvoice) => {
     console.log('✅ Invoice updated successfully:', updatedInvoice);
 
@@ -64,6 +78,24 @@ const InvoiceRow = ({
           isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
         }`}
       >
+        {onSelect && (
+          <td
+            className={`px-3 py-4 border-b align-middle text-center w-10 ${
+              isDarkMode ? 'border-gray-600' : 'border-gray-100'
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={(e) => {
+                e.stopPropagation();
+                onSelect(invoice.id || invoice._id, e.target.checked);
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+          </td>
+        )}
         <td
           className={`px-3 py-4 border-b align-middle ${
             isDarkMode ? 'border-gray-600' : 'border-gray-100'
@@ -173,15 +205,29 @@ const InvoiceRow = ({
             isDarkMode ? 'border-gray-600' : 'border-gray-100'
           }`}
         >
-          {invoice.direction === 'outgoing' ? (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 dark:text-orange-400">
-              <ArrowUpRight className="w-3.5 h-3.5" /> Out
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400">
-              <ArrowDownLeft className="w-3.5 h-3.5" /> In
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={() =>
+              handleToggleField(
+                'direction',
+                invoice.direction === 'outgoing' ? 'incoming' : 'outgoing',
+              )
+            }
+            disabled={togglingField === 'direction'}
+            className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded transition-opacity ${
+              invoice.direction === 'outgoing'
+                ? 'text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20'
+                : 'text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+            } ${togglingField === 'direction' ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
+            title="Click to toggle direction"
+          >
+            {invoice.direction === 'outgoing' ? (
+              <ArrowUpRight className="w-3.5 h-3.5" /> 
+            ) : (
+              <ArrowDownLeft className="w-3.5 h-3.5" />
+            )}
+            {invoice.direction === 'outgoing' ? 'Out' : 'In'}
+          </button>
         </td>
         <td
           className={`px-3 py-4 border-b align-middle text-center ${
@@ -199,11 +245,14 @@ const InvoiceRow = ({
             isDarkMode ? 'border-gray-600' : 'border-gray-100'
           }`}
         >
-          {invoice.is_paid ? (
-            <Check className="w-4 h-4 text-green-500 mx-auto" />
-          ) : (
-            <Minus className="w-4 h-4 text-gray-300 dark:text-gray-600 mx-auto" />
-          )}
+          <input
+            type="checkbox"
+            checked={Boolean(invoice.is_paid)}
+            onChange={(e) => handleToggleField('is_paid', e.target.checked)}
+            disabled={togglingField === 'is_paid'}
+            className="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4 cursor-pointer"
+            title="Toggle paid"
+          />
         </td>
         <td
           className={`px-3 py-4 border-b align-middle ${

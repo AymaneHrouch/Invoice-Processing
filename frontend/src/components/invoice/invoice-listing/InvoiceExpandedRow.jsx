@@ -1,12 +1,12 @@
 import { useTheme } from '@/contexts';
 import { formatDate, formatCurrency } from '@/constants';
 
-const InvoiceExpandedRow = ({ invoice }) => {
+const InvoiceExpandedRow = ({ invoice, colSpan = 13 }) => {
   const { isDarkMode } = useTheme();
 
   return (
     <tr className={isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}>
-      <td colSpan="12" className="px-6 py-6">
+      <td colSpan={colSpan} className="px-6 py-6">
         <div className="space-y-8">
           <div className="space-y-6">
             <div>

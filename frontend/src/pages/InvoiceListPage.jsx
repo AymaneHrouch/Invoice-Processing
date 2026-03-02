@@ -4,7 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from '@/contexts';
 import { exportToPDF } from '@/constants/exportToPDF';
-import { fetchInvoices } from '@/api/invoice';
+import { fetchInvoices, updateInvoice, batchUpdateInvoices } from '@/api/invoice';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   InvoicePagination,
@@ -50,6 +50,8 @@ const InvoiceListPage = () => {
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [batchLoading, setBatchLoading] = useState(false);
 
   const handleEdit = (invoice) => {
     setSelectedInvoice(invoice);
@@ -66,19 +68,59 @@ const InvoiceListPage = () => {
     console.log('✅ Invoice updated locally:', updatedInvoice);
 
     // Mettre à jour la liste des factures localement
+    const updatedId = updatedInvoice._id || updatedInvoice.id;
     setInvoiceData((prevData) => ({
       ...prevData,
       data: prevData.data.map((invoice) =>
-        invoice._id === updatedInvoice._id ? updatedInvoice : invoice,
+        (invoice._id || invoice.id) === updatedId ? updatedInvoice : invoice,
       ),
     }));
 
-    // Mettre à jour la facture sélectionnée si c'est la même
-    if (selectedInvoice?._id === updatedInvoice._id) {
+    if (selectedInvoice && (selectedInvoice._id || selectedInvoice.id) === updatedId) {
       setSelectedInvoice(updatedInvoice);
     }
 
     closeEditModal();
+  };
+
+  const handleSelect = (invoiceId, checked) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(invoiceId);
+      else next.delete(invoiceId);
+      return next;
+    });
+  };
+
+  const handleSelectAll = (checked) => {
+    if (!invoiceData?.data) return;
+    if (checked) {
+      setSelectedIds(
+        new Set(invoiceData.data.map((inv) => inv.id || inv._id)),
+      );
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleUpdateField = async (invoiceId, payload) => {
+    const updated = await updateInvoice(invoiceId, payload);
+    return updated;
+  };
+
+  const handleBatchUpdate = async (updates) => {
+    if (selectedIds.size === 0) return;
+    setBatchLoading(true);
+    try {
+      const result = await batchUpdateInvoices([...selectedIds], updates);
+      toast.success(result.message || `Updated ${result.updated_count} invoice(s)`);
+      setSelectedIds(new Set());
+      handleFetchInvoices(page, sortBy, order, filters);
+    } catch (err) {
+      toast.error(err.message || 'Batch update failed');
+    } finally {
+      setBatchLoading(false);
+    }
   };
 
   // ✅ OPTIMISATION: Mise à jour locale pour la suppression
@@ -127,7 +169,9 @@ const InvoiceListPage = () => {
     setInvoiceData((prevData) => ({
       ...prevData,
       data: prevData.data.map((invoice) =>
-        invoice._id === updatedInvoice._id ? updatedInvoice : invoice,
+        (invoice._id || invoice.id) === (updatedInvoice._id || updatedInvoice.id)
+          ? updatedInvoice
+          : invoice,
       ),
     }));
   };
@@ -340,6 +384,70 @@ const InvoiceListPage = () => {
         onClearFilters={clearFilters}
       />
 
+      {selectedIds.size > 0 && (
+        <div
+          className={`mb-4 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 ${
+            isDarkMode
+              ? 'border-blue-700 bg-blue-900/20'
+              : 'border-blue-200 bg-blue-50'
+          }`}
+        >
+          <span
+            className={`font-medium ${
+              isDarkMode ? 'text-blue-200' : 'text-blue-800'
+            }`}
+          >
+            {selectedIds.size} invoice(s) selected
+          </span>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBatchUpdate({ is_paid: true })}
+              disabled={batchLoading}
+              className="border-green-500 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-900/20"
+            >
+              Mark as Paid
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBatchUpdate({ is_paid: false })}
+              disabled={batchLoading}
+              className="border-gray-500 text-gray-600 hover:bg-gray-50 dark:border-gray-400 dark:text-gray-400 dark:hover:bg-gray-900/20"
+            >
+              Mark as Unpaid
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBatchUpdate({ direction: 'incoming' })}
+              disabled={batchLoading}
+              className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
+            >
+              Set Incoming
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBatchUpdate({ direction: 'outgoing' })}
+              disabled={batchLoading}
+              className="border-orange-500 text-orange-600 hover:bg-orange-50 dark:border-orange-400 dark:text-orange-400 dark:hover:bg-orange-900/20"
+            >
+              Set Outgoing
+            </Button>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-auto"
+          >
+            Clear selection
+          </Button>
+        </div>
+      )}
+
       <div
         className={`overflow-x-auto rounded-lg border shadow-lg ${
           isDarkMode
@@ -348,7 +456,16 @@ const InvoiceListPage = () => {
         }`}
       >
         <table className="w-full border-collapse text-sm">
-          <InvoiceTableHeader />
+          <InvoiceTableHeader
+            showSelect
+            allSelected={
+              invoiceData.data.length > 0 &&
+              invoiceData.data.every((inv) =>
+                selectedIds.has(inv.id || inv._id),
+              )
+            }
+            onSelectAll={handleSelectAll}
+          />
           <tbody>
             {invoiceData.data.flatMap((invoice) => [
               <InvoiceRow
@@ -359,13 +476,17 @@ const InvoiceListPage = () => {
                 onExportPDF={exportToPDF}
                 onDelete={handleDeleteInvoice}
                 onEdit={handleEdit}
-                onUpdate={handleUpdateInvoice} // ✅ AJOUT: Passer la fonction de mise à jour
+                onUpdate={handleUpdateInvoice}
+                onUpdateField={handleUpdateField}
+                isSelected={selectedIds.has(invoice.id || invoice._id)}
+                onSelect={handleSelect}
               />,
               ...(expandedRows.has(invoice.id || invoice._id)
                 ? [
                     <InvoiceExpandedRow
                       key={`${invoice.id || invoice._id}-expanded`}
                       invoice={invoice}
+                      colSpan={13}
                     />,
                   ]
                 : []),

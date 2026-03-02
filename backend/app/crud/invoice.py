@@ -236,6 +236,44 @@ class InvoiceCRUD:
             raise Exception(f"Failed to update invoice: {e!s}")
 
     @staticmethod
+    def batch_update_invoices(
+        invoice_ids: list[str],
+        is_paid: bool | None = None,
+        direction: str | None = None,
+    ) -> int:
+        """Update multiple invoices with the same field values. Returns count of updated documents."""
+        if not invoice_ids:
+            return 0
+        set_op = {"updated_at": datetime.utcnow()}
+        unset_op = {}
+        if is_paid is not None:
+            set_op["is_paid"] = is_paid
+            if is_paid:
+                set_op["paid_at"] = datetime.utcnow()
+            else:
+                unset_op["paid_at"] = ""
+        if direction is not None:
+            set_op["direction"] = direction
+        if is_paid is None and direction is None:
+            return 0
+        try:
+            collection = get_invoices_collection()
+            object_ids = [ObjectId(oid) for oid in invoice_ids if ObjectId.is_valid(oid)]
+            if not object_ids:
+                return 0
+            update = {"$set": set_op}
+            if unset_op:
+                update["$unset"] = unset_op
+            result = collection.update_many(
+                {"_id": {"$in": object_ids}},
+                update,
+            )
+            return result.modified_count
+        except Exception as e:
+            logger.exception("Batch update failed: %s", e)
+            raise
+
+    @staticmethod
     def update_invoice_status(invoice_id: str, status: str) -> Invoice | None:
         """Update invoice status"""
         try:

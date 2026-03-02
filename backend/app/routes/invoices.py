@@ -18,7 +18,7 @@ from fastapi import (
 from fastapi.params import Depends
 
 from app.crud.invoice import InvoiceCRUD
-from app.models.invoice import Invoice, InvoiceCreate, InvoiceResponse, InvoiceUpdate
+from app.models.invoice import Invoice, InvoiceBatchUpdate, InvoiceCreate, InvoiceResponse, InvoiceUpdate
 from app.services.invoices import extract_invoice_data
 from app.utils.auth import require_admin
 
@@ -273,6 +273,26 @@ def update_invoice_by_number(
         invoice = InvoiceCRUD.update_invoice(str(existing_invoice.id), update_data)
         return invoice
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/batch", summary="Batch update invoices")
+def batch_update_invoices(body: InvoiceBatchUpdate = Body(...)):
+    """
+    Update multiple invoices with the same field values.
+    - **invoice_ids**: List of invoice IDs to update
+    - **is_paid**: Set paid status (optional)
+    - **direction**: Set direction to 'incoming' or 'outgoing' (optional)
+    """
+    try:
+        count = InvoiceCRUD.batch_update_invoices(
+            invoice_ids=body.invoice_ids,
+            is_paid=body.is_paid,
+            direction=body.direction,
+        )
+        return {"updated_count": count, "message": f"Updated {count} invoice(s)"}
+    except Exception as e:
+        logger.exception("Batch update failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 

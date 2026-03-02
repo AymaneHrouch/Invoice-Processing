@@ -197,6 +197,13 @@ class InvoiceUpdate(BaseModel):
     exported_at: datetime | None = None
 
 
+class InvoiceBatchUpdate(BaseModel):
+    """Schema for batch updating invoices"""
+    invoice_ids: list[str]
+    is_paid: bool | None = None
+    direction: str | None = None
+
+
 class InvoiceResponse(BaseModel):
     """Response schema for invoices"""
     invoice_number: str | None = None
