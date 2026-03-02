@@ -1,7 +1,7 @@
 """
 CRUD operations for Invoice model using PyMongo
 """
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 import logging
 from typing import Any, Literal
@@ -39,7 +39,11 @@ class InvoiceCRUD:
 
             invoice_dict = invoice_data.model_dump(exclude_unset=True, exclude_none=True)
 
-            from datetime import date, datetime
+            invoice_dict.setdefault("is_exported", False)
+            invoice_dict.setdefault("is_paid", False)
+            invoice_dict.setdefault("is_archived", False)
+            invoice_dict.setdefault("direction", "incoming")
+
             if invoice_dict.get("invoice_date"):
                 if isinstance(invoice_dict["invoice_date"], date):
                     invoice_dict["invoice_date"] = datetime.combine(

@@ -11,9 +11,13 @@ import {
 } from '@/constants';
 import { EditInvoice } from '@/components/invoice';
 import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  Check,
   ChevronDown,
   ChevronUp,
   Download,
+  Minus,
   SquarePen,
   Trash2,
 } from 'lucide-react';
@@ -163,6 +167,43 @@ const InvoiceRow = ({
           >
             {getSourceIcon(invoice.source_type)} {invoice.source_type}
           </span>
+        </td>
+        <td
+          className={`px-3 py-4 border-b align-middle text-center ${
+            isDarkMode ? 'border-gray-600' : 'border-gray-100'
+          }`}
+        >
+          {invoice.direction === 'outgoing' ? (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-600 dark:text-orange-400">
+              <ArrowUpRight className="w-3.5 h-3.5" /> Out
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400">
+              <ArrowDownLeft className="w-3.5 h-3.5" /> In
+            </span>
+          )}
+        </td>
+        <td
+          className={`px-3 py-4 border-b align-middle text-center ${
+            isDarkMode ? 'border-gray-600' : 'border-gray-100'
+          }`}
+        >
+          {invoice.is_exported ? (
+            <Check className="w-4 h-4 text-green-500 mx-auto" />
+          ) : (
+            <Minus className="w-4 h-4 text-gray-300 dark:text-gray-600 mx-auto" />
+          )}
+        </td>
+        <td
+          className={`px-3 py-4 border-b align-middle text-center ${
+            isDarkMode ? 'border-gray-600' : 'border-gray-100'
+          }`}
+        >
+          {invoice.is_paid ? (
+            <Check className="w-4 h-4 text-green-500 mx-auto" />
+          ) : (
+            <Minus className="w-4 h-4 text-gray-300 dark:text-gray-600 mx-auto" />
+          )}
         </td>
         <td
           className={`px-3 py-4 border-b align-middle ${
