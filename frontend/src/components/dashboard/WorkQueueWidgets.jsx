@@ -43,8 +43,8 @@ const WorkQueueWidgets = ({ stats }) => {
       value: stats.exported_this_month ?? 0,
       icon: FiDownload,
       color: 'gray',
-      href: null,
-      clickable: false,
+      href: '/invoices/list?is_exported=true',
+      clickable: true,
     },
   ];
 
