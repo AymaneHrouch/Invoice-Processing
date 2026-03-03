@@ -23,7 +23,8 @@ import { categories, currencies } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useAddInvoice } from '@/hooks/useAddInvoice';
 import { FormField } from '@/components/ui/form-field';
-import { InvoiceTags, InvoiceItems } from '@/components/invoice';
+import { InvoiceTags, InvoiceItems, AmountWarningBanner } from '@/components/invoice';
+import { runAmountChecks } from '@/utils/invoiceCalculations';
 
 // ✅ Fonction utilitaire pour formater les dates
 const formatDateForInput = (dateString) => {
@@ -55,7 +56,7 @@ const ManualInvoice = () => {
     items: [],
     tags: [],
     source_type: 'manual',
-    status: 'validated',
+    status: 'extracted',
   });
 
   const [errors, setErrors] = useState({});
@@ -135,7 +136,7 @@ const ManualInvoice = () => {
       items: [],
       tags: [],
       source_type: 'manual',
-      status: 'validated',
+      status: 'extracted',
     });
     setErrors({});
   };
@@ -188,6 +189,15 @@ const ManualInvoice = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {(() => {
+            const warnings = runAmountChecks(
+              { total_amount: formData.total_amount, items: formData.items },
+              formData.currency
+            );
+            return warnings.length > 0 ? (
+              <AmountWarningBanner warnings={warnings} />
+            ) : null;
+          })()}
           {/* Form fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <FormField

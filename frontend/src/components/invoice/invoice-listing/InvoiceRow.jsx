@@ -20,7 +20,9 @@ import {
   Download,
   SquarePen,
   Trash2,
+  AlertTriangle,
 } from 'lucide-react';
+import { runAmountChecks } from '@/utils/invoiceCalculations';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -74,6 +76,12 @@ const InvoiceRow = ({
   };
 
   const isArchived = invoice.is_archived === true;
+  const amountWarnings = runAmountChecks(
+    { total_amount: invoice.total_amount, items: invoice.items || [] },
+    invoice.currency || 'MAD'
+  );
+  const hasAmountWarning =
+    invoice.status === 'extracted' && amountWarnings.length > 0;
 
   return (
     <>
@@ -177,8 +185,16 @@ const InvoiceRow = ({
             isDarkMode ? 'border-gray-600' : 'border-gray-100'
           }`}
         >
-          <span className="font-semibold text-green-600 text-base">
+          <span className="inline-flex items-center gap-1.5 font-semibold text-green-600 text-base">
             {formatCurrency(invoice.total_amount, invoice.currency)}
+            {hasAmountWarning && (
+              <span
+                className="text-amber-500 cursor-help"
+                title={amountWarnings.join('\n')}
+              >
+                <AlertTriangle className="w-4 h-4" />
+              </span>
+            )}
           </span>
         </td>
         <td

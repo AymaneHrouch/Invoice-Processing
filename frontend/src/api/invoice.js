@@ -59,6 +59,18 @@ export const restoreInvoice = async (id) => {
   }
 };
 
+export const validateInvoice = async (id) => {
+  try {
+    const response = await api.patch(`/invoices/${id}/status`, { status: 'validated' });
+    return response.data;
+  } catch (error) {
+    if (error.response?.data?.detail) {
+      throw new Error(error.response.data.detail);
+    }
+    throw new Error(`Failed to validate invoice: ${error.message}`);
+  }
+};
+
 export const getInvoiceById = async (id) => {
   try {
     const response = await api.get(`/invoices/${id}`);
