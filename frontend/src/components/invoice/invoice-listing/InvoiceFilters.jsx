@@ -29,8 +29,8 @@ const InvoiceFilters = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="space-y-2">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
               Status
             </Label>
@@ -45,42 +45,17 @@ const InvoiceFilters = ({
                     : 'bg-white'
                 }`}
               >
-                <SelectValue placeholder="All Statuses" />
+                <SelectValue placeholder="All" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="extracted">Extracted</SelectItem>
                 <SelectItem value="validated">Validated</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-              Export Status
-            </Label>
-            <Select
-              value={filters.is_exported ?? 'all'}
-              onValueChange={(value) => onFilterChange('is_exported', value)}
-            >
-              <SelectTrigger
-                className={`h-11 ${
-                  isDarkMode
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'bg-white'
-                }`}
-              >
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="false">Not Exported</SelectItem>
-                <SelectItem value="true">Exported</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
               Category
             </Label>
@@ -95,10 +70,10 @@ const InvoiceFilters = ({
                     : 'bg-white'
                 }`}
               >
-                <SelectValue placeholder="All Categories" />
+                <SelectValue placeholder="All" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="Services">Services</SelectItem>
                 <SelectItem value="Equipment">Equipment</SelectItem>
                 <SelectItem value="Software">Software</SelectItem>
@@ -110,7 +85,7 @@ const InvoiceFilters = ({
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
               Paid
             </Label>
@@ -135,21 +110,63 @@ const InvoiceFilters = ({
             </Select>
           </div>
 
-          <div className="flex items-end gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={filters.include_archived ?? false}
-                onChange={(e) => onFilterChange('include_archived', e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-              />
-              <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                Show archives
-              </span>
-            </label>
-            <Button variant="outline" onClick={onClearFilters} className="h-11">
-              Clear Filters
+          <div className="space-y-2 min-w-[140px] flex-1">
+            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+              Export
+            </Label>
+            <Select
+              value={filters.is_exported ?? 'all'}
+              onValueChange={(value) => onFilterChange('is_exported', value)}
+            >
+              <SelectTrigger
+                className={`h-11 ${
+                  isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white'
+                }`}
+              >
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="false">Not Exported</SelectItem>
+                <SelectItem value="true">Exported</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2 flex-1 min-w-0">
+            <Label className="invisible">Archives</Label>
+            <Button
+              type="button"
+              variant="outline"
+              className={`h-11 min-h-0 py-2 w-auto shrink-0 px-3 justify-center text-sm font-normal ${
+                filters.include_archived
+                  ? isDarkMode
+                    ? 'border-blue-500 bg-blue-900/20 text-blue-300'
+                    : 'border-blue-500 bg-blue-50 text-blue-700'
+                  : ''
+              }`}
+              onClick={() =>
+                onFilterChange('include_archived', !(filters.include_archived ?? false))
+              }
+            >
+              {filters.include_archived ? 'Hide archives' : 'Show archives'}
             </Button>
+          </div>
+
+          <div className="space-y-2 flex flex-col justify-end flex-1 min-w-0">
+            <button
+              type="button"
+              onClick={onClearFilters}
+              className={`text-sm font-normal bg-transparent border-0 cursor-pointer self-center lg:self-end ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-gray-200 hover:underline'
+                  : 'text-gray-500 hover:text-gray-800 hover:underline'
+              }`}
+            >
+              Clear filters
+            </button>
           </div>
         </div>
       </CardContent>

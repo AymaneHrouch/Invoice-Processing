@@ -204,6 +204,7 @@ class InvoiceBatchUpdate(BaseModel):
     direction: str | None = None
     status: str | None = None
     is_archived: bool | None = None
+    is_exported: bool | None = None
 
 
 class InvoiceResponse(BaseModel):
