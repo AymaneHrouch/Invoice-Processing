@@ -136,13 +136,11 @@ const InvoiceFilters = ({
           </div>
 
           <div className="space-y-2">
-            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-              Archives
-            </Label>
+            <Label className="invisible">Archives</Label>
             <Button
               type="button"
               variant="outline"
-              className={`h-11 w-full justify-center ${
+              className={`h-11 min-h-0 py-2 w-auto shrink-0 px-3 justify-center text-sm font-normal ${
                 filters.include_archived
                   ? isDarkMode
                     ? 'border-blue-500 bg-blue-900/20 text-blue-300'
@@ -157,11 +155,18 @@ const InvoiceFilters = ({
             </Button>
           </div>
 
-          <div className="space-y-2">
-            <Label className="invisible">Clear</Label>
-            <Button variant="outline" onClick={onClearFilters} className="h-11 w-full">
-              Clear Filters
-            </Button>
+          <div className="space-y-2 flex flex-col justify-end">
+            <button
+              type="button"
+              onClick={onClearFilters}
+              className={`text-sm font-normal bg-transparent border-0 cursor-pointer self-center lg:self-end ${
+                isDarkMode
+                  ? 'text-gray-400 hover:text-gray-200 hover:underline'
+                  : 'text-gray-500 hover:text-gray-800 hover:underline'
+              }`}
+            >
+              Clear filters
+            </button>
           </div>
         </div>
       </CardContent>
