@@ -2,6 +2,7 @@
 Invoice REST API routes using PyMongo
 """
 from datetime import datetime
+from time import sleep
 import logging
 from typing import Literal
 
@@ -53,9 +54,11 @@ async def handle_upload_files(files: list[UploadFile] = File(...)):
 
     extracted_data = []
 
-    for file in files:
+    for index, file in enumerate(files):
         file_bytes = await file.read()
         try:
+            if len(files) != 1 and index != 0:
+                sleep(2)
             logger.info("Processing uploaded file: %s", file.filename)
             invoice_data = extract_invoice_data(file_bytes)
 
