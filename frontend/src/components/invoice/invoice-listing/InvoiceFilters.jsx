@@ -29,7 +29,7 @@ const InvoiceFilters = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
           <div className="space-y-2">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
               Status
@@ -51,31 +51,6 @@ const InvoiceFilters = ({
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="extracted">Extracted</SelectItem>
                 <SelectItem value="validated">Validated</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-              Export Status
-            </Label>
-            <Select
-              value={filters.is_exported ?? 'all'}
-              onValueChange={(value) => onFilterChange('is_exported', value)}
-            >
-              <SelectTrigger
-                className={`h-11 ${
-                  isDarkMode
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'bg-white'
-                }`}
-              >
-                <SelectValue placeholder="All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="false">Not Exported</SelectItem>
-                <SelectItem value="true">Exported</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -135,19 +110,56 @@ const InvoiceFilters = ({
             </Select>
           </div>
 
-          <div className="flex items-end gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={filters.include_archived ?? false}
-                onChange={(e) => onFilterChange('include_archived', e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
-              />
-              <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-                Show archives
-              </span>
-            </label>
-            <Button variant="outline" onClick={onClearFilters} className="h-11">
+          <div className="space-y-2">
+            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+              Export Status
+            </Label>
+            <Select
+              value={filters.is_exported ?? 'all'}
+              onValueChange={(value) => onFilterChange('is_exported', value)}
+            >
+              <SelectTrigger
+                className={`h-11 ${
+                  isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white'
+                }`}
+              >
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="false">Not Exported</SelectItem>
+                <SelectItem value="true">Exported</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+              Archives
+            </Label>
+            <Button
+              type="button"
+              variant="outline"
+              className={`h-11 w-full justify-center ${
+                filters.include_archived
+                  ? isDarkMode
+                    ? 'border-blue-500 bg-blue-900/20 text-blue-300'
+                    : 'border-blue-500 bg-blue-50 text-blue-700'
+                  : ''
+              }`}
+              onClick={() =>
+                onFilterChange('include_archived', !(filters.include_archived ?? false))
+              }
+            >
+              {filters.include_archived ? 'Hide archives' : 'Show archives'}
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="invisible">Clear</Label>
+            <Button variant="outline" onClick={onClearFilters} className="h-11 w-full">
               Clear Filters
             </Button>
           </div>
