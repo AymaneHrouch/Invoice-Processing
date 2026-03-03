@@ -184,6 +184,7 @@ def get_invoices(
         vendor_name: str | None = Query(None, description="Filter by vendor name (partial match)"),
         category: str | None = Query(None, description="Filter by category"),
         is_exported: bool | None = Query(None, description="Filter by export status"),
+        is_paid: bool | None = Query(None, description="Filter by paid status"),
         include_archived: bool = Query(False, description="Include archived invoices"),
 ):
     """
@@ -203,6 +204,7 @@ def get_invoices(
             vendor_name=vendor_name,
             category=category,
             is_exported=is_exported,
+            is_paid=is_paid,
             include_archived=include_archived,
         )
         response.headers["X-Total-Count"] = str(result["total"])
@@ -399,6 +401,8 @@ def batch_update_invoices(body: InvoiceBatchUpdate = Body(...)):
             invoice_ids=body.invoice_ids,
             is_paid=body.is_paid,
             direction=body.direction,
+            status=body.status,
+            is_archived=body.is_archived,
         )
         return {"updated_count": count, "message": f"Updated {count} invoice(s)"}
     except Exception as e:

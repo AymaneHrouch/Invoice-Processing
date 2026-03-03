@@ -114,6 +114,7 @@ class InvoiceCRUD:
             vendor_name: str | None = None,
             category: str | None = None,
             is_exported: bool | None = None,
+            is_paid: bool | None = None,
             include_archived: bool = False,
     ):
         """Get all invoices with optional filtering. Excludes archived by default."""
@@ -131,6 +132,8 @@ class InvoiceCRUD:
                 filter_query["category"] = category
             if is_exported is not None:
                 filter_query["is_exported"] = is_exported
+            if is_paid is not None:
+                filter_query["is_paid"] = is_paid
 
             total = collection.count_documents(filter_query)
             total_pages = (total + per_page - 1) // per_page
@@ -296,6 +299,8 @@ class InvoiceCRUD:
         invoice_ids: list[str],
         is_paid: bool | None = None,
         direction: str | None = None,
+        status: str | None = None,
+        is_archived: bool | None = None,
     ) -> int:
         """Update multiple invoices with the same field values. Returns count of updated documents."""
         if not invoice_ids:
@@ -310,7 +315,11 @@ class InvoiceCRUD:
                 unset_op["paid_at"] = ""
         if direction is not None:
             set_op["direction"] = direction
-        if is_paid is None and direction is None:
+        if status is not None:
+            set_op["status"] = status
+        if is_archived is not None:
+            set_op["is_archived"] = is_archived
+        if is_paid is None and direction is None and status is None and is_archived is None:
             return 0
         try:
             collection = get_invoices_collection()

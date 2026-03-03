@@ -2,10 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { useTheme } from '@/contexts';
 import { exportToPDF } from '@/constants/exportToPDF';
 import { fetchInvoices, getInvoiceById, updateInvoice, batchUpdateInvoices, exportInvoices, archiveInvoice, restoreInvoice } from '@/api/invoice';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import {
   EditInvoice,
   InvoicePagination,
@@ -29,6 +35,7 @@ const InvoiceListPage = () => {
   const initialIncludeArchived = searchParams.get('include_archived') === 'true';
   const initialVendorName = searchParams.get('vendor_name') || '';
   const initialCategory = searchParams.get('category') || 'all';
+  const initialIsPaid = searchParams.get('is_paid') ?? 'all';
   const editInvoiceId = searchParams.get('edit');
   const initialSortBy = searchParams.get('sort_by') || 'created_at';
   const initialOrder = searchParams.get('order') || 'desc';
@@ -49,6 +56,7 @@ const InvoiceListPage = () => {
     include_archived: initialIncludeArchived,
     vendor_name: initialVendorName,
     category: initialCategory,
+    is_paid: initialIsPaid,
   });
 
   // Separate state for the vendor input to prevent immediate API calls
@@ -59,6 +67,7 @@ const InvoiceListPage = () => {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchLoading, setBatchLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
 
   const handleEdit = (invoice) => {
     setSelectedInvoice(invoice);
@@ -231,6 +240,8 @@ const InvoiceListPage = () => {
     if (filters.vendor_name) params.set('vendor_name', filters.vendor_name);
     if (filters.category && filters.category !== 'all')
       params.set('category', filters.category);
+    if (filters.is_paid && filters.is_paid !== 'all')
+      params.set('is_paid', filters.is_paid);
     if (sortBy && sortBy !== 'created_at') params.set('sort_by', sortBy);
     if (order && order !== 'desc') params.set('order', order);
     if (page && page !== 1) params.set('page', page);
@@ -323,8 +334,8 @@ const InvoiceListPage = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ status: 'all', is_exported: 'all', include_archived: false, vendor_name: '', category: 'all' });
-    setVendorSearchInput(''); // Also clear the vendor input
+    setFilters({ status: 'all', is_exported: 'all', include_archived: false, vendor_name: '', category: 'all', is_paid: 'all' });
+    setVendorSearchInput('');
     setPage(1);
   };
 
@@ -435,10 +446,11 @@ const InvoiceListPage = () => {
           onSort={handleSort}
           onExport={handleExport}
           exportLoading={exportLoading}
+          searchValue={vendorSearchInput}
+          onSearchChange={(value) => handleFilterChange('vendor_name', value)}
         />
         <InvoiceFilters
           filters={filters}
-          vendorSearchInput={vendorSearchInput}
           onFilterChange={handleFilterChange}
           onClearFilters={clearFilters}
         />
@@ -479,11 +491,12 @@ const InvoiceListPage = () => {
         onSort={handleSort}
         onExport={handleExport}
         exportLoading={exportLoading}
+        searchValue={vendorSearchInput}
+        onSearchChange={(value) => handleFilterChange('vendor_name', value)}
       />
 
       <InvoiceFilters
         filters={filters}
-        vendorSearchInput={vendorSearchInput}
         onFilterChange={handleFilterChange}
         onClearFilters={clearFilters}
       />
@@ -503,7 +516,16 @@ const InvoiceListPage = () => {
           >
             {selectedIds.size} invoice(s) selected
           </span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBatchUpdate({ status: 'validated' })}
+              disabled={batchLoading}
+              className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
+            >
+              Validate
+            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -513,33 +535,96 @@ const InvoiceListPage = () => {
             >
               Mark as Paid
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleBatchUpdate({ is_paid: false })}
-              disabled={batchLoading}
-              className="border-gray-500 text-gray-600 hover:bg-gray-50 dark:border-gray-400 dark:text-gray-400 dark:hover:bg-gray-900/20"
-            >
-              Mark as Unpaid
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleBatchUpdate({ direction: 'incoming' })}
-              disabled={batchLoading}
-              className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
-            >
-              Set Incoming
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleBatchUpdate({ direction: 'outgoing' })}
-              disabled={batchLoading}
-              className="border-orange-500 text-orange-600 hover:bg-orange-50 dark:border-orange-400 dark:text-orange-400 dark:hover:bg-orange-900/20"
-            >
-              Set Outgoing
-            </Button>
+            <Popover open={moreDropdownOpen} onOpenChange={setMoreDropdownOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={batchLoading}
+                  className="border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-500 dark:text-gray-400 dark:hover:bg-gray-800"
+                >
+                  <MoreHorizontal className="w-4 h-4 mr-1" />
+                  More
+                  <ChevronDown className="w-3.5 h-3.5 ml-1" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="flex flex-col gap-0.5">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="justify-start font-normal"
+                    onClick={() => {
+                      setMoreDropdownOpen(false);
+                      handleBatchUpdate({ is_paid: false });
+                    }}
+                    disabled={batchLoading}
+                  >
+                    Mark as Unpaid
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="justify-start font-normal"
+                    onClick={() => {
+                      setMoreDropdownOpen(false);
+                      handleBatchUpdate({ direction: 'incoming' });
+                    }}
+                    disabled={batchLoading}
+                  >
+                    Set Incoming
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="justify-start font-normal"
+                    onClick={() => {
+                      setMoreDropdownOpen(false);
+                      handleBatchUpdate({ direction: 'outgoing' });
+                    }}
+                    disabled={batchLoading}
+                  >
+                    Set Outgoing
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="justify-start font-normal"
+                    onClick={() => {
+                      setMoreDropdownOpen(false);
+                      handleBatchUpdate({ is_archived: true });
+                    }}
+                    disabled={batchLoading}
+                  >
+                    Archive
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="justify-start font-normal"
+                    onClick={() => {
+                      setMoreDropdownOpen(false);
+                      handleBatchUpdate({ is_archived: false });
+                    }}
+                    disabled={batchLoading}
+                  >
+                    Unarchive
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="justify-start font-normal"
+                    onClick={() => {
+                      setMoreDropdownOpen(false);
+                      handleBatchUpdate({ status: 'extracted' });
+                    }}
+                    disabled={batchLoading}
+                  >
+                    Unvalidate
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <Button
             size="sm"
