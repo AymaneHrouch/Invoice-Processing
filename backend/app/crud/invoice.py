@@ -299,6 +299,8 @@ class InvoiceCRUD:
         invoice_ids: list[str],
         is_paid: bool | None = None,
         direction: str | None = None,
+        status: str | None = None,
+        is_archived: bool | None = None,
     ) -> int:
         """Update multiple invoices with the same field values. Returns count of updated documents."""
         if not invoice_ids:
@@ -313,7 +315,11 @@ class InvoiceCRUD:
                 unset_op["paid_at"] = ""
         if direction is not None:
             set_op["direction"] = direction
-        if is_paid is None and direction is None:
+        if status is not None:
+            set_op["status"] = status
+        if is_archived is not None:
+            set_op["is_archived"] = is_archived
+        if is_paid is None and direction is None and status is None and is_archived is None:
             return 0
         try:
             collection = get_invoices_collection()

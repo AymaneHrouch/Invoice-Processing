@@ -202,6 +202,8 @@ class InvoiceBatchUpdate(BaseModel):
     invoice_ids: list[str]
     is_paid: bool | None = None
     direction: str | None = None
+    status: str | None = None
+    is_archived: bool | None = None
 
 
 class InvoiceResponse(BaseModel):
