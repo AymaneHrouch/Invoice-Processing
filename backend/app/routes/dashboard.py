@@ -16,12 +16,12 @@ def get_stats(currency: Literal["MAD", "USD", "EUR"] = Query("MAD")):
     invoice_growth = dashboard.get_invoice_growth()
     amount_growth = dashboard.get_amount_growth(currency)
     overdue_invoices = dashboard.get_overdue_invoices()
-    pending_invoices = dashboard.get_pending_invoices()
+    extracted_invoices = dashboard.get_extracted_invoices()
     return {
         "invoice_growth": invoice_growth,
         "amount_growth": amount_growth,
         "overdue_invoices": overdue_invoices,
-        "pending_invoices": pending_invoices,
+        "extracted_invoices": extracted_invoices,
     }
 
 @router.get("/top_vendors")

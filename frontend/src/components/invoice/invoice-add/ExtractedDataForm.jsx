@@ -1,7 +1,8 @@
 import { categories, currencies } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useAddInvoice } from '@/hooks/useAddInvoice';
-import { InvoiceTags } from '@/components';
+import { InvoiceTags, AmountWarningBanner } from '@/components';
+import { runAmountChecks } from '@/utils/invoiceCalculations';
 import {
   X,
   FileText,
@@ -167,7 +168,7 @@ const ExtractedDataForm = ({
       category: currentData.category?.trim(),
       tags: currentData.tags || [],
       source_type: 'pdf',
-      status: 'pending',
+      status: 'extracted',
     };
 
     const result = await addInvoice(invoiceData);
@@ -242,6 +243,18 @@ const ExtractedDataForm = ({
       </div>
 
       <div className="p-6 space-y-6">
+        {(() => {
+          const warnings = runAmountChecks(
+            {
+              total_amount: currentFormData.amount,
+              items: currentFormData.items || [],
+            },
+            currentFormData.currency || 'MAD'
+          );
+          return warnings.length > 0 ? (
+            <AmountWarningBanner warnings={warnings} />
+          ) : null;
+        })()}
         {/* File Info */}
         <div
           className={`${isDarkMode ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'} border rounded-lg p-3`}

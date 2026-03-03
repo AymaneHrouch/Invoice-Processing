@@ -4,9 +4,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from '@/contexts';
 import { exportToPDF } from '@/constants/exportToPDF';
-import { fetchInvoices } from '@/api/invoice';
+import { fetchInvoices, getInvoiceById, updateInvoice, batchUpdateInvoices, exportInvoices, archiveInvoice, restoreInvoice } from '@/api/invoice';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  EditInvoice,
   InvoicePagination,
   InvoiceHeader,
   InvoiceFilters,
@@ -24,8 +25,11 @@ const InvoiceListPage = () => {
   const searchParams = new URLSearchParams(location.search);
 
   const initialStatus = searchParams.get('status') || 'all';
+  const initialIsExported = searchParams.get('is_exported') ?? 'all';
+  const initialIncludeArchived = searchParams.get('include_archived') === 'true';
   const initialVendorName = searchParams.get('vendor_name') || '';
   const initialCategory = searchParams.get('category') || 'all';
+  const editInvoiceId = searchParams.get('edit');
   const initialSortBy = searchParams.get('sort_by') || 'created_at';
   const initialOrder = searchParams.get('order') || 'desc';
   const initialPage = parseInt(searchParams.get('page'), 10) || 1;
@@ -41,6 +45,8 @@ const InvoiceListPage = () => {
   // Filter states
   const [filters, setFilters] = useState({
     status: initialStatus,
+    is_exported: initialIsExported,
+    include_archived: initialIncludeArchived,
     vendor_name: initialVendorName,
     category: initialCategory,
   });
@@ -50,6 +56,9 @@ const InvoiceListPage = () => {
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const handleEdit = (invoice) => {
     setSelectedInvoice(invoice);
@@ -59,6 +68,15 @@ const InvoiceListPage = () => {
   const closeEditModal = () => {
     setEditModalOpen(false);
     setSelectedInvoice(null);
+    if (editInvoiceId) {
+      const params = new URLSearchParams(location.search);
+      params.delete('edit');
+      if (params.toString()) {
+        navigate({ search: params.toString() }, { replace: true });
+      } else {
+        navigate({ search: '' }, { replace: true });
+      }
+    }
   };
 
   // ✅ OPTIMISATION: Mise à jour locale au lieu de recharger tout
@@ -66,19 +84,59 @@ const InvoiceListPage = () => {
     console.log('✅ Invoice updated locally:', updatedInvoice);
 
     // Mettre à jour la liste des factures localement
+    const updatedId = updatedInvoice._id || updatedInvoice.id;
     setInvoiceData((prevData) => ({
       ...prevData,
       data: prevData.data.map((invoice) =>
-        invoice._id === updatedInvoice._id ? updatedInvoice : invoice,
+        (invoice._id || invoice.id) === updatedId ? updatedInvoice : invoice,
       ),
     }));
 
-    // Mettre à jour la facture sélectionnée si c'est la même
-    if (selectedInvoice?._id === updatedInvoice._id) {
+    if (selectedInvoice && (selectedInvoice._id || selectedInvoice.id) === updatedId) {
       setSelectedInvoice(updatedInvoice);
     }
 
     closeEditModal();
+  };
+
+  const handleSelect = (invoiceId, checked) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(invoiceId);
+      else next.delete(invoiceId);
+      return next;
+    });
+  };
+
+  const handleSelectAll = (checked) => {
+    if (!invoiceData?.data) return;
+    if (checked) {
+      setSelectedIds(
+        new Set(invoiceData.data.map((inv) => inv.id || inv._id)),
+      );
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleUpdateField = async (invoiceId, payload) => {
+    const updated = await updateInvoice(invoiceId, payload);
+    return updated;
+  };
+
+  const handleBatchUpdate = async (updates) => {
+    if (selectedIds.size === 0) return;
+    setBatchLoading(true);
+    try {
+      const result = await batchUpdateInvoices([...selectedIds], updates);
+      toast.success(result.message || `Updated ${result.updated_count} invoice(s)`);
+      setSelectedIds(new Set());
+      handleFetchInvoices(page, sortBy, order, filters);
+    } catch (err) {
+      toast.error(err.message || 'Batch update failed');
+    } finally {
+      setBatchLoading(false);
+    }
   };
 
   // ✅ OPTIMISATION: Mise à jour locale pour la suppression
@@ -127,7 +185,9 @@ const InvoiceListPage = () => {
     setInvoiceData((prevData) => ({
       ...prevData,
       data: prevData.data.map((invoice) =>
-        invoice._id === updatedInvoice._id ? updatedInvoice : invoice,
+        (invoice._id || invoice.id) === (updatedInvoice._id || updatedInvoice.id)
+          ? updatedInvoice
+          : invoice,
       ),
     }));
   };
@@ -165,6 +225,9 @@ const InvoiceListPage = () => {
     const params = new URLSearchParams();
     if (filters.status && filters.status !== 'all')
       params.set('status', filters.status);
+    if (filters.is_exported && filters.is_exported !== 'all')
+      params.set('is_exported', filters.is_exported);
+    if (filters.include_archived) params.set('include_archived', 'true');
     if (filters.vendor_name) params.set('vendor_name', filters.vendor_name);
     if (filters.category && filters.category !== 'all')
       params.set('category', filters.category);
@@ -218,6 +281,21 @@ const InvoiceListPage = () => {
     handleFetchInvoices(page, sortBy, order, filters);
   }, [page, sortBy, order, filters]);
 
+  // Open edit modal when navigating from dashboard with ?edit=invoice_id
+  useEffect(() => {
+    if (!editInvoiceId) return;
+    const openInvoiceForEdit = async () => {
+      try {
+        const invoice = await getInvoiceById(editInvoiceId);
+        setSelectedInvoice(invoice);
+        setEditModalOpen(true);
+      } catch (err) {
+        console.error('Failed to load invoice for edit:', err);
+      }
+    };
+    openInvoiceForEdit();
+  }, [editInvoiceId]);
+
   const handlePageChange = (newPage) => {
     setPage(newPage);
     setExpandedRows(new Set());
@@ -245,52 +323,118 @@ const InvoiceListPage = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ status: 'all', vendor_name: '', category: 'all' });
+    setFilters({ status: 'all', is_exported: 'all', include_archived: false, vendor_name: '', category: 'all' });
     setVendorSearchInput(''); // Also clear the vendor input
     setPage(1);
   };
 
+  const handleArchive = async (invoice) => {
+    const id = invoice._id || invoice.id;
+    try {
+      const updated = await archiveInvoice(id);
+      if (filters.include_archived) {
+        handleUpdateInvoice(updated);
+      } else {
+        setInvoiceData((prev) => ({
+          ...prev,
+          data: prev.data.filter((inv) => (inv.id || inv._id) !== id),
+          total: prev.total - 1,
+        }));
+        setExpandedRows((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+      toast.success('Invoice archived');
+    } catch (err) {
+      toast.error(err.message || 'Archive failed');
+    }
+  };
+
+  const handleRestore = async (invoice) => {
+    const id = invoice._id || invoice.id;
+    try {
+      const updated = await restoreInvoice(id);
+      handleUpdateInvoice(updated);
+      toast.success('Invoice restored');
+    } catch (err) {
+      toast.error(err.message || 'Restore failed');
+    }
+  };
+
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      await exportInvoices(filters);
+      toast.success('Invoices exported successfully');
+      handleFetchInvoices(page, sortBy, order, filters);
+    } catch (err) {
+      toast.error(err.message || 'Export failed');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const editModal = editModalOpen && selectedInvoice && (
+    <EditInvoice
+      open={editModalOpen}
+      onClose={closeEditModal}
+      invoice={selectedInvoice}
+      onSuccess={handleEditSuccess}
+    />
+  );
+
   if (loading) {
     return (
-      <div className="max-w-full mx-auto my-8 px-6">
-        <Card
-          className={`border-0 shadow-lg ${
-            isDarkMode ? 'bg-gray-800/50' : 'bg-white/80'
-          } backdrop-blur-sm`}
-        >
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-            <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-              Loading invoices...
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <>
+        <div className="max-w-full mx-auto my-8 px-6">
+          <Card
+            className={`border-0 shadow-lg ${
+              isDarkMode ? 'bg-gray-800/50' : 'bg-white/80'
+            } backdrop-blur-sm`}
+          >
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+              <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
+                Loading invoices...
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+        {editModal}
+      </>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-full mx-auto my-8 px-6">
-        <Alert variant="destructive" className="mb-4">
-          <AlertTitle>Error loading invoices</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-        <Button onClick={() => handleFetchInvoices()} className="mt-4">
-          Retry
-        </Button>
-      </div>
+      <>
+        <div className="max-w-full mx-auto my-8 px-6">
+          <Alert variant="destructive" className="mb-4">
+            <AlertTitle>Error loading invoices</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <Button onClick={() => handleFetchInvoices()} className="mt-4">
+            Retry
+          </Button>
+        </div>
+        {editModal}
+      </>
     );
   }
 
   if (!invoiceData || !invoiceData.data || invoiceData.data.length === 0) {
     return (
-      <div className="max-w-full mx-auto my-8 px-6">
+      <>
+        <div className="max-w-full mx-auto my-8 px-6">
         <InvoiceHeader
           invoiceData={invoiceData}
           sortBy={sortBy}
           order={order}
           onSort={handleSort}
+          onExport={handleExport}
+          exportLoading={exportLoading}
         />
         <InvoiceFilters
           filters={filters}
@@ -321,6 +465,8 @@ const InvoiceListPage = () => {
           </AlertDescription>
         </Alert>
       </div>
+        {editModal}
+      </>
     );
   }
 
@@ -331,6 +477,8 @@ const InvoiceListPage = () => {
         sortBy={sortBy}
         order={order}
         onSort={handleSort}
+        onExport={handleExport}
+        exportLoading={exportLoading}
       />
 
       <InvoiceFilters
@@ -340,6 +488,70 @@ const InvoiceListPage = () => {
         onClearFilters={clearFilters}
       />
 
+      {selectedIds.size > 0 && (
+        <div
+          className={`mb-4 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 ${
+            isDarkMode
+              ? 'border-blue-700 bg-blue-900/20'
+              : 'border-blue-200 bg-blue-50'
+          }`}
+        >
+          <span
+            className={`font-medium ${
+              isDarkMode ? 'text-blue-200' : 'text-blue-800'
+            }`}
+          >
+            {selectedIds.size} invoice(s) selected
+          </span>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBatchUpdate({ is_paid: true })}
+              disabled={batchLoading}
+              className="border-green-500 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-900/20"
+            >
+              Mark as Paid
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBatchUpdate({ is_paid: false })}
+              disabled={batchLoading}
+              className="border-gray-500 text-gray-600 hover:bg-gray-50 dark:border-gray-400 dark:text-gray-400 dark:hover:bg-gray-900/20"
+            >
+              Mark as Unpaid
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBatchUpdate({ direction: 'incoming' })}
+              disabled={batchLoading}
+              className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
+            >
+              Set Incoming
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBatchUpdate({ direction: 'outgoing' })}
+              disabled={batchLoading}
+              className="border-orange-500 text-orange-600 hover:bg-orange-50 dark:border-orange-400 dark:text-orange-400 dark:hover:bg-orange-900/20"
+            >
+              Set Outgoing
+            </Button>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelectedIds(new Set())}
+            className="ml-auto"
+          >
+            Clear selection
+          </Button>
+        </div>
+      )}
+
       <div
         className={`overflow-x-auto rounded-lg border shadow-lg ${
           isDarkMode
@@ -348,7 +560,16 @@ const InvoiceListPage = () => {
         }`}
       >
         <table className="w-full border-collapse text-sm">
-          <InvoiceTableHeader />
+          <InvoiceTableHeader
+            showSelect
+            allSelected={
+              invoiceData.data.length > 0 &&
+              invoiceData.data.every((inv) =>
+                selectedIds.has(inv.id || inv._id),
+              )
+            }
+            onSelectAll={handleSelectAll}
+          />
           <tbody>
             {invoiceData.data.flatMap((invoice) => [
               <InvoiceRow
@@ -358,14 +579,20 @@ const InvoiceListPage = () => {
                 onToggleExpand={toggleRowExpansion}
                 onExportPDF={exportToPDF}
                 onDelete={handleDeleteInvoice}
+                onArchive={handleArchive}
+                onRestore={handleRestore}
                 onEdit={handleEdit}
-                onUpdate={handleUpdateInvoice} // ✅ AJOUT: Passer la fonction de mise à jour
+                onUpdate={handleUpdateInvoice}
+                onUpdateField={handleUpdateField}
+                isSelected={selectedIds.has(invoice.id || invoice._id)}
+                onSelect={handleSelect}
               />,
               ...(expandedRows.has(invoice.id || invoice._id)
                 ? [
                     <InvoiceExpandedRow
                       key={`${invoice.id || invoice._id}-expanded`}
                       invoice={invoice}
+                      colSpan={13}
                     />,
                   ]
                 : []),
@@ -380,14 +607,7 @@ const InvoiceListPage = () => {
         onPageChange={handlePageChange}
       />
 
-      {editModalOpen && selectedInvoice && (
-        <EditInvoice
-          open={editModalOpen}
-          onClose={closeEditModal}
-          invoice={selectedInvoice}
-          onSuccess={handleEditSuccess} // ✅ Utilise la nouvelle fonction optimisée
-        />
-      )}
+      {editModal}
     </div>
   );
 };

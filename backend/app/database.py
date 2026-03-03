@@ -79,3 +79,8 @@ def get_invoices_collection():
     except Exception as e:
         logger.exception("Error getting invoices collection: %s", e)
         raise
+
+
+def get_cache_collection():
+    """Get extraction cache collection (file_hash -> result)"""
+    return get_database()["cache"]

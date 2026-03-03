@@ -62,12 +62,12 @@ export const getDashboardOverview = async (currency = 'MAD') => {
     const transformedStats = {
       totalInvoices: stats.invoice_growth?.this_month || 0,
       totalAmount: stats.amount_growth?.this_month_amount || 0,
-      pendingInvoices: stats.pending_invoices || 0,
+      extractedInvoices: stats.extracted_invoices || 0,
       overdueInvoices: stats.overdue_invoices || 0,
       growth: {
         invoices: stats.invoice_growth?.growth_rate_percent || 0,
         amount: stats.amount_growth?.growth_rate_percent || 0,
-        pending: stats.pending_growth?.growth_rate_percent || 0,
+        extracted: stats.extracted_growth?.growth_rate_percent || 0,
       },
     };
 

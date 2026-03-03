@@ -10,7 +10,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { Box } from '@mui/material';
 import dayjs from 'dayjs';
-import axios from 'axios';
+import api from '@/api/baseApi';
 
 const CategoryDistribution = ({ currency = 'MAD' }) => {
   const { isDarkMode } = useTheme();
@@ -52,18 +52,16 @@ const CategoryDistribution = ({ currency = 'MAD' }) => {
         setLoading(true);
         setError(null);
 
-        let url = `http://localhost:8000/api/dashboard/top_categories?limit=10&currency=${currency}`;
-
+        const params = { limit: 10, currency };
         if (useCustomDateRange && startDate && endDate) {
-          // Use custom date range
           const formatDate = (date) => dayjs(date).format('YYYY-MM-DD');
-          url += `&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}`;
+          params.start_date = formatDate(startDate);
+          params.end_date = formatDate(endDate);
         } else {
-          // Use period
-          url += `&period=${period}`;
+          params.period = period;
         }
 
-        const response = await axios.get(url);
+        const response = await api.get('/dashboard/top_categories', { params });
 
         // Transform data for the pie chart
         const transformedData = response.data.map((item, index) => ({

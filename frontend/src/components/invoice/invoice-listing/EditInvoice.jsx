@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Save } from 'lucide-react';
+import { Save, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -13,7 +13,9 @@ import { categories, currencies } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useEditInvoice } from '@/hooks/useEditInvoice';
 import { FormField } from '@/components/ui/form-field';
-import { InvoiceTags, InvoiceItems } from '@/components/invoice';
+import { InvoiceTags, InvoiceItems, AmountWarningBanner } from '@/components/invoice';
+import { validateInvoice } from '@/api';
+import { runAmountChecks } from '@/utils/invoiceCalculations';
 import {
   Dialog,
   DialogContent,
@@ -46,6 +48,7 @@ const formatDateForInput = (dateString) => {
 const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   const { isDarkMode } = useTheme();
   const { editInvoice, loading, error, message, reset } = useEditInvoice();
+  const [validating, setValidating] = useState(false);
 
   // ✅ État local direct - plus simple et plus fiable
   const [formData, setFormData] = useState({
@@ -58,7 +61,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     category: '',
     items: [],
     tags: [],
-    status: 'pending',
+    status: 'extracted',
   });
 
   const [errors, setErrors] = useState({});
@@ -88,7 +91,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
             }))
           : [],
         tags: Array.isArray(invoice.tags) ? invoice.tags : [],
-        status: invoice.status || 'pending',
+        status: invoice.status || 'extracted',
       });
 
       // Reset des erreurs
@@ -166,6 +169,31 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const amountWarnings =
+    formData.status === 'extracted'
+      ? runAmountChecks(
+          { total_amount: formData.total_amount, items: formData.items },
+          formData.currency
+        )
+      : [];
+
+  const handleValidate = async () => {
+    if (!invoice?._id && !invoice?.id) return;
+    setValidating(true);
+    try {
+      await validateInvoice(invoice._id || invoice.id);
+      toast.success('Invoice validated successfully');
+      if (onSuccess) {
+        onSuccess({ ...invoice, status: 'validated' });
+      }
+      onClose();
+    } catch (e) {
+      toast.error(e.message || 'Failed to validate invoice');
+    } finally {
+      setValidating(false);
+    }
+  };
+
   // ✅ Soumission du formulaire
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -183,6 +211,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       total_amount: parseFloat(formData.total_amount),
       invoice_date: formData.invoice_date?.trim() || null,
       invoice_due_date: formData.invoice_due_date?.trim() || null,
+      status: formData.status,
     };
 
     console.log('🚀 Submitting invoice data:', invoiceData);
@@ -241,6 +270,9 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
             id="edit-invoice-form"
           >
             <Card className="border-0 shadow-none bg-transparent">
+              {amountWarnings.length > 0 && (
+                <AmountWarningBanner warnings={amountWarnings} className="mb-4" />
+              )}
               <CardHeaderUI className="px-0 pb-4">
                 <CardTitleUI
                   className={`flex items-center gap-2 text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
@@ -335,6 +367,31 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                   currency={formData.currency}
                   onItemsChange={updateItems}
                 />
+
+                <Separator />
+
+                {/* Status + Valider button */}
+                <div className="flex flex-wrap items-center gap-4">
+                  <FormField
+                    type="select"
+                    label="Status"
+                    value={formData.status}
+                    onChange={(value) => updateField('status', value)}
+                    options={['extracted', 'validated']}
+                    placeholder="Select status"
+                  />
+                  {formData.status === 'extracted' && (
+                    <Button
+                      type="button"
+                      onClick={handleValidate}
+                      disabled={validating}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      {validating ? 'Validating...' : 'Validate'}
+                    </Button>
+                  )}
+                </div>
 
                 <Separator />
 

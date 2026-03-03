@@ -1,7 +1,7 @@
 """
 CRUD operations for Invoice model using PyMongo
 """
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 import logging
 from typing import Any, Literal
@@ -39,7 +39,11 @@ class InvoiceCRUD:
 
             invoice_dict = invoice_data.model_dump(exclude_unset=True, exclude_none=True)
 
-            from datetime import date, datetime
+            invoice_dict.setdefault("is_exported", False)
+            invoice_dict.setdefault("is_paid", False)
+            invoice_dict.setdefault("is_archived", False)
+            invoice_dict.setdefault("direction", "incoming")
+
             if invoice_dict.get("invoice_date"):
                 if isinstance(invoice_dict["invoice_date"], date):
                     invoice_dict["invoice_date"] = datetime.combine(
@@ -108,19 +112,25 @@ class InvoiceCRUD:
             order: Literal["asc", "desc"] = "desc",
             status: str | None = None,
             vendor_name: str | None = None,
-            category: str | None = None
+            category: str | None = None,
+            is_exported: bool | None = None,
+            include_archived: bool = False,
     ):
-        """Get all invoices with optional filtering"""
+        """Get all invoices with optional filtering. Excludes archived by default."""
         try:
             collection = get_invoices_collection()
             # Build filter query
             filter_query = {}
+            if not include_archived:
+                filter_query["is_archived"] = {"$ne": True}
             if status:
                 filter_query["status"] = status
             if vendor_name:
                 filter_query["vendor_name"] = {"$regex": vendor_name, "$options": "i"}
             if category:
                 filter_query["category"] = category
+            if is_exported is not None:
+                filter_query["is_exported"] = is_exported
 
             total = collection.count_documents(filter_query)
             total_pages = (total + per_page - 1) // per_page
@@ -147,6 +157,56 @@ class InvoiceCRUD:
             }
         except Exception as e:
             raise Exception(f"Failed to retrieve invoices: {e!s}")
+
+    @staticmethod
+    def get_invoices_for_export(
+            status: str | None = None,
+            vendor_name: str | None = None,
+            category: str | None = None,
+            is_exported: bool | None = None,
+            include_archived: bool = False,
+            sort_by: str = "created_at",
+            order: Literal["asc", "desc"] = "desc",
+    ) -> list[Invoice]:
+        """Get all invoices matching filters for export (no pagination)."""
+        try:
+            collection = get_invoices_collection()
+            filter_query = {}
+            if not include_archived:
+                filter_query["is_archived"] = {"$ne": True}
+            if status:
+                filter_query["status"] = status
+            if vendor_name:
+                filter_query["vendor_name"] = {"$regex": vendor_name, "$options": "i"}
+            if category:
+                filter_query["category"] = category
+            if is_exported is not None:
+                filter_query["is_exported"] = is_exported
+
+            order_by = ASCENDING if order == "asc" else DESCENDING
+            cursor = collection.find(filter_query).sort(sort_by, order_by)
+            return [Invoice(**doc) for doc in cursor]
+        except Exception as e:
+            raise Exception(f"Failed to retrieve invoices for export: {e!s}")
+
+    @staticmethod
+    def bulk_mark_exported(invoice_ids: list[str]) -> int:
+        """Mark multiple invoices as exported. Returns count of updated documents."""
+        if not invoice_ids:
+            return 0
+        try:
+            collection = get_invoices_collection()
+            object_ids = [ObjectId(oid) for oid in invoice_ids if ObjectId.is_valid(oid)]
+            if not object_ids:
+                return 0
+            result = collection.update_many(
+                {"_id": {"$in": object_ids}},
+                {"$set": {"is_exported": True, "exported_at": datetime.utcnow(), "updated_at": datetime.utcnow()}},
+            )
+            return result.modified_count
+        except Exception as e:
+            logger.exception("Bulk mark exported failed: %s", e)
+            raise
 
     @staticmethod
     def get_invoices_by_vendor(vendor_name: str) -> list[Invoice]:
@@ -230,6 +290,44 @@ class InvoiceCRUD:
         except Exception as e:
             logger.exception("Failed to update invoice %s: %s", invoice_id, e)
             raise Exception(f"Failed to update invoice: {e!s}")
+
+    @staticmethod
+    def batch_update_invoices(
+        invoice_ids: list[str],
+        is_paid: bool | None = None,
+        direction: str | None = None,
+    ) -> int:
+        """Update multiple invoices with the same field values. Returns count of updated documents."""
+        if not invoice_ids:
+            return 0
+        set_op = {"updated_at": datetime.utcnow()}
+        unset_op = {}
+        if is_paid is not None:
+            set_op["is_paid"] = is_paid
+            if is_paid:
+                set_op["paid_at"] = datetime.utcnow()
+            else:
+                unset_op["paid_at"] = ""
+        if direction is not None:
+            set_op["direction"] = direction
+        if is_paid is None and direction is None:
+            return 0
+        try:
+            collection = get_invoices_collection()
+            object_ids = [ObjectId(oid) for oid in invoice_ids if ObjectId.is_valid(oid)]
+            if not object_ids:
+                return 0
+            update = {"$set": set_op}
+            if unset_op:
+                update["$unset"] = unset_op
+            result = collection.update_many(
+                {"_id": {"$in": object_ids}},
+                update,
+            )
+            return result.modified_count
+        except Exception as e:
+            logger.exception("Batch update failed: %s", e)
+            raise
 
     @staticmethod
     def update_invoice_status(invoice_id: str, status: str) -> Invoice | None:

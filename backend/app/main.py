@@ -5,6 +5,7 @@ import sys
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from app.database import close_database, init_database
 from app.logging_config import setup_logging
@@ -76,7 +77,7 @@ app.include_router(users_router)
 
 @app.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return RedirectResponse(url="/docs")
 
 
 if __name__ == "__main__":

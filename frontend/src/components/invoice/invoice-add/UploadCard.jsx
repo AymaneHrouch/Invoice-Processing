@@ -9,7 +9,6 @@ import {
   AlertCircle,
   Clock,
   Loader2,
-  Eye,
 } from 'lucide-react';
 import { useState, useRef, useCallback } from 'react';
 import { uploadFiles } from '@/api';
@@ -24,8 +23,6 @@ const UploadCard = ({
   setIsProcessing,
   processingProgress,
   setProcessingProgress,
-  setCurrentInvoiceIndex,
-  scrollToExtractedData,
 }) => {
   const { isDarkMode } = useTheme();
   const fileInputRef = useRef(null);
@@ -266,34 +263,10 @@ const UploadCard = ({
                   className={`flex items-center justify-between ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}
                 >
                   <div
-                    className={`flex items-center gap-2 flex-1 ${fileItem.status === 'completed' ? 'cursor-pointer hover:text-blue-600' : ''}`}
-                    onClick={() => {
-                      if (
-                        fileItem.status === 'completed' &&
-                        fileItem.extractedData
-                      ) {
-                        // Find the index in completed files
-                        const completedFiles = files.filter(
-                          (f) => f.status === 'completed',
-                        );
-                        const dataIndex = completedFiles.findIndex(
-                          (f) => f.id === fileItem.id,
-                        );
-                        if (dataIndex !== -1) {
-                          setCurrentInvoiceIndex(dataIndex);
-                          // Scroll to extracted data section with a small delay to ensure state is updated
-                          setTimeout(() => {
-                            scrollToExtractedData?.();
-                          }, 100);
-                        }
-                      }
-                    }}
+                    className="flex items-center gap-2 flex-1"
                   >
                     {getFileStatusIcon(fileItem.status)}
                     <span className="flex-1">{fileItem.name}</span>
-                    {fileItem.status === 'completed' && (
-                      <Eye className="w-4 h-4 ml-2 text-green-500" />
-                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {fileItem.status && (
@@ -315,7 +288,7 @@ const UploadCard = ({
                           : fileItem.status === 'processing'
                             ? 'Processing...'
                             : fileItem.status === 'completed'
-                              ? 'Processed'
+                              ? 'Saved'
                               : fileItem.status === 'error'
                                 ? 'Error'
                                 : 'Unknown'}

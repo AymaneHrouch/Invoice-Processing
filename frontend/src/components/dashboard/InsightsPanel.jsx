@@ -11,7 +11,7 @@ import {
   YAxis,
   Tooltip,
 } from 'recharts';
-import axios from 'axios';
+import api from '@/api/baseApi';
 
 const AdvancedInsightsPanel = ({ currency = 'MAD' }) => {
   const { isDarkMode } = useTheme();
@@ -75,12 +75,10 @@ const AdvancedInsightsPanel = ({ currency = 'MAD' }) => {
 
         // Fetch real data from existing endpoints
         const [topCategoriesRes, weeklyPatternRes] = await Promise.all([
-          axios.get(
-            `http://localhost:8000/dashboard/top_categories?limit=10&currency=${currency}`,
-          ),
-          axios.get(
-            `http://localhost:8000/dashboard/weekly_pattern?currency=${currency}`,
-          ),
+          api.get('/dashboard/top_categories', {
+            params: { limit: 10, currency },
+          }),
+          api.get('/dashboard/weekly_pattern', { params: { currency } }),
         ]);
 
         // Process real data into insights

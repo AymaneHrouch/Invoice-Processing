@@ -230,12 +230,84 @@ def get_overdue_invoices():
 
     return invoice_collection.count_documents({
         "invoice_due_date": {"$lt": today},
-        "status": {"$ne": "paid"}
+        "status": {"$ne": "validated"}
     })
-def get_pending_invoices():
+def get_extracted_invoices():
     return invoice_collection.count_documents({
-        "status": "pending",
+        "status": "extracted",
     })
+
+
+def get_work_queue_stats():
+    """
+    Work queue stats for accounting firms (FEAT-03).
+    All counts exclude archived invoices.
+    """
+    now = datetime.now()
+    month_start = datetime(now.year, now.month, 1)
+    next_month = datetime(now.year + (now.month == 12), (now.month % 12) + 1, 1)
+
+    base_filter = {"is_archived": {"$ne": True}}
+
+    all_invoices = invoice_collection.count_documents(base_filter)
+
+    to_validate = invoice_collection.count_documents({
+        **base_filter,
+        "status": "extracted",
+    })
+
+    ready_to_export = invoice_collection.count_documents({
+        **base_filter,
+        "status": "validated",
+        "is_exported": False,
+    })
+
+    # Count invoices exported this month (exported_at or updated_at for legacy)
+    exported_this_month = invoice_collection.count_documents({
+        **base_filter,
+        "is_exported": True,
+        "$or": [
+            {"exported_at": {"$gte": month_start, "$lt": next_month}},
+            {"exported_at": {"$in": [None]}, "updated_at": {"$gte": month_start, "$lt": next_month}},
+            {"exported_at": {"$exists": False}, "updated_at": {"$gte": month_start, "$lt": next_month}},
+        ],
+    })
+
+    failed = invoice_collection.count_documents({
+        **base_filter,
+        "status": "failed",
+    })
+
+    # Recent activity: last 10 invoices by updated_at, excluding archived
+    recent_cursor = invoice_collection.find(base_filter).sort("updated_at", -1).limit(10)
+    recent_activity = []
+    for doc in recent_cursor:
+        status = doc.get("status", "extracted")
+        is_exported = doc.get("is_exported", False)
+        label = (
+            "Extraction failed" if status == "failed"
+            else "Exported" if is_exported
+            else "Validated" if status == "validated"
+            else "Extracted"
+        )
+        recent_activity.append({
+            "id": str(doc["_id"]),
+            "invoice_number": doc.get("invoice_number", "—"),
+            "vendor_name": doc.get("vendor_name", "—"),
+            "status": status,
+            "is_exported": is_exported,
+            "label": label,
+            "updated_at": doc.get("updated_at", doc.get("created_at")),
+        })
+
+    return {
+        "all_invoices": all_invoices,
+        "to_validate": to_validate,
+        "ready_to_export": ready_to_export,
+        "exported_this_month": exported_this_month,
+        "failed": failed,
+        "recent_activity": recent_activity,
+    }
 
 def get_monthly_chart_data(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: str = "1year", start_date: datetime = None, end_date: datetime = None):
     """

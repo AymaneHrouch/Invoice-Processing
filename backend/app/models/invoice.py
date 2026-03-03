@@ -49,7 +49,15 @@ class Invoice(BaseModel):
 
     # Processing information
     source_type: str = Field(..., description="Source type (pdf/image)")
-    status: str = Field(default="pending", description="Processing status")
+    status: str = Field(default="extracted", description="Processing status")
+
+    # Boolean flags
+    is_exported: bool = Field(default=False, description="Included in at least one export")
+    is_paid: bool = Field(default=False, description="Payment confirmed")
+    is_archived: bool = Field(default=False, description="Hidden from main list")
+    direction: str = Field(default="incoming", description="incoming or outgoing")
+    paid_at: datetime | None = None
+    exported_at: datetime | None = None
 
     @field_validator("id", mode="before")
     @classmethod
@@ -95,7 +103,13 @@ class InvoiceCreate(BaseModel):
     category: str = Field(..., min_length=1, description="Invoice category")
     tags: list[str] = Field(default_factory=list, description="Invoice tags")
     source_type: str = Field(..., description="Source type (manual/pdf/image)")
-    status: str = Field(default="pending", description="Processing status")
+    status: str = Field(default="extracted", description="Processing status")
+
+    # Boolean flags
+    is_exported: bool = Field(default=False, description="Included in at least one export")
+    is_paid: bool = Field(default=False, description="Payment confirmed")
+    is_archived: bool = Field(default=False, description="Hidden from main list")
+    direction: str = Field(default="incoming", description="incoming or outgoing")
 
     @field_validator("invoice_number")
     @classmethod
@@ -128,7 +142,6 @@ class InvoiceCreate(BaseModel):
         if v is None or v == "":
             return None
         if isinstance(v, str):
-            from datetime import datetime
             try:
                 # Parse as date first, then convert to datetime
                 date_obj = datetime.strptime(v, "%Y-%m-%d").date()
@@ -176,6 +189,19 @@ class InvoiceUpdate(BaseModel):
     tags: list[str] | None = None
     source_type: str | None = None
     status: str | None = None
+    is_exported: bool | None = None
+    is_paid: bool | None = None
+    is_archived: bool | None = None
+    direction: str | None = None
+    paid_at: datetime | None = None
+    exported_at: datetime | None = None
+
+
+class InvoiceBatchUpdate(BaseModel):
+    """Schema for batch updating invoices"""
+    invoice_ids: list[str]
+    is_paid: bool | None = None
+    direction: str | None = None
 
 
 class InvoiceResponse(BaseModel):
@@ -191,5 +217,11 @@ class InvoiceResponse(BaseModel):
     tags: list[str] | None = None
     source_type: str | None = None
     status: str | None = None
+    is_exported: bool | None = None
+    is_paid: bool | None = None
+    is_archived: bool | None = None
+    direction: str | None = None
+    paid_at: datetime | None = None
+    exported_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None

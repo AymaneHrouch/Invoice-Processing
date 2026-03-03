@@ -12,7 +12,8 @@ collection = get_invoices_collection()
 CURRENCIES = ["USD", "EUR", "MAD"]
 CATEGORIES = ["Services", "Software", "Travel", "Marketing", "Utilities", "Others"]
 SOURCE_TYPES = ["pdf", "image", "email"]
-STATUS = ["pending", "paid", "processed"]
+STATUS = ["extracted", "validated"]
+DIRECTIONS = ["incoming", "outgoing"]
 ITEM_NAMES = [
     "Consultation Fee",
     "Software Subscription",
@@ -69,6 +70,10 @@ def generate_invoice() -> dict:
         "source_type": random.choice(SOURCE_TYPES),
         "created_at": now,
         "status": random.choice(STATUS),
+        "is_exported": random.choice([True, False]),
+        "is_paid": random.choice([True, False]),
+        "is_archived": False,
+        "direction": random.choice(DIRECTIONS),
     }
 
     return invoice

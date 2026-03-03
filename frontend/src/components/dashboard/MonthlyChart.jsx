@@ -18,7 +18,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { Box } from '@mui/material';
 import dayjs from 'dayjs';
-import axios from 'axios';
+import api from '@/api/baseApi';
 
 const MonthlyChart = ({ currency = 'MAD' }) => {
   const { isDarkMode } = useTheme();
@@ -46,18 +46,16 @@ const MonthlyChart = ({ currency = 'MAD' }) => {
         setLoading(true);
         setError(null);
 
-        let url = `http://localhost:8000/api/dashboard/monthly_chart?currency=${currency}`;
-
+        const params = { currency };
         if (useCustomDateRange && startDate && endDate) {
-          // Use custom date range
           const formatDate = (date) => dayjs(date).format('YYYY-MM-DD');
-          url += `&start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}`;
+          params.start_date = formatDate(startDate);
+          params.end_date = formatDate(endDate);
         } else {
-          // Use period
-          url += `&period=${period}`;
+          params.period = period;
         }
 
-        const response = await axios.get(url);
+        const response = await api.get('/dashboard/monthly_chart', { params });
         setChartData(response.data);
       } catch (err) {
         setError(err.message);

@@ -2,6 +2,8 @@
 Invoice REST API routes using PyMongo
 """
 from datetime import datetime
+from io import BytesIO
+from time import sleep
 import logging
 from typing import Literal
 
@@ -15,11 +17,13 @@ from fastapi import (
     Response,
     UploadFile,
 )
+from fastapi.responses import StreamingResponse
 from fastapi.params import Depends
 
 from app.crud.invoice import InvoiceCRUD
-from app.models.invoice import Invoice, InvoiceCreate, InvoiceResponse, InvoiceUpdate
+from app.models.invoice import Invoice, InvoiceBatchUpdate, InvoiceCreate, InvoiceResponse, InvoiceUpdate
 from app.services.invoices import extract_invoice_data
+from app.services import dashboard
 from app.utils.auth import require_admin
 
 logger = logging.getLogger(__name__)
@@ -52,30 +56,121 @@ async def handle_upload_files(files: list[UploadFile] = File(...)):
 
     extracted_data = []
 
-    for file in files:
+    for index, file in enumerate(files):
         file_bytes = await file.read()
         try:
+            if len(files) != 1 and index != 0:
+                sleep(2)
             logger.info("Processing uploaded file: %s", file.filename)
             invoice_data = extract_invoice_data(file_bytes)
 
+            invoice_create = InvoiceCreate(
+                invoice_number=invoice_data.get("invoice_number") or f"AI-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
+                invoice_date=invoice_data.get("date") or None,
+                invoice_due_date=invoice_data.get("due_date") or None,
+                vendor_name=invoice_data.get("supplier") or "Unknown",
+                total_amount=max(float(invoice_data.get("amount") or 0), 0.01),
+                currency=invoice_data.get("currency") or "MAD",
+                items=invoice_data.get("items", []),
+                category=invoice_data.get("category") or "Others",
+                tags=invoice_data.get("tags", []),
+                source_type="pdf",
+                status="extracted",
+            )
+            saved_invoice = InvoiceCRUD.create_invoice(invoice_create)
+            logger.info("Saved invoice from %s with ID: %s", file.filename, saved_invoice.id)
+
             extracted_data.append({
                 "fileName": file.filename,
+                "invoice_id": str(saved_invoice.id),
                 **invoice_data,
             })
-            logger.info("Extracted data from: %s", file.filename)
 
         except Exception as e:
-            logger.exception("Failed to extract data from %s: %s", file.filename, e)
+            logger.exception("Failed to process %s: %s", file.filename, e)
             extracted_data.append({
                 "fileName": file.filename,
                 "error": str(e)
             })
 
     return {
-        "message": "Files uploaded successfully",
+        "message": "Files processed and saved",
         "extracted_data": extracted_data
     }
 # ============= READ ENDPOINTS =============
+
+
+@router.post("/export", summary="Export filtered invoices to Excel")
+def export_invoices(
+        status: str | None = Query(None, description="Filter by status"),
+        vendor_name: str | None = Query(None, description="Filter by vendor name"),
+        category: str | None = Query(None, description="Filter by category"),
+        is_exported: bool | None = Query(None, description="Filter by export status"),
+        include_archived: bool = Query(False, description="Include archived invoices"),
+):
+    """Export filtered invoices to Excel. Auto-sets is_exported=True on all exported invoices."""
+    try:
+        from openpyxl import Workbook
+
+        invoices = InvoiceCRUD.get_invoices_for_export(
+            status=status,
+            vendor_name=vendor_name,
+            category=category,
+            is_exported=is_exported,
+            include_archived=include_archived,
+        )
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Invoices"
+
+        headers = [
+            "Invoice Number", "Vendor", "Date", "Direction", "ICE", "IF",
+            "Amount HT", "TVA", "Total Amount", "Due Date",
+            "Status", "Paid", "Category",
+        ]
+        ws.append(headers)
+
+        exported_ids = []
+        for inv in invoices:
+            ws.append([
+                inv.invoice_number,
+                inv.vendor_name,
+                inv.invoice_date.strftime("%d/%m/%Y") if inv.invoice_date else "",
+                inv.direction,
+                getattr(inv, "ice", None) or "",
+                getattr(inv, "if_number", None) or "",
+                getattr(inv, "amount_ht", None) or "",
+                getattr(inv, "tva_amount", None) or "",
+                float(inv.total_amount) if inv.total_amount else "",
+                inv.invoice_due_date.strftime("%d/%m/%Y") if inv.invoice_due_date else "",
+                inv.status,
+                "Yes" if inv.is_paid else "No",
+                inv.category or "",
+            ])
+            exported_ids.append(str(inv.id))
+
+        InvoiceCRUD.bulk_mark_exported(exported_ids)
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        filename = f"invoices_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+    except Exception as e:
+        logger.exception("Export failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/stats", summary="Get work queue stats (FEAT-03)")
+def get_invoice_stats():
+    """Work queue stats: to_validate, ready_to_export, exported_this_month, failed, recent_activity"""
+    return dashboard.get_work_queue_stats()
+
 
 @router.get("/", response_model=list[Invoice],
             summary="Get all invoices with filtering, pagination and sorting")
@@ -88,17 +183,15 @@ def get_invoices(
         status: str | None = Query(None, description="Filter by invoice status"),
         vendor_name: str | None = Query(None, description="Filter by vendor name (partial match)"),
         category: str | None = Query(None, description="Filter by category"),
+        is_exported: bool | None = Query(None, description="Filter by export status"),
+        include_archived: bool = Query(False, description="Include archived invoices"),
 ):
     """
     Get all invoices with optional filtering and pagination
 
-    - **page**: Page number (for pagination)
-    - **per_page**: Number of invoices to return
-    - **sort_by**: Field to sort by
-    - **order**: Sort order
-    - **status**: Filter by invoice status (e.g., 'pending', 'processed', 'paid')
-    - **vendor_name**: Filter by vendor name (supports partial matching)
-    - **category**: Filter by exact category match
+    - **status**: Filter by invoice status (e.g., 'extracted', 'validated')
+    - **is_exported**: Filter by export status (for "ready to export" = false)
+    - **include_archived**: Include archived invoices (excluded by default)
     """
     try:
         result = InvoiceCRUD.get_all_invoices(
@@ -109,6 +202,8 @@ def get_invoices(
             order=order,
             vendor_name=vendor_name,
             category=category,
+            is_exported=is_exported,
+            include_archived=include_archived,
         )
         response.headers["X-Total-Count"] = str(result["total"])
         response.headers["X-Total-Pages"] = str(result["total_pages"])
@@ -217,6 +312,37 @@ def get_invoices_by_single_tag(
 
 # ============= UPDATE ENDPOINTS =============
 
+
+@router.patch("/{invoice_id}/archive", response_model=InvoiceResponse, summary="Archive invoice (FEAT-06)")
+def archive_invoice(invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice")):
+    """Archive an invoice. Hidden from main list by default, always recoverable."""
+    try:
+        invoice = InvoiceCRUD.update_invoice(invoice_id, InvoiceUpdate(is_archived=True))
+        if not invoice:
+            raise HTTPException(status_code=404, detail=f"Invoice {invoice_id} not found")
+        return invoice
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+    except Exception as e:
+        logger.exception("Archive invoice failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/{invoice_id}/restore", response_model=InvoiceResponse, summary="Restore archived invoice (FEAT-06)")
+def restore_invoice(invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice")):
+    """Restore an archived invoice to the main list."""
+    try:
+        invoice = InvoiceCRUD.update_invoice(invoice_id, InvoiceUpdate(is_archived=False))
+        if not invoice:
+            raise HTTPException(status_code=404, detail=f"Invoice {invoice_id} not found")
+        return invoice
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+    except Exception as e:
+        logger.exception("Restore invoice failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.put("/{invoice_id}", response_model=InvoiceResponse, summary="Update invoice by ID")
 def update_invoice_by_id(
         invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
@@ -260,6 +386,26 @@ def update_invoice_by_number(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.patch("/batch", summary="Batch update invoices")
+def batch_update_invoices(body: InvoiceBatchUpdate = Body(...)):
+    """
+    Update multiple invoices with the same field values.
+    - **invoice_ids**: List of invoice IDs to update
+    - **is_paid**: Set paid status (optional)
+    - **direction**: Set direction to 'incoming' or 'outgoing' (optional)
+    """
+    try:
+        count = InvoiceCRUD.batch_update_invoices(
+            invoice_ids=body.invoice_ids,
+            is_paid=body.is_paid,
+            direction=body.direction,
+        )
+        return {"updated_count": count, "message": f"Updated {count} invoice(s)"}
+    except Exception as e:
+        logger.exception("Batch update failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.patch("/{invoice_id}/status", summary="Update invoice status by ID")
 def update_invoice_status_by_id(
         invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
@@ -269,7 +415,7 @@ def update_invoice_status_by_id(
     Update only the status of an invoice by its ID
 
     - **invoice_id**: The MongoDB ObjectId of the invoice
-    - **status**: The new status (e.g., 'pending', 'processed', 'paid', 'cancelled')
+    - **status**: The new status (e.g., 'extracted', 'validated')
     """
     try:
         invoice = InvoiceCRUD.update_invoice_status(invoice_id, status)

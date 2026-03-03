@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '@/contexts';
-import { getDashboardOverview } from '@/api/dashboard';
+import { getInvoiceStats } from '@/api/invoice';
 import {
   DashboardHeader,
-  DashboardStatsGrid,
-  RecentInvoices,
-  TopVendors,
-  TopCategories,
-  MonthlyChart,
-  CategoryDistribution,
-  InsightsPanel,
+  WorkQueueWidgets,
+  RecentActivity,
   DashboardLoading,
   DashboardError,
 } from '@/components/dashboard';
@@ -18,23 +13,15 @@ const DashboardPage = () => {
   const { isDarkMode } = useTheme();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [dashboardData, setDashboardData] = useState({
-    stats: null,
-    topVendors: [],
-    recentInvoices: [],
-    topCategories: [],
-  });
+  const [workQueueData, setWorkQueueData] = useState(null);
 
-  // Fetch dashboard data
   useEffect(() => {
-    const fetchDashboardData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError(null);
-
-        // Use the new getDashboardOverview function that handles the backend format
-        const dashboardOverview = await getDashboardOverview('MAD');
-        setDashboardData(dashboardOverview);
+        const data = await getInvoiceStats();
+        setWorkQueueData(data);
       } catch (err) {
         setError(err.message);
         console.error('Dashboard data fetch error:', err);
@@ -43,15 +30,13 @@ const DashboardPage = () => {
       }
     };
 
-    fetchDashboardData();
+    fetchData();
   }, []);
 
-  // Loading component
   if (loading) {
     return <DashboardLoading />;
   }
 
-  // Error component
   if (error) {
     return (
       <DashboardError error={error} onRetry={() => window.location.reload()} />
@@ -64,31 +49,11 @@ const DashboardPage = () => {
     >
       <DashboardHeader />
 
-      <DashboardStatsGrid stats={dashboardData.stats} />
+      <WorkQueueWidgets stats={workQueueData} />
 
-      {/* Monthly Chart */}
-      <div className="mb-8">
-        <MonthlyChart currency="MAD" />
+      <div className="max-w-2xl">
+        <RecentActivity items={workQueueData?.recent_activity ?? []} />
       </div>
-
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <RecentInvoices invoices={dashboardData.recentInvoices} />
-        <TopVendors vendors={dashboardData.topVendors} />
-        <div></div> {/* Empty space for 3rd column */}
-      </div>
-
-      {/* Category Distribution and Insights - 50% each */}
-      <div className="flex gap-6 mb-8">
-        <div className="w-1/2">
-          <CategoryDistribution currency="MAD" />
-        </div>
-        <div className="w-1/2">
-          <InsightsPanel currency="MAD" />
-        </div>
-      </div>
-
-      <TopCategories categories={dashboardData.categoryBreakdown} />
     </div>
   );
 };

@@ -1,13 +1,36 @@
 import { useTheme } from '@/contexts';
 import { formatDate, formatCurrency } from '@/constants';
+import { AmountWarningBanner } from '@/components/invoice';
+import { runAmountChecks } from '@/utils/invoiceCalculations';
 
-const InvoiceExpandedRow = ({ invoice }) => {
+const InvoiceExpandedRow = ({ invoice, colSpan = 13 }) => {
   const { isDarkMode } = useTheme();
+  const isArchived = invoice?.is_archived === true;
+  const amountWarnings =
+    invoice?.status === 'extracted'
+      ? runAmountChecks(
+          { total_amount: invoice.total_amount, items: invoice.items || [] },
+          invoice.currency || 'MAD'
+        )
+      : [];
 
   return (
-    <tr className={isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}>
-      <td colSpan="9" className="px-6 py-6">
+    <tr
+      className={
+        isArchived
+          ? isDarkMode
+            ? 'bg-slate-900 border-l-4 border-slate-600'
+            : 'bg-slate-300 border-l-4 border-slate-500'
+          : isDarkMode
+            ? 'bg-gray-700'
+            : 'bg-gray-50'
+      }
+    >
+      <td colSpan={colSpan} className="px-6 py-6">
         <div className="space-y-8">
+          {amountWarnings.length > 0 && (
+            <AmountWarningBanner warnings={amountWarnings} />
+          )}
           <div className="space-y-6">
             <div>
               <h4
