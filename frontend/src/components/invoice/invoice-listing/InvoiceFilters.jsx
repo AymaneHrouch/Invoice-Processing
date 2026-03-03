@@ -128,7 +128,18 @@ const InvoiceFilters = ({
             </Select>
           </div>
 
-          <div className="flex items-end">
+          <div className="flex items-end gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filters.include_archived ?? false}
+                onChange={(e) => onFilterChange('include_archived', e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+              />
+              <span className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+                Show archives
+              </span>
+            </label>
             <Button variant="outline" onClick={onClearFilters} className="h-11">
               Clear Filters
             </Button>

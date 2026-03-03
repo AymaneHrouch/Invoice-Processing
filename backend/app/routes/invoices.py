@@ -312,6 +312,37 @@ def get_invoices_by_single_tag(
 
 # ============= UPDATE ENDPOINTS =============
 
+
+@router.patch("/{invoice_id}/archive", response_model=InvoiceResponse, summary="Archive invoice (FEAT-06)")
+def archive_invoice(invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice")):
+    """Archive an invoice. Hidden from main list by default, always recoverable."""
+    try:
+        invoice = InvoiceCRUD.update_invoice(invoice_id, InvoiceUpdate(is_archived=True))
+        if not invoice:
+            raise HTTPException(status_code=404, detail=f"Invoice {invoice_id} not found")
+        return invoice
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+    except Exception as e:
+        logger.exception("Archive invoice failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/{invoice_id}/restore", response_model=InvoiceResponse, summary="Restore archived invoice (FEAT-06)")
+def restore_invoice(invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice")):
+    """Restore an archived invoice to the main list."""
+    try:
+        invoice = InvoiceCRUD.update_invoice(invoice_id, InvoiceUpdate(is_archived=False))
+        if not invoice:
+            raise HTTPException(status_code=404, detail=f"Invoice {invoice_id} not found")
+        return invoice
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ObjectId format")
+    except Exception as e:
+        logger.exception("Restore invoice failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.put("/{invoice_id}", response_model=InvoiceResponse, summary="Update invoice by ID")
 def update_invoice_by_id(
         invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),

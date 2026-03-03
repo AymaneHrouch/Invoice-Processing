@@ -3,9 +3,20 @@ import { formatDate, formatCurrency } from '@/constants';
 
 const InvoiceExpandedRow = ({ invoice, colSpan = 13 }) => {
   const { isDarkMode } = useTheme();
+  const isArchived = invoice?.is_archived === true;
 
   return (
-    <tr className={isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}>
+    <tr
+      className={
+        isArchived
+          ? isDarkMode
+            ? 'bg-slate-900 border-l-4 border-slate-600'
+            : 'bg-slate-300 border-l-4 border-slate-500'
+          : isDarkMode
+            ? 'bg-gray-700'
+            : 'bg-gray-50'
+      }
+    >
       <td colSpan={colSpan} className="px-6 py-6">
         <div className="space-y-8">
           <div className="space-y-6">

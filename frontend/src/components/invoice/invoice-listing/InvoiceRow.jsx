@@ -11,6 +11,8 @@ import {
 } from '@/constants';
 import { EditInvoice } from '@/components/invoice';
 import {
+  Archive,
+  ArchiveRestore,
   ArrowDownLeft,
   ArrowUpRight,
   ChevronDown,
@@ -37,6 +39,8 @@ const InvoiceRow = ({
   onToggleExpand,
   onExportPDF,
   onDelete,
+  onArchive,
+  onRestore,
   onUpdate,
   onUpdateField,
   isSelected,
@@ -69,11 +73,19 @@ const InvoiceRow = ({
     }
   };
 
+  const isArchived = invoice.is_archived === true;
+
   return (
     <>
       <tr
         className={`transition-colors ${
-          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
+          isArchived
+            ? isDarkMode
+              ? 'bg-slate-900 border-l-4 border-slate-600 hover:bg-slate-800'
+              : 'bg-slate-300 border-l-4 border-slate-500 hover:bg-slate-400'
+            : isDarkMode
+              ? 'hover:bg-gray-700'
+              : 'hover:bg-gray-50'
         }`}
       >
         {onSelect && (
@@ -317,6 +329,26 @@ const InvoiceRow = ({
             >
               <Download className="w-4 h-4" />
             </button>
+            {onArchive && !isArchived && (
+              <button
+                title="Archive"
+                className={`p-2 rounded-md border border-gray-500 text-gray-600 hover:bg-gray-50 hover:text-gray-700 transition cursor-pointer 
+                  ${isDarkMode ? 'border-gray-400 text-gray-400 hover:bg-gray-900/20 hover:text-gray-300' : ''}`}
+                onClick={() => onArchive(invoice)}
+              >
+                <Archive className="w-4 h-4" />
+              </button>
+            )}
+            {onRestore && isArchived && (
+              <button
+                title="Restore"
+                className={`p-2 rounded-md border border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700 transition cursor-pointer 
+                  ${isDarkMode ? 'border-green-400 text-green-400 hover:bg-green-900/20 hover:text-green-300' : ''}`}
+                onClick={() => onRestore(invoice)}
+              >
+                <ArchiveRestore className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </td>
       </tr>

@@ -41,6 +41,24 @@ export const batchUpdateInvoices = async (invoiceIds, updates) => {
   }
 };
 
+export const archiveInvoice = async (id) => {
+  try {
+    const response = await api.patch(`/invoices/${id}/archive`);
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to archive invoice: ${error.message}`);
+  }
+};
+
+export const restoreInvoice = async (id) => {
+  try {
+    const response = await api.patch(`/invoices/${id}/restore`);
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to restore invoice: ${error.message}`);
+  }
+};
+
 export const getInvoiceById = async (id) => {
   try {
     const response = await api.get(`/invoices/${id}`);
@@ -59,6 +77,7 @@ export const exportInvoices = async (filters = {}) => {
     if (filters.is_exported !== undefined && filters.is_exported !== 'all') {
       params.is_exported = filters.is_exported === 'true';
     }
+    if (filters.include_archived) params.include_archived = true;
 
     const response = await api.post('/invoices/export', null, {
       params,
@@ -110,6 +129,7 @@ export const fetchInvoices = async (
       ...(filters.is_exported !== undefined && filters.is_exported !== 'all' && {
         is_exported: filters.is_exported === 'true',
       }),
+      ...(filters.include_archived && { include_archived: true }),
     };
 
     const response = await api.get('/invoices/', { params });

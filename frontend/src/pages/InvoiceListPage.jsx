@@ -4,7 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from '@/contexts';
 import { exportToPDF } from '@/constants/exportToPDF';
-import { fetchInvoices, getInvoiceById, updateInvoice, batchUpdateInvoices, exportInvoices } from '@/api/invoice';
+import { fetchInvoices, getInvoiceById, updateInvoice, batchUpdateInvoices, exportInvoices, archiveInvoice, restoreInvoice } from '@/api/invoice';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   EditInvoice,
@@ -26,6 +26,7 @@ const InvoiceListPage = () => {
 
   const initialStatus = searchParams.get('status') || 'all';
   const initialIsExported = searchParams.get('is_exported') ?? 'all';
+  const initialIncludeArchived = searchParams.get('include_archived') === 'true';
   const initialVendorName = searchParams.get('vendor_name') || '';
   const initialCategory = searchParams.get('category') || 'all';
   const editInvoiceId = searchParams.get('edit');
@@ -45,6 +46,7 @@ const InvoiceListPage = () => {
   const [filters, setFilters] = useState({
     status: initialStatus,
     is_exported: initialIsExported,
+    include_archived: initialIncludeArchived,
     vendor_name: initialVendorName,
     category: initialCategory,
   });
@@ -225,6 +227,7 @@ const InvoiceListPage = () => {
       params.set('status', filters.status);
     if (filters.is_exported && filters.is_exported !== 'all')
       params.set('is_exported', filters.is_exported);
+    if (filters.include_archived) params.set('include_archived', 'true');
     if (filters.vendor_name) params.set('vendor_name', filters.vendor_name);
     if (filters.category && filters.category !== 'all')
       params.set('category', filters.category);
@@ -320,9 +323,44 @@ const InvoiceListPage = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ status: 'all', is_exported: 'all', vendor_name: '', category: 'all' });
+    setFilters({ status: 'all', is_exported: 'all', include_archived: false, vendor_name: '', category: 'all' });
     setVendorSearchInput(''); // Also clear the vendor input
     setPage(1);
+  };
+
+  const handleArchive = async (invoice) => {
+    const id = invoice._id || invoice.id;
+    try {
+      const updated = await archiveInvoice(id);
+      if (filters.include_archived) {
+        handleUpdateInvoice(updated);
+      } else {
+        setInvoiceData((prev) => ({
+          ...prev,
+          data: prev.data.filter((inv) => (inv.id || inv._id) !== id),
+          total: prev.total - 1,
+        }));
+        setExpandedRows((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+      toast.success('Invoice archived');
+    } catch (err) {
+      toast.error(err.message || 'Archive failed');
+    }
+  };
+
+  const handleRestore = async (invoice) => {
+    const id = invoice._id || invoice.id;
+    try {
+      const updated = await restoreInvoice(id);
+      handleUpdateInvoice(updated);
+      toast.success('Invoice restored');
+    } catch (err) {
+      toast.error(err.message || 'Restore failed');
+    }
   };
 
   const handleExport = async () => {
@@ -541,6 +579,8 @@ const InvoiceListPage = () => {
                 onToggleExpand={toggleRowExpansion}
                 onExportPDF={exportToPDF}
                 onDelete={handleDeleteInvoice}
+                onArchive={handleArchive}
+                onRestore={handleRestore}
                 onEdit={handleEdit}
                 onUpdate={handleUpdateInvoice}
                 onUpdateField={handleUpdateField}
