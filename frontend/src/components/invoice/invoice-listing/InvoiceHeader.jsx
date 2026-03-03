@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -16,6 +17,8 @@ const InvoiceHeader = ({
   onSort,
   onExport,
   exportLoading,
+  searchValue = "",
+  onSearchChange,
 }) => {
   const { isDarkMode } = useTheme();
 
@@ -32,7 +35,24 @@ const InvoiceHeader = ({
       >
         Invoice Management
       </h2>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
+        {onSearchChange && (
+          <div className="flex items-center gap-2">
+            <Label className={isDarkMode ? "text-gray-300" : "text-gray-700"}>
+              Search
+            </Label>
+            <Input
+              value={searchValue}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Vendor..."
+              className={`w-48 h-9 ${
+                isDarkMode
+                  ? "bg-gray-700 border-gray-600 text-white"
+                  : "bg-white"
+              }`}
+            />
+          </div>
+        )}
         {onExport && (
           <Button
             variant="outline"

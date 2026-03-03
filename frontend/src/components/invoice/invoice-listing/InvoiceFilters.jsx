@@ -1,5 +1,4 @@
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -13,7 +12,6 @@ import { useTheme } from '@/contexts';
 
 const InvoiceFilters = ({
   filters,
-  vendorSearchInput,
   onFilterChange,
   onClearFilters,
 }) => {
@@ -55,22 +53,6 @@ const InvoiceFilters = ({
                 <SelectItem value="validated">Validated</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-              Vendor
-            </Label>
-            <Input
-              value={vendorSearchInput}
-              onChange={(e) => onFilterChange('vendor_name', e.target.value)}
-              placeholder="Search vendor..."
-              className={`h-11 ${
-                isDarkMode
-                  ? 'bg-gray-700 border-gray-600 text-white'
-                  : 'bg-white'
-              }`}
-            />
           </div>
 
           <div className="space-y-2">
@@ -124,6 +106,31 @@ const InvoiceFilters = ({
                 <SelectItem value="Marketing">Marketing</SelectItem>
                 <SelectItem value="Utilities">Utilities</SelectItem>
                 <SelectItem value="Others">Others</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+              Paid
+            </Label>
+            <Select
+              value={filters.is_paid ?? 'all'}
+              onValueChange={(value) => onFilterChange('is_paid', value)}
+            >
+              <SelectTrigger
+                className={`h-11 ${
+                  isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white'
+                }`}
+              >
+                <SelectValue placeholder="All" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="true">Paid</SelectItem>
+                <SelectItem value="false">Unpaid</SelectItem>
               </SelectContent>
             </Select>
           </div>

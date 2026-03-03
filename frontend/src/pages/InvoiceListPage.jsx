@@ -29,6 +29,7 @@ const InvoiceListPage = () => {
   const initialIncludeArchived = searchParams.get('include_archived') === 'true';
   const initialVendorName = searchParams.get('vendor_name') || '';
   const initialCategory = searchParams.get('category') || 'all';
+  const initialIsPaid = searchParams.get('is_paid') ?? 'all';
   const editInvoiceId = searchParams.get('edit');
   const initialSortBy = searchParams.get('sort_by') || 'created_at';
   const initialOrder = searchParams.get('order') || 'desc';
@@ -49,6 +50,7 @@ const InvoiceListPage = () => {
     include_archived: initialIncludeArchived,
     vendor_name: initialVendorName,
     category: initialCategory,
+    is_paid: initialIsPaid,
   });
 
   // Separate state for the vendor input to prevent immediate API calls
@@ -231,6 +233,8 @@ const InvoiceListPage = () => {
     if (filters.vendor_name) params.set('vendor_name', filters.vendor_name);
     if (filters.category && filters.category !== 'all')
       params.set('category', filters.category);
+    if (filters.is_paid && filters.is_paid !== 'all')
+      params.set('is_paid', filters.is_paid);
     if (sortBy && sortBy !== 'created_at') params.set('sort_by', sortBy);
     if (order && order !== 'desc') params.set('order', order);
     if (page && page !== 1) params.set('page', page);
@@ -323,8 +327,8 @@ const InvoiceListPage = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ status: 'all', is_exported: 'all', include_archived: false, vendor_name: '', category: 'all' });
-    setVendorSearchInput(''); // Also clear the vendor input
+    setFilters({ status: 'all', is_exported: 'all', include_archived: false, vendor_name: '', category: 'all', is_paid: 'all' });
+    setVendorSearchInput('');
     setPage(1);
   };
 
@@ -435,10 +439,11 @@ const InvoiceListPage = () => {
           onSort={handleSort}
           onExport={handleExport}
           exportLoading={exportLoading}
+          searchValue={vendorSearchInput}
+          onSearchChange={(value) => handleFilterChange('vendor_name', value)}
         />
         <InvoiceFilters
           filters={filters}
-          vendorSearchInput={vendorSearchInput}
           onFilterChange={handleFilterChange}
           onClearFilters={clearFilters}
         />
@@ -479,11 +484,12 @@ const InvoiceListPage = () => {
         onSort={handleSort}
         onExport={handleExport}
         exportLoading={exportLoading}
+        searchValue={vendorSearchInput}
+        onSearchChange={(value) => handleFilterChange('vendor_name', value)}
       />
 
       <InvoiceFilters
         filters={filters}
-        vendorSearchInput={vendorSearchInput}
         onFilterChange={handleFilterChange}
         onClearFilters={clearFilters}
       />
