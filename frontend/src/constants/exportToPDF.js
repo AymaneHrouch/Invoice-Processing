@@ -30,12 +30,13 @@ export const exportToPDF = (invoice) => {
   );
   doc.text(`Status: ${invoice.status || "N/A"}`, 20, 56);
 
-  // Right Column – From (Vendor)
+  // Right Column – From (Vendor) – same line
   doc.setFont("helvetica", "bold");
-  doc.text("From:", 140, 35);
+  doc.text("From: ", 140, 35);
+  const fromWidth = doc.getTextWidth("From: ");
   doc.setFont("helvetica", "normal");
-  doc.text(invoice.vendor_name || "Vendor Name", 140, 42);
-  if (invoice.vendor_email) doc.text(invoice.vendor_email, 140, 49);
+  doc.text(invoice.vendor_name || "Vendor Name", 140 + fromWidth, 35);
+  if (invoice.vendor_email) doc.text(invoice.vendor_email, 140, 42);
 
   // Prepare table data
   const tableData =
