@@ -29,8 +29,8 @@ const InvoiceFilters = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-          <div className="space-y-2">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
               Status
             </Label>
@@ -45,17 +45,17 @@ const InvoiceFilters = ({
                     : 'bg-white'
                 }`}
               >
-                <SelectValue placeholder="All Statuses" />
+                <SelectValue placeholder="All" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="extracted">Extracted</SelectItem>
                 <SelectItem value="validated">Validated</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
               Category
             </Label>
@@ -70,10 +70,10 @@ const InvoiceFilters = ({
                     : 'bg-white'
                 }`}
               >
-                <SelectValue placeholder="All Categories" />
+                <SelectValue placeholder="All" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="all">All</SelectItem>
                 <SelectItem value="Services">Services</SelectItem>
                 <SelectItem value="Equipment">Equipment</SelectItem>
                 <SelectItem value="Software">Software</SelectItem>
@@ -85,7 +85,7 @@ const InvoiceFilters = ({
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
               Paid
             </Label>
@@ -110,9 +110,9 @@ const InvoiceFilters = ({
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-              Export Status
+              Export
             </Label>
             <Select
               value={filters.is_exported ?? 'all'}
@@ -135,7 +135,7 @@ const InvoiceFilters = ({
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 flex-1 min-w-0">
             <Label className="invisible">Archives</Label>
             <Button
               type="button"
@@ -155,7 +155,7 @@ const InvoiceFilters = ({
             </Button>
           </div>
 
-          <div className="space-y-2 flex flex-col justify-end">
+          <div className="space-y-2 flex flex-col justify-end flex-1 min-w-0">
             <button
               type="button"
               onClick={onClearFilters}
