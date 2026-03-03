@@ -592,6 +592,18 @@ const InvoiceListPage = () => {
                     className="justify-start font-normal"
                     onClick={() => {
                       setMoreDropdownOpen(false);
+                      handleBatchUpdate({ is_exported: false });
+                    }}
+                    disabled={batchLoading}
+                  >
+                    Mark Unexported
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="justify-start font-normal"
+                    onClick={() => {
+                      setMoreDropdownOpen(false);
                       handleBatchUpdate({ is_archived: true });
                     }}
                     disabled={batchLoading}

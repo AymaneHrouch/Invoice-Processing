@@ -403,6 +403,7 @@ def batch_update_invoices(body: InvoiceBatchUpdate = Body(...)):
             direction=body.direction,
             status=body.status,
             is_archived=body.is_archived,
+            is_exported=body.is_exported,
         )
         return {"updated_count": count, "message": f"Updated {count} invoice(s)"}
     except Exception as e:
