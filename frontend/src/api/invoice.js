@@ -41,6 +41,24 @@ export const batchUpdateInvoices = async (invoiceIds, updates) => {
   }
 };
 
+export const getInvoiceById = async (id) => {
+  try {
+    const response = await api.get(`/invoices/${id}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch invoice: ${error.message}`);
+  }
+};
+
+export const getInvoiceStats = async () => {
+  try {
+    const response = await api.get('/invoices/stats');
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch invoice stats: ${error.message}`);
+  }
+};
+
 export const fetchInvoices = async (
   page = 1,
   perPage = 10,
@@ -54,6 +72,9 @@ export const fetchInvoices = async (
       ...(filters.status && filters.status !== 'all' && { status: filters.status }),
       ...(filters.vendor_name && { vendor_name: filters.vendor_name }),
       ...(filters.category && filters.category !== 'all' && { category: filters.category }),
+      ...(filters.is_exported !== undefined && filters.is_exported !== 'all' && {
+        is_exported: filters.is_exported === 'true',
+      }),
     };
 
     const response = await api.get('/invoices/', { params });

@@ -20,6 +20,7 @@ from fastapi.params import Depends
 from app.crud.invoice import InvoiceCRUD
 from app.models.invoice import Invoice, InvoiceBatchUpdate, InvoiceCreate, InvoiceResponse, InvoiceUpdate
 from app.services.invoices import extract_invoice_data
+from app.services import dashboard
 from app.utils.auth import require_admin
 
 logger = logging.getLogger(__name__)
@@ -93,6 +94,13 @@ async def handle_upload_files(files: list[UploadFile] = File(...)):
     }
 # ============= READ ENDPOINTS =============
 
+
+@router.get("/stats", summary="Get work queue stats (FEAT-03)")
+def get_invoice_stats():
+    """Work queue stats: to_validate, ready_to_export, exported_this_month, failed, recent_activity"""
+    return dashboard.get_work_queue_stats()
+
+
 @router.get("/", response_model=list[Invoice],
             summary="Get all invoices with filtering, pagination and sorting")
 def get_invoices(
@@ -104,17 +112,15 @@ def get_invoices(
         status: str | None = Query(None, description="Filter by invoice status"),
         vendor_name: str | None = Query(None, description="Filter by vendor name (partial match)"),
         category: str | None = Query(None, description="Filter by category"),
+        is_exported: bool | None = Query(None, description="Filter by export status"),
+        include_archived: bool = Query(False, description="Include archived invoices"),
 ):
     """
     Get all invoices with optional filtering and pagination
 
-    - **page**: Page number (for pagination)
-    - **per_page**: Number of invoices to return
-    - **sort_by**: Field to sort by
-    - **order**: Sort order
     - **status**: Filter by invoice status (e.g., 'extracted', 'validated')
-    - **vendor_name**: Filter by vendor name (supports partial matching)
-    - **category**: Filter by exact category match
+    - **is_exported**: Filter by export status (for "ready to export" = false)
+    - **include_archived**: Include archived invoices (excluded by default)
     """
     try:
         result = InvoiceCRUD.get_all_invoices(
@@ -125,6 +131,8 @@ def get_invoices(
             order=order,
             vendor_name=vendor_name,
             category=category,
+            is_exported=is_exported,
+            include_archived=include_archived,
         )
         response.headers["X-Total-Count"] = str(result["total"])
         response.headers["X-Total-Pages"] = str(result["total_pages"])

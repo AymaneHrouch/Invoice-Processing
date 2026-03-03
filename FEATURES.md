@@ -133,23 +133,22 @@ These belong in their accounting software, not here.
 
 ```
 ┌──────────────────────┐  ┌──────────────────────┐
-│  À Valider    [blue] │  │  Prêts à exporter    │
+│  To validate    [blue] │  │  Ready to export    │
 │       23             │  │  [green]  12         │
-│  Factures extraites  │  │  Validées, non export│
+│  Extracted invoices  │  │  Validated, not yet exported│
 └──────────────────────┘  └──────────────────────┘
 
-┌──────────────────────┐  ┌──────────────────────┐
-│  Exportés ce mois    │  │  Échecs extraction   │
-│  [gray]  47          │  │  [red]   3           │
-│  is_exported = true  │  │  status = failed     │
-└──────────────────────┘  └──────────────────────┘
+┌──────────────────────┐
+│  Exported this month │
+│  [gray]  47          │
+│  is_exported = true  │
+└──────────────────────┘
 ```
 
 **Widget behaviors:**
-- **À Valider** → click → Invoice List filtered by `status=extracted`
-- **Prêts à exporter** → click → Invoice List filtered by `status=validated AND is_exported=false`
-- **Exportés ce mois** → informational, counts `is_exported=true` this calendar month
-- **Échecs** → click → Invoice List filtered by `status=failed`
+- **To validate** → click → Invoice List filtered by `status=extracted`
+- **Ready to export** → click → Invoice List filtered by `status=validated AND is_exported=false`
+- **Exported this month** → informational, counts `is_exported=true` this calendar month
 
 All widgets exclude archived invoices (`is_archived != true`).
 

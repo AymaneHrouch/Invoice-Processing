@@ -4,9 +4,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from '@/contexts';
 import { exportToPDF } from '@/constants/exportToPDF';
-import { fetchInvoices, updateInvoice, batchUpdateInvoices } from '@/api/invoice';
+import { fetchInvoices, getInvoiceById, updateInvoice, batchUpdateInvoices } from '@/api/invoice';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
+  EditInvoice,
   InvoicePagination,
   InvoiceHeader,
   InvoiceFilters,
@@ -24,8 +25,10 @@ const InvoiceListPage = () => {
   const searchParams = new URLSearchParams(location.search);
 
   const initialStatus = searchParams.get('status') || 'all';
+  const initialIsExported = searchParams.get('is_exported') ?? 'all';
   const initialVendorName = searchParams.get('vendor_name') || '';
   const initialCategory = searchParams.get('category') || 'all';
+  const editInvoiceId = searchParams.get('edit');
   const initialSortBy = searchParams.get('sort_by') || 'created_at';
   const initialOrder = searchParams.get('order') || 'desc';
   const initialPage = parseInt(searchParams.get('page'), 10) || 1;
@@ -41,6 +44,7 @@ const InvoiceListPage = () => {
   // Filter states
   const [filters, setFilters] = useState({
     status: initialStatus,
+    is_exported: initialIsExported,
     vendor_name: initialVendorName,
     category: initialCategory,
   });
@@ -61,6 +65,15 @@ const InvoiceListPage = () => {
   const closeEditModal = () => {
     setEditModalOpen(false);
     setSelectedInvoice(null);
+    if (editInvoiceId) {
+      const params = new URLSearchParams(location.search);
+      params.delete('edit');
+      if (params.toString()) {
+        navigate({ search: params.toString() }, { replace: true });
+      } else {
+        navigate({ search: '' }, { replace: true });
+      }
+    }
   };
 
   // ✅ OPTIMISATION: Mise à jour locale au lieu de recharger tout
@@ -209,6 +222,8 @@ const InvoiceListPage = () => {
     const params = new URLSearchParams();
     if (filters.status && filters.status !== 'all')
       params.set('status', filters.status);
+    if (filters.is_exported && filters.is_exported !== 'all')
+      params.set('is_exported', filters.is_exported);
     if (filters.vendor_name) params.set('vendor_name', filters.vendor_name);
     if (filters.category && filters.category !== 'all')
       params.set('category', filters.category);
@@ -262,6 +277,21 @@ const InvoiceListPage = () => {
     handleFetchInvoices(page, sortBy, order, filters);
   }, [page, sortBy, order, filters]);
 
+  // Open edit modal when navigating from dashboard with ?edit=invoice_id
+  useEffect(() => {
+    if (!editInvoiceId) return;
+    const openInvoiceForEdit = async () => {
+      try {
+        const invoice = await getInvoiceById(editInvoiceId);
+        setSelectedInvoice(invoice);
+        setEditModalOpen(true);
+      } catch (err) {
+        console.error('Failed to load invoice for edit:', err);
+      }
+    };
+    openInvoiceForEdit();
+  }, [editInvoiceId]);
+
   const handlePageChange = (newPage) => {
     setPage(newPage);
     setExpandedRows(new Set());
@@ -289,47 +319,63 @@ const InvoiceListPage = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ status: 'all', vendor_name: '', category: 'all' });
+    setFilters({ status: 'all', is_exported: 'all', vendor_name: '', category: 'all' });
     setVendorSearchInput(''); // Also clear the vendor input
     setPage(1);
   };
 
+  const editModal = editModalOpen && selectedInvoice && (
+    <EditInvoice
+      open={editModalOpen}
+      onClose={closeEditModal}
+      invoice={selectedInvoice}
+      onSuccess={handleEditSuccess}
+    />
+  );
+
   if (loading) {
     return (
-      <div className="max-w-full mx-auto my-8 px-6">
-        <Card
-          className={`border-0 shadow-lg ${
-            isDarkMode ? 'bg-gray-800/50' : 'bg-white/80'
-          } backdrop-blur-sm`}
-        >
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-            <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-              Loading invoices...
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <>
+        <div className="max-w-full mx-auto my-8 px-6">
+          <Card
+            className={`border-0 shadow-lg ${
+              isDarkMode ? 'bg-gray-800/50' : 'bg-white/80'
+            } backdrop-blur-sm`}
+          >
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+              <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
+                Loading invoices...
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+        {editModal}
+      </>
     );
   }
 
   if (error) {
     return (
-      <div className="max-w-full mx-auto my-8 px-6">
-        <Alert variant="destructive" className="mb-4">
-          <AlertTitle>Error loading invoices</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-        <Button onClick={() => handleFetchInvoices()} className="mt-4">
-          Retry
-        </Button>
-      </div>
+      <>
+        <div className="max-w-full mx-auto my-8 px-6">
+          <Alert variant="destructive" className="mb-4">
+            <AlertTitle>Error loading invoices</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <Button onClick={() => handleFetchInvoices()} className="mt-4">
+            Retry
+          </Button>
+        </div>
+        {editModal}
+      </>
     );
   }
 
   if (!invoiceData || !invoiceData.data || invoiceData.data.length === 0) {
     return (
-      <div className="max-w-full mx-auto my-8 px-6">
+      <>
+        <div className="max-w-full mx-auto my-8 px-6">
         <InvoiceHeader
           invoiceData={invoiceData}
           sortBy={sortBy}
@@ -365,6 +411,8 @@ const InvoiceListPage = () => {
           </AlertDescription>
         </Alert>
       </div>
+        {editModal}
+      </>
     );
   }
 
@@ -501,14 +549,7 @@ const InvoiceListPage = () => {
         onPageChange={handlePageChange}
       />
 
-      {editModalOpen && selectedInvoice && (
-        <EditInvoice
-          open={editModalOpen}
-          onClose={closeEditModal}
-          invoice={selectedInvoice}
-          onSuccess={handleEditSuccess} // ✅ Utilise la nouvelle fonction optimisée
-        />
-      )}
+      {editModal}
     </div>
   );
 };

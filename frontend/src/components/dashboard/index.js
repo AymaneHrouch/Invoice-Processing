@@ -1,6 +1,8 @@
 export { default as DashboardHeader } from './DashboardHeader';
 export { default as DashboardStatsGrid } from './DashboardStatsGrid';
+export { default as WorkQueueWidgets } from './WorkQueueWidgets';
 export { default as RecentInvoices } from './RecentInvoices';
+export { default as RecentActivity } from './RecentActivity';
 export { default as TopVendors } from './TopVendors';
 export { default as TopCategories } from './TopCategories';
 export { default as CategoryInvoicesModal } from './CategoryInvoicesModal';

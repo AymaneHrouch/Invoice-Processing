@@ -112,19 +112,25 @@ class InvoiceCRUD:
             order: Literal["asc", "desc"] = "desc",
             status: str | None = None,
             vendor_name: str | None = None,
-            category: str | None = None
+            category: str | None = None,
+            is_exported: bool | None = None,
+            include_archived: bool = False,
     ):
-        """Get all invoices with optional filtering"""
+        """Get all invoices with optional filtering. Excludes archived by default."""
         try:
             collection = get_invoices_collection()
             # Build filter query
             filter_query = {}
+            if not include_archived:
+                filter_query["is_archived"] = {"$ne": True}
             if status:
                 filter_query["status"] = status
             if vendor_name:
                 filter_query["vendor_name"] = {"$regex": vendor_name, "$options": "i"}
             if category:
                 filter_query["category"] = category
+            if is_exported is not None:
+                filter_query["is_exported"] = is_exported
 
             total = collection.count_documents(filter_query)
             total_pages = (total + per_page - 1) // per_page
