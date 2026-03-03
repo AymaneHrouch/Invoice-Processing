@@ -4,7 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from '@/contexts';
 import { exportToPDF } from '@/constants/exportToPDF';
-import { fetchInvoices, getInvoiceById, updateInvoice, batchUpdateInvoices } from '@/api/invoice';
+import { fetchInvoices, getInvoiceById, updateInvoice, batchUpdateInvoices, exportInvoices } from '@/api/invoice';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   EditInvoice,
@@ -56,6 +56,7 @@ const InvoiceListPage = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchLoading, setBatchLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const handleEdit = (invoice) => {
     setSelectedInvoice(invoice);
@@ -324,6 +325,19 @@ const InvoiceListPage = () => {
     setPage(1);
   };
 
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      await exportInvoices(filters);
+      toast.success('Invoices exported successfully');
+      handleFetchInvoices(page, sortBy, order, filters);
+    } catch (err) {
+      toast.error(err.message || 'Export failed');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   const editModal = editModalOpen && selectedInvoice && (
     <EditInvoice
       open={editModalOpen}
@@ -381,6 +395,8 @@ const InvoiceListPage = () => {
           sortBy={sortBy}
           order={order}
           onSort={handleSort}
+          onExport={handleExport}
+          exportLoading={exportLoading}
         />
         <InvoiceFilters
           filters={filters}
@@ -423,6 +439,8 @@ const InvoiceListPage = () => {
         sortBy={sortBy}
         order={order}
         onSort={handleSort}
+        onExport={handleExport}
+        exportLoading={exportLoading}
       />
 
       <InvoiceFilters

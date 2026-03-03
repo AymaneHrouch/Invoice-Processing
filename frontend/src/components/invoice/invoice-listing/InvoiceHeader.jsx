@@ -9,11 +9,13 @@ import {
 import { Label } from "@/components/ui/label";
 import { useTheme } from "@/contexts";
 
-const InvoiceHeader = ({ 
-  invoiceData, 
-  sortBy, 
-  order, 
-  onSort 
+const InvoiceHeader = ({
+  invoiceData,
+  sortBy,
+  order,
+  onSort,
+  onExport,
+  exportLoading,
 }) => {
   const { isDarkMode } = useTheme();
 
@@ -31,6 +33,18 @@ const InvoiceHeader = ({
         Invoice Management
       </h2>
       <div className="flex items-center gap-4">
+        {onExport && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExport}
+            disabled={exportLoading || !invoiceData?.total}
+            className="flex items-center gap-2"
+          >
+            <span>↓</span>
+            Export ({invoiceData?.total ?? 0} invoices)
+          </Button>
+        )}
         <div className="flex items-center gap-2">
           <Label className={isDarkMode ? "text-gray-300" : "text-gray-700"}>
             Sort by:

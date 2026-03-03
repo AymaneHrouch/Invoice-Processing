@@ -2,6 +2,7 @@
 Invoice REST API routes using PyMongo
 """
 from datetime import datetime
+from io import BytesIO
 from time import sleep
 import logging
 from typing import Literal
@@ -16,6 +17,7 @@ from fastapi import (
     Response,
     UploadFile,
 )
+from fastapi.responses import StreamingResponse
 from fastapi.params import Depends
 
 from app.crud.invoice import InvoiceCRUD
@@ -96,6 +98,72 @@ async def handle_upload_files(files: list[UploadFile] = File(...)):
         "extracted_data": extracted_data
     }
 # ============= READ ENDPOINTS =============
+
+
+@router.post("/export", summary="Export filtered invoices to Excel")
+def export_invoices(
+        status: str | None = Query(None, description="Filter by status"),
+        vendor_name: str | None = Query(None, description="Filter by vendor name"),
+        category: str | None = Query(None, description="Filter by category"),
+        is_exported: bool | None = Query(None, description="Filter by export status"),
+        include_archived: bool = Query(False, description="Include archived invoices"),
+):
+    """Export filtered invoices to Excel. Auto-sets is_exported=True on all exported invoices."""
+    try:
+        from openpyxl import Workbook
+
+        invoices = InvoiceCRUD.get_invoices_for_export(
+            status=status,
+            vendor_name=vendor_name,
+            category=category,
+            is_exported=is_exported,
+            include_archived=include_archived,
+        )
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Invoices"
+
+        headers = [
+            "Invoice Number", "Vendor", "Date", "Direction", "ICE", "IF",
+            "Amount HT", "TVA", "Total Amount", "Due Date",
+            "Status", "Paid", "Category",
+        ]
+        ws.append(headers)
+
+        exported_ids = []
+        for inv in invoices:
+            ws.append([
+                inv.invoice_number,
+                inv.vendor_name,
+                inv.invoice_date.strftime("%d/%m/%Y") if inv.invoice_date else "",
+                inv.direction,
+                getattr(inv, "ice", None) or "",
+                getattr(inv, "if_number", None) or "",
+                getattr(inv, "amount_ht", None) or "",
+                getattr(inv, "tva_amount", None) or "",
+                float(inv.total_amount) if inv.total_amount else "",
+                inv.invoice_due_date.strftime("%d/%m/%Y") if inv.invoice_due_date else "",
+                inv.status,
+                "Yes" if inv.is_paid else "No",
+                inv.category or "",
+            ])
+            exported_ids.append(str(inv.id))
+
+        InvoiceCRUD.bulk_mark_exported(exported_ids)
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        filename = f"invoices_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+    except Exception as e:
+        logger.exception("Export failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/stats", summary="Get work queue stats (FEAT-03)")

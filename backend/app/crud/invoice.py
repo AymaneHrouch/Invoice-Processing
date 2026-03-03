@@ -159,6 +159,56 @@ class InvoiceCRUD:
             raise Exception(f"Failed to retrieve invoices: {e!s}")
 
     @staticmethod
+    def get_invoices_for_export(
+            status: str | None = None,
+            vendor_name: str | None = None,
+            category: str | None = None,
+            is_exported: bool | None = None,
+            include_archived: bool = False,
+            sort_by: str = "created_at",
+            order: Literal["asc", "desc"] = "desc",
+    ) -> list[Invoice]:
+        """Get all invoices matching filters for export (no pagination)."""
+        try:
+            collection = get_invoices_collection()
+            filter_query = {}
+            if not include_archived:
+                filter_query["is_archived"] = {"$ne": True}
+            if status:
+                filter_query["status"] = status
+            if vendor_name:
+                filter_query["vendor_name"] = {"$regex": vendor_name, "$options": "i"}
+            if category:
+                filter_query["category"] = category
+            if is_exported is not None:
+                filter_query["is_exported"] = is_exported
+
+            order_by = ASCENDING if order == "asc" else DESCENDING
+            cursor = collection.find(filter_query).sort(sort_by, order_by)
+            return [Invoice(**doc) for doc in cursor]
+        except Exception as e:
+            raise Exception(f"Failed to retrieve invoices for export: {e!s}")
+
+    @staticmethod
+    def bulk_mark_exported(invoice_ids: list[str]) -> int:
+        """Mark multiple invoices as exported. Returns count of updated documents."""
+        if not invoice_ids:
+            return 0
+        try:
+            collection = get_invoices_collection()
+            object_ids = [ObjectId(oid) for oid in invoice_ids if ObjectId.is_valid(oid)]
+            if not object_ids:
+                return 0
+            result = collection.update_many(
+                {"_id": {"$in": object_ids}},
+                {"$set": {"is_exported": True, "exported_at": datetime.utcnow(), "updated_at": datetime.utcnow()}},
+            )
+            return result.modified_count
+        except Exception as e:
+            logger.exception("Bulk mark exported failed: %s", e)
+            raise
+
+    @staticmethod
     def get_invoices_by_vendor(vendor_name: str) -> list[Invoice]:
         """Get all invoices from a specific vendor"""
         try:

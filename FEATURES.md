@@ -261,11 +261,10 @@ Frontend polls every 2 seconds.
 
 #### Frontend
 Export button in Invoice List header: `⬇ Exporter (23 factures)`  
-Count reflects current active filter. After export, those invoices show gray "Exporté" indicator.
-
-Also add `exported_at: datetime | None = None` to invoice schema — set automatically on export.
+Count reflects current active filter.
 
 #### Backend: `POST /invoices/export`
+Example:
 ```python
 from openpyxl import Workbook
 from io import BytesIO
