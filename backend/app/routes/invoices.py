@@ -39,6 +39,18 @@ def invoice_to_response(invoice: Invoice) -> InvoiceResponse:
     return InvoiceResponse(**payload)
 
 
+def _source_type_from_filename(filename: str) -> str:
+    """Return 'pdf' or 'image' based on file extension. Default 'pdf' if unknown."""
+    if not filename:
+        return "pdf"
+    ext = (filename.rsplit(".", 1)[-1] or "").lower()
+    if ext == "pdf":
+        return "pdf"
+    if ext in ("jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff", "tif"):
+        return "image"
+    return "pdf"
+
+
 # ============= CREATE ENDPOINTS =============
 
 @router.post("/", response_model=InvoiceResponse, summary="Create a new invoice")
@@ -71,6 +83,9 @@ async def handle_upload_files(files: list[UploadFile] = File(...)):
             logger.info("Processing uploaded file: %s", file.filename)
             invoice_data = extract_invoice_data(file_bytes)
 
+            # Derive source_type from uploaded file (pdf vs image)
+            source_type = _source_type_from_filename(file.filename or "")
+
             invoice_create = InvoiceCreate(
                 invoice_number=invoice_data.get("invoice_number") or f"AI-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
                 invoice_date=invoice_data.get("date") or None,
@@ -84,7 +99,7 @@ async def handle_upload_files(files: list[UploadFile] = File(...)):
                 items=invoice_data.get("items", []),
                 category=invoice_data.get("category") or "Others",
                 tags=invoice_data.get("tags", []),
-                source_type="pdf",
+                source_type=source_type,
                 status="extracted",
             )
             saved_invoice = InvoiceCRUD.create_invoice(invoice_create)
