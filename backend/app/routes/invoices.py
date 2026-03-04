@@ -22,12 +22,21 @@ from fastapi.params import Depends
 
 from app.crud.invoice import InvoiceCRUD
 from app.models.invoice import Invoice, InvoiceBatchUpdate, InvoiceCreate, InvoiceResponse, InvoiceUpdate
-from app.services.invoices import extract_invoice_data
+from app.services.invoices import extract_invoice_data, run_amount_checks
 from app.services import dashboard
 from app.utils.auth import require_admin
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/invoices", tags=["invoices"])
+
+
+def invoice_to_response(invoice: Invoice) -> InvoiceResponse:
+    """Build API response with computed amount_warnings for extracted invoices."""
+    allowed = set(InvoiceResponse.model_fields)
+    data = invoice.model_dump(mode="json", by_alias=False)
+    payload = {k: data[k] for k in allowed if k in data}
+    payload["amount_warnings"] = run_amount_checks(invoice)
+    return InvoiceResponse(**payload)
 
 
 # ============= CREATE ENDPOINTS =============
@@ -42,7 +51,7 @@ def create_invoice(invoice_data: InvoiceCreate):
             logger.error("Invoice creation returned None")
             raise HTTPException(status_code=500, detail="Failed to create invoice")
         logger.info("Invoice created successfully: %s", invoice.invoice_number)
-        return invoice
+        return invoice_to_response(invoice)
     except ValueError as e:
         logger.warning("Validation error creating invoice: %s", e)
         raise HTTPException(status_code=400, detail=str(e))
@@ -174,7 +183,7 @@ def get_invoice_stats():
     return dashboard.get_work_queue_stats()
 
 
-@router.get("/", response_model=list[Invoice],
+@router.get("/", response_model=list[InvoiceResponse],
             summary="Get all invoices with filtering, pagination and sorting")
 def get_invoices(
         response: Response,
@@ -215,7 +224,7 @@ def get_invoices(
         response.headers["X-Page"] = str(page)
         response.headers["X-Has-Next"] = str(result["has_next"]).lower()
         response.headers["X-Has-Prev"] = str(result["has_prev"]).lower()
-        return result["data"]
+        return [invoice_to_response(inv) for inv in result["data"]]
     except Exception as e:
         logger.exception("Error in get_invoices: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -234,7 +243,7 @@ def get_invoice_by_id(
         invoice = InvoiceCRUD.get_invoice_by_id(invoice_id)
         if not invoice:
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
-        return invoice
+        return invoice_to_response(invoice)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
     except Exception as e:
@@ -254,7 +263,7 @@ def get_invoice_by_number(
         invoice = InvoiceCRUD.get_invoice_by_number(invoice_number)
         if not invoice:
             raise HTTPException(status_code=404, detail=f"Invoice {invoice_number} not found")
-        return invoice
+        return invoice_to_response(invoice)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -272,7 +281,7 @@ def get_invoices_by_vendor_name(
         invoices = InvoiceCRUD.get_invoices_by_vendor(vendor_name)
         if not invoices:
             raise HTTPException(status_code=404, detail=f"No invoices found for vendor '{vendor_name}'")
-        return invoices
+        return [invoice_to_response(inv) for inv in invoices]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -293,7 +302,7 @@ def get_invoices_by_tags(
             raise HTTPException(status_code=400, detail="Tags list cannot be empty")
 
         invoices = InvoiceCRUD.get_invoices_by_tags(tags)
-        return invoices
+        return [invoice_to_response(inv) for inv in invoices]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -309,7 +318,7 @@ def get_invoices_by_single_tag(
     """
     try:
         invoices = InvoiceCRUD.get_invoices_by_tags([tag])
-        return invoices
+        return [invoice_to_response(inv) for inv in invoices]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -324,7 +333,7 @@ def archive_invoice(invoice_id: str = Path(..., description="MongoDB ObjectId of
         invoice = InvoiceCRUD.update_invoice(invoice_id, InvoiceUpdate(is_archived=True))
         if not invoice:
             raise HTTPException(status_code=404, detail=f"Invoice {invoice_id} not found")
-        return invoice
+        return invoice_to_response(invoice)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
     except Exception as e:
@@ -339,7 +348,7 @@ def restore_invoice(invoice_id: str = Path(..., description="MongoDB ObjectId of
         invoice = InvoiceCRUD.update_invoice(invoice_id, InvoiceUpdate(is_archived=False))
         if not invoice:
             raise HTTPException(status_code=404, detail=f"Invoice {invoice_id} not found")
-        return invoice
+        return invoice_to_response(invoice)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
     except Exception as e:
@@ -360,7 +369,7 @@ def update_invoice_by_id(
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
 
         logger.info("Invoice updated successfully: %s", invoice_id)
-        return invoice
+        return invoice_to_response(invoice)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
     except Exception as e:
@@ -385,7 +394,7 @@ def update_invoice_by_number(
             raise HTTPException(status_code=404, detail=f"Invoice {invoice_number} not found")
 
         invoice = InvoiceCRUD.update_invoice(str(existing_invoice.id), update_data)
-        return invoice
+        return invoice_to_response(invoice)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -484,7 +493,7 @@ def search_invoices_by_date_range(
             raise HTTPException(status_code=400, detail="Start date must be before end date")
 
         invoices = InvoiceCRUD.get_invoices_by_date_range(start_date, end_date)
-        return invoices
+        return [invoice_to_response(inv) for inv in invoices]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -502,7 +511,7 @@ def search_invoices_by_text(
     """
     try:
         invoices = InvoiceCRUD.search_invoices(search_term)
-        return invoices
+        return [invoice_to_response(inv) for inv in invoices]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

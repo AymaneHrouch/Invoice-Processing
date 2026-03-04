@@ -215,6 +215,7 @@ class InvoiceBatchUpdate(BaseModel):
 
 class InvoiceResponse(BaseModel):
     """Response schema for invoices"""
+    id: str | None = Field(default=None, description="MongoDB ObjectId as string")
     invoice_number: str | None = None
     invoice_date: datetime | None = None
     invoice_due_date: datetime | None = None
@@ -236,3 +237,5 @@ class InvoiceResponse(BaseModel):
     exported_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    # Computed by backend when status is 'extracted' (amount verification warnings)
+    amount_warnings: list[str] | None = None

@@ -15,7 +15,6 @@ import { useEditInvoice } from '@/hooks/useEditInvoice';
 import { FormField } from '@/components/ui/form-field';
 import { InvoiceTags, InvoiceItems, AmountWarningBanner } from '@/components/invoice';
 import { validateInvoice } from '@/api';
-import { runAmountChecks } from '@/utils/invoiceCalculations';
 import {
   Dialog,
   DialogContent,
@@ -170,12 +169,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   };
 
   const amountWarnings =
-    formData.status === 'extracted'
-      ? runAmountChecks(
-          { total_amount: formData.total_amount, items: formData.items },
-          formData.currency
-        )
-      : [];
+    invoice?.status === 'extracted' ? (invoice?.amount_warnings ?? []) : [];
 
   const handleValidate = async () => {
     if (!invoice?._id && !invoice?.id) return;
@@ -216,7 +210,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
 
     console.log('🚀 Submitting invoice data:', invoiceData);
 
-    const result = await editInvoice(invoice._id, invoiceData);
+    const result = await editInvoice(invoice._id || invoice.id, invoiceData);
 
     if (result) {
       toast.success(message || 'Invoice modified successfully!');

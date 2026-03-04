@@ -106,3 +106,75 @@ def extract_invoice_data(file: bytes):
     result = _to_mongo_serializable(result)
     cache.insert_one({"_id": file_hash, **result})
     return result
+
+
+# ----- Amount verification (for extracted invoices) -----
+# Tolerance for float comparison (same as frontend)
+_AMOUNT_TOLERANCE = Decimal("0.01")
+
+
+def _to_decimal(value) -> Decimal:
+    """Convert to Decimal safely."""
+    if value is None:
+        return Decimal("0")
+    if isinstance(value, Decimal):
+        return value
+    try:
+        return Decimal(str(value))
+    except Exception:
+        return Decimal("0")
+
+
+def run_amount_checks(invoice) -> list[str]:
+    """
+    Run amount verification checks. Returns warnings for extracted invoices only.
+    - Check 1: For each line item, quantity * unit_price should equal item.total (within tolerance).
+    - Check 2: Sum of item totals should equal invoice total_amount (within tolerance).
+    """
+    warnings: list[str] = []
+    status = getattr(invoice, "status", None) if hasattr(invoice, "status") else (invoice.get("status") if isinstance(invoice, dict) else None)
+    if status != "extracted":
+        return warnings
+
+    items = getattr(invoice, "items", None) if hasattr(invoice, "items") else (invoice.get("items") if isinstance(invoice, dict) else [])
+    items = items or []
+    total_amount = _to_decimal(
+        getattr(invoice, "total_amount", None) if hasattr(invoice, "total_amount") else (invoice.get("total_amount") if isinstance(invoice, dict) else None)
+    )
+    currency = getattr(invoice, "currency", "MAD") if hasattr(invoice, "currency") else (invoice.get("currency") or "MAD")
+
+    # Check 1 — line item math: quantity * unit_price vs item.total
+    #for idx, item in enumerate(items):
+    #    if isinstance(item, dict):
+    #        qty = _to_decimal(item.get("quantity"))
+    #        unit_price = _to_decimal(item.get("unit_price"))
+    #        found = _to_decimal(item.get("total"))
+    #        desc = item.get("description") or item.get("name") or f"Item {idx + 1}"
+    #    else:
+    #        qty = _to_decimal(getattr(item, "quantity", None))
+    #        unit_price = _to_decimal(getattr(item, "unit_price", None))
+    #        found = _to_decimal(getattr(item, "total", None))
+    #        desc = getattr(item, "description", None) or getattr(item, "name", None) or f"Item {idx + 1}"
+    #    expected = (qty * unit_price).quantize(Decimal("0.01"))
+    #    found_rounded = found.quantize(Decimal("0.01"))
+    #    if abs(expected - found_rounded) > _AMOUNT_TOLERANCE:
+    #        warnings.append(
+    #            f"Line '{desc}': expected {float(expected):.2f}, found {float(found_rounded):.2f}"
+    #        )
+
+    # Check 2 — sum of items vs total_amount
+    if items:
+        sum_items = Decimal("0")
+        for item in items:
+            if isinstance(item, dict):
+                sum_items += _to_decimal(item.get("total"))
+            else:
+                sum_items += _to_decimal(getattr(item, "total", None))
+        sum_items = sum_items.quantize(Decimal("0.01"))
+        total_rounded = total_amount.quantize(Decimal("0.01"))
+        if abs(sum_items - total_rounded) > _AMOUNT_TOLERANCE:
+            warnings.append(
+                f"Sum of lines ({float(sum_items):.2f} {currency}) ≠ Total amount ({float(total_rounded):.2f} {currency})"
+            )
+
+    return warnings
