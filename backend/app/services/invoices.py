@@ -39,7 +39,7 @@ def get_ice(text: str) -> str | None:
 
 
 def get_currency(extracted_currency, text: str) -> str | None:
-    if extracted_currency == "EUR" and extracted_currency not in text:
+    if extracted_currency not in text:
         return "MAD"
     return extracted_currency
 
@@ -50,6 +50,32 @@ def clean_vendor_name(name: str) -> str:
     # Remove newlines and extra whitespace
     name = re.sub(r"\s+", " ", name).strip()
     return name
+
+
+def get_amount_tva(text: str) -> float | None:
+    patterns = [
+        # "MONTANT TVA 381,67" or "MONTANT TVA: 381.67"
+        r'MONTANT\s+TVA\s*[:\-]?\s*([\d\s,.]+)',
+        # "TVA 20% 381,67" or "TVA (20%) : 381,67"
+        r'TVA\s*[\(\d%\)]*\s*[:\-]?\s*([\d\s,.]+)',
+        # "Taxes 131.89" (ONEE style)
+        r'(?:^|\n)\s*Taxes?\s*[:\-]?\s*([\d\s,.]+)',
+        # "T.V.A 381,67"
+        r'T\.V\.A\.?\s*[:\-]?\s*([\d\s,.]+)',
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
+        if match:
+            raw = match.group(1).strip()
+            # Normalize: remove spaces, convert comma to dot
+            normalized = raw.replace(' ', '').replace(',', '.')
+            try:
+                return float(normalized)
+            except ValueError:
+                continue
+
+    return None
 
 
 def extract_invoice_data(file: bytes):
@@ -87,6 +113,7 @@ def extract_invoice_data(file: bytes):
     ice = get_ice(invoice_data.get("extracted_text", ""))
     currency = get_currency(amount["currency"], invoice_data.get("extracted_text", ""))
     vendor_name = clean_vendor_name(invoice_data.get("vendor_name", ""))
+    amount_tva = get_amount_tva(invoice_data.get("extracted_text", ""))
 
     result = {
         "extractedText": invoice_data.get("extracted_text", ""),
@@ -97,6 +124,7 @@ def extract_invoice_data(file: bytes):
         "currency": currency,
         "tva": tva,
         "ice": ice,
+        "amount_tva": amount_tva,
         "invoice_number": invoice_data.get("invoice_number", ""),
         "category": "",
         "items": items,
@@ -170,6 +198,7 @@ def run_amount_checks(invoice) -> list[str]:
                 sum_items += _to_decimal(item.get("total"))
             else:
                 sum_items += _to_decimal(getattr(item, "total", None))
+        sum_items += _to_decimal(getattr(invoice, "amount_tva", None))
         sum_items = sum_items.quantize(Decimal("0.01"))
         total_rounded = total_amount.quantize(Decimal("0.01"))
         if abs(sum_items - total_rounded) > _AMOUNT_TOLERANCE:

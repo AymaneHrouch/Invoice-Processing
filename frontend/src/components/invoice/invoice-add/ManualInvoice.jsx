@@ -50,6 +50,7 @@ const ManualInvoice = () => {
     invoice_number: '',
     ice: '',
     tva: '',
+    amount_tva: '',
     invoice_date: formatDateForInput(new Date()),
     invoice_due_date: '',
     total_amount: '',
@@ -132,6 +133,7 @@ const ManualInvoice = () => {
       invoice_number: '',
       ice: '',
       tva: '',
+      amount_tva: '',
       invoice_date: formatDateForInput(new Date()),
       invoice_due_date: '',
       total_amount: '',
@@ -162,6 +164,7 @@ const ManualInvoice = () => {
       invoice_due_date: formData.invoice_due_date?.trim() || null,
       ice: formData.ice?.trim() || null,
       tva: formData.tva !== '' && formData.tva != null ? parseFloat(formData.tva) : null,
+      amount_tva: formData.amount_tva !== '' && formData.amount_tva != null ? parseFloat(formData.amount_tva) : null,
     };
 
     const result = await addInvoice(invoiceData);
@@ -240,6 +243,16 @@ const ManualInvoice = () => {
               value={formData.tva}
               onChange={(e) => updateField('tva', e.target.value)}
               placeholder="e.g. 20"
+              step="0.01"
+              min="0"
+            />
+            <FormField
+              id="amount_tva"
+              type="number"
+              label="Amount TVA"
+              value={formData.amount_tva}
+              onChange={(e) => updateField('amount_tva', e.target.value)}
+              placeholder="TVA amount (optional)"
               step="0.01"
               min="0"
             />

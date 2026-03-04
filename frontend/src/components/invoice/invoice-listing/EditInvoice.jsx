@@ -55,6 +55,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     invoice_number: '',
     ice: '',
     tva: '',
+    amount_tva: '',
     invoice_date: '',
     invoice_due_date: '',
     total_amount: '',
@@ -79,6 +80,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
         invoice_number: invoice.invoice_number || '',
         ice: invoice.ice ?? '',
         tva: invoice.tva != null && invoice.tva !== '' ? String(invoice.tva) : '',
+        amount_tva: invoice.amount_tva != null && invoice.amount_tva !== '' ? String(invoice.amount_tva) : '',
         invoice_date: formatDateForInput(invoice.invoice_date),
         invoice_due_date: formatDateForInput(invoice.invoice_due_date),
         total_amount: invoice.total_amount?.toString() || '',
@@ -212,6 +214,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       status: formData.status,
       ice: formData.ice?.trim() || null,
       tva: formData.tva !== '' && formData.tva != null ? parseFloat(formData.tva) : null,
+      amount_tva: formData.amount_tva !== '' && formData.amount_tva != null ? parseFloat(formData.amount_tva) : null,
     };
 
     console.log('🚀 Submitting invoice data:', invoiceData);
@@ -316,6 +319,16 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                     value={formData.tva}
                     onChange={(e) => updateField('tva', e.target.value)}
                     placeholder="e.g. 20"
+                    step="0.01"
+                    min="0"
+                  />
+                  <FormField
+                    id="amount_tva"
+                    type="number"
+                    label="Amount TVA"
+                    value={formData.amount_tva}
+                    onChange={(e) => updateField('amount_tva', e.target.value)}
+                    placeholder="TVA amount (optional)"
                     step="0.01"
                     min="0"
                   />

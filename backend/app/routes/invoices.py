@@ -78,6 +78,7 @@ async def handle_upload_files(files: list[UploadFile] = File(...)):
                 vendor_name=invoice_data.get("supplier") or "Unknown",
                 ice=invoice_data.get("ice"),
                 tva=invoice_data.get("tva"),
+                amount_tva=invoice_data.get("amount_tva"),
                 total_amount=max(float(invoice_data.get("amount") or 0), 0.01),
                 currency=invoice_data.get("currency") or "MAD",
                 items=invoice_data.get("items", []),
@@ -135,7 +136,7 @@ def export_invoices(
 
         headers = [
             "Invoice Number", "Vendor", "Date", "Direction", "ICE",
-            "TVA", "Total Amount", "Due Date",
+            "TVA", "Amount TVA", "Total Amount", "Due Date",
             "Status", "Paid", "Category",
         ]
         ws.append(headers)
@@ -149,6 +150,7 @@ def export_invoices(
                 inv.direction,
                 (inv.ice if inv.ice is not None else "") or "",
                 (inv.tva if inv.tva is not None else "") or "",
+                (inv.amount_tva if inv.amount_tva is not None else "") or "",
                 float(inv.total_amount) if inv.total_amount else "",
                 inv.invoice_due_date.strftime("%d/%m/%Y") if inv.invoice_due_date else "",
                 inv.status,
