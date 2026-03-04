@@ -54,21 +54,22 @@ def clean_vendor_name(name: str) -> str:
 
 def get_amount_tva(text: str) -> float | None:
     patterns = [
-        # "MONTANT TVA 381,67" or "MONTANT TVA: 381.67"
-        r'MONTANT\s+TVA\s*[:\-]?\s*([\d\s,.]+)',
-        # "TVA 20% 381,67" or "TVA (20%) : 381,67"
-        r'TVA\s*[\(\d%\)]*\s*[:\-]?\s*([\d\s,.]+)',
-        # "Taxes 131.89" (ONEE style)
-        r'(?:^|\n)\s*Taxes?\s*[:\-]?\s*([\d\s,.]+)',
+        # Handles "Montant TVA DH ( 20% )\n83.33"
+        # Handles "Montant TVA ( Taux de 20% ) : \n74.67"
+        # Handles "Montant TVA : 83.33"
+        r'MONTANT\s+TVA\b(?:[^(\n]*)?(?:\([^)]*\))?\s*[:\-]?\s*\n?\s*([\d]+[.,]\d+)',
         # "T.V.A 381,67"
-        r'T\.V\.A\.?\s*[:\-]?\s*([\d\s,.]+)',
+        r'T\.V\.A\.?\s*[:\-]?\s*([\d,.]+)',
+        # "TVA 20% 381,67"
+        r'TVA\s*[\(\d%\)]*\s*[:\-]?\s*([\d,.]+)',
+        # "Taxes 131.89" — ONEE style
+        r'(?:^|\n)\s*Taxes?\s*[:\-]?\s*([\d,.]+)',
     ]
 
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
         if match:
             raw = match.group(1).strip()
-            # Normalize: remove spaces, convert comma to dot
             normalized = raw.replace(' ', '').replace(',', '.')
             try:
                 return float(normalized)
@@ -76,7 +77,6 @@ def get_amount_tva(text: str) -> float | None:
                 continue
 
     return None
-
 
 def extract_invoice_data(file: bytes):
     file_hash = hashlib.md5(file).hexdigest()
@@ -198,12 +198,13 @@ def run_amount_checks(invoice) -> list[str]:
                 sum_items += _to_decimal(item.get("total"))
             else:
                 sum_items += _to_decimal(getattr(item, "total", None))
-        sum_items += _to_decimal(getattr(invoice, "amount_tva", None))
         sum_items = sum_items.quantize(Decimal("0.01"))
         total_rounded = total_amount.quantize(Decimal("0.01"))
         if abs(sum_items - total_rounded) > _AMOUNT_TOLERANCE:
-            warnings.append(
-                f"Sum of lines ({float(sum_items):.2f} {currency}) ≠ Total amount ({float(total_rounded):.2f} {currency})"
-            )
+            sum_items += _to_decimal(getattr(invoice, "amount_tva", None))
+            if abs(sum_items - total_rounded) > _AMOUNT_TOLERANCE:
+                warnings.append(
+                    f"Sum of lines ({float(sum_items):.2f} {currency}) ≠ Total amount ({float(total_rounded):.2f} {currency})"
+                )
 
     return warnings

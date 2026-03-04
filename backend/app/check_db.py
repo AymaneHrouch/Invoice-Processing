@@ -34,21 +34,22 @@ import re
 
 def get_amount_tva(text: str) -> float | None:
     patterns = [
-        # "MONTANT TVA 381,67" or "MONTANT TVA: 381.67"
-        r'MONTANT\s+TVA\s*[:\-]?\s*([\d\s,.]+)',
-        # "TVA 20% 381,67" or "TVA (20%) : 381,67"
-        r'TVA\s*[\(\d%\)]*\s*[:\-]?\s*([\d\s,.]+)',
-        # "Taxes 131.89" (ONEE style)
-        r'(?:^|\n)\s*Taxes?\s*[:\-]?\s*([\d\s,.]+)',
+        # Handles "Montant TVA DH ( 20% )\n83.33"
+        # Handles "Montant TVA ( Taux de 20% ) : \n74.67"
+        # Handles "Montant TVA : 83.33"
+        r'MONTANT\s+TVA\b(?:[^(\n]*)?(?:\([^)]*\))?\s*[:\-]?\s*\n?\s*([\d]+[.,]\d+)',
         # "T.V.A 381,67"
-        r'T\.V\.A\.?\s*[:\-]?\s*([\d\s,.]+)',
+        r'T\.V\.A\.?\s*[:\-]?\s*([\d,.]+)',
+        # "TVA 20% 381,67"
+        r'TVA\s*[\(\d%\)]*\s*[:\-]?\s*([\d,.]+)',
+        # "Taxes 131.89" — ONEE style
+        r'(?:^|\n)\s*Taxes?\s*[:\-]?\s*([\d,.]+)',
     ]
 
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
         if match:
             raw = match.group(1).strip()
-            # Normalize: remove spaces, convert comma to dot
             normalized = raw.replace(' ', '').replace(',', '.')
             try:
                 return float(normalized)
@@ -98,12 +99,12 @@ def run_amount_checks(invoice, all_info) -> list[str]:
 
 
 if __name__ == '__main__':
-    #invoices = get_invoices()
-    #cache = {doc["supplier"]: doc for doc in get_cache()}
-    #for doc in invoices:
-    #    res = run_amount_checks(doc, cache)
-    #    if res:
-    #        print("Found issue :)")
-    client = MongoClient(os.getenv("MONGO_URL"))
-    db = client["invoice_processing"]
-    db.invoices.update_many({}, {"$set": {"amount_tva": 0.0}})
+    text = """
+Montant HT :
+373.34
+Montant TVA ( Taux de 20% ) :
+74.67
+Montant TTC :
+448.01
+"""
+    print(get_amount_tva(text))
