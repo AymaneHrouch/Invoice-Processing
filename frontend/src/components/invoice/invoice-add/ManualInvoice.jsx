@@ -48,6 +48,8 @@ const ManualInvoice = () => {
   const [formData, setFormData] = useState({
     vendor_name: '',
     invoice_number: '',
+    ice: '',
+    tva: '',
     invoice_date: formatDateForInput(new Date()),
     invoice_due_date: '',
     total_amount: '',
@@ -128,6 +130,8 @@ const ManualInvoice = () => {
     setFormData({
       vendor_name: '',
       invoice_number: '',
+      ice: '',
+      tva: '',
       invoice_date: formatDateForInput(new Date()),
       invoice_due_date: '',
       total_amount: '',
@@ -156,6 +160,8 @@ const ManualInvoice = () => {
       total_amount: parseFloat(formData.total_amount),
       invoice_date: formData.invoice_date?.trim() || null,
       invoice_due_date: formData.invoice_due_date?.trim() || null,
+      ice: formData.ice?.trim() || null,
+      tva: formData.tva !== '' && formData.tva != null ? parseFloat(formData.tva) : null,
     };
 
     const result = await addInvoice(invoiceData);
@@ -199,7 +205,7 @@ const ManualInvoice = () => {
             ) : null;
           })()}
           {/* Form fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <FormField
               id="vendor_name"
               label="Supplier"
@@ -219,6 +225,23 @@ const ManualInvoice = () => {
               error={errors.invoice_number}
               icon={Hash}
               required
+            />
+            <FormField
+              id="ice"
+              label="ICE"
+              value={formData.ice}
+              onChange={(e) => updateField('ice', e.target.value)}
+              placeholder="15-digit ICE (optional)"
+            />
+            <FormField
+              id="tva"
+              type="number"
+              label="TVA (%)"
+              value={formData.tva}
+              onChange={(e) => updateField('tva', e.target.value)}
+              placeholder="e.g. 20"
+              step="0.01"
+              min="0"
             />
           </div>
 

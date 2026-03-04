@@ -53,6 +53,8 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   const [formData, setFormData] = useState({
     vendor_name: '',
     invoice_number: '',
+    ice: '',
+    tva: '',
     invoice_date: '',
     invoice_due_date: '',
     total_amount: '',
@@ -75,6 +77,8 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       setFormData({
         vendor_name: invoice.vendor_name || '',
         invoice_number: invoice.invoice_number || '',
+        ice: invoice.ice ?? '',
+        tva: invoice.tva != null && invoice.tva !== '' ? String(invoice.tva) : '',
         invoice_date: formatDateForInput(invoice.invoice_date),
         invoice_due_date: formatDateForInput(invoice.invoice_due_date),
         total_amount: invoice.total_amount?.toString() || '',
@@ -206,6 +210,8 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       invoice_date: formData.invoice_date?.trim() || null,
       invoice_due_date: formData.invoice_due_date?.trim() || null,
       status: formData.status,
+      ice: formData.ice?.trim() || null,
+      tva: formData.tva !== '' && formData.tva != null ? parseFloat(formData.tva) : null,
     };
 
     console.log('🚀 Submitting invoice data:', invoiceData);
@@ -275,7 +281,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                 </CardTitleUI>
               </CardHeaderUI>
               <CardContent className="px-0 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <FormField
                     id="vendor_name"
                     label="Supplier"
@@ -295,6 +301,23 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                     placeholder="INV-2024-001"
                     required
                     error={errors.invoice_number}
+                  />
+                  <FormField
+                    id="ice"
+                    label="ICE"
+                    value={formData.ice}
+                    onChange={(e) => updateField('ice', e.target.value)}
+                    placeholder="15-digit ICE (optional)"
+                  />
+                  <FormField
+                    id="tva"
+                    type="number"
+                    label="TVA (%)"
+                    value={formData.tva}
+                    onChange={(e) => updateField('tva', e.target.value)}
+                    placeholder="e.g. 20"
+                    step="0.01"
+                    min="0"
                   />
                 </div>
 

@@ -136,8 +136,8 @@ def export_invoices(
         ws.title = "Invoices"
 
         headers = [
-            "Invoice Number", "Vendor", "Date", "Direction", "ICE", "IF",
-            "Amount HT", "TVA", "Total Amount", "Due Date",
+            "Invoice Number", "Vendor", "Date", "Direction", "ICE",
+            "TVA", "Total Amount", "Due Date",
             "Status", "Paid", "Category",
         ]
         ws.append(headers)
@@ -150,8 +150,6 @@ def export_invoices(
                 inv.invoice_date.strftime("%d/%m/%Y") if inv.invoice_date else "",
                 inv.direction,
                 (inv.ice if inv.ice is not None else "") or "",
-                getattr(inv, "if_number", None) or "",
-                getattr(inv, "amount_ht", None) or "",
                 (inv.tva if inv.tva is not None else "") or "",
                 float(inv.total_amount) if inv.total_amount else "",
                 inv.invoice_due_date.strftime("%d/%m/%Y") if inv.invoice_due_date else "",
