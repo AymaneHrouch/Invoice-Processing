@@ -68,8 +68,6 @@ async def handle_upload_files(files: list[UploadFile] = File(...)):
     for index, file in enumerate(files):
         file_bytes = await file.read()
         try:
-            if len(files) != 1 and index != 0:
-                sleep(2)
             logger.info("Processing uploaded file: %s", file.filename)
             invoice_data = extract_invoice_data(file_bytes)
 
