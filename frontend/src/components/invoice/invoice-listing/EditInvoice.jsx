@@ -15,7 +15,6 @@ import { useEditInvoice } from '@/hooks/useEditInvoice';
 import { FormField } from '@/components/ui/form-field';
 import { InvoiceTags, InvoiceItems, AmountWarningBanner } from '@/components/invoice';
 import { validateInvoice } from '@/api';
-import { runAmountChecks } from '@/utils/invoiceCalculations';
 import {
   Dialog,
   DialogContent,
@@ -54,6 +53,9 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   const [formData, setFormData] = useState({
     vendor_name: '',
     invoice_number: '',
+    ice: '',
+    tva: '',
+    amount_tva: '',
     invoice_date: '',
     invoice_due_date: '',
     total_amount: '',
@@ -76,6 +78,9 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       setFormData({
         vendor_name: invoice.vendor_name || '',
         invoice_number: invoice.invoice_number || '',
+        ice: invoice.ice ?? '',
+        tva: invoice.tva != null && invoice.tva !== '' ? String(invoice.tva) : '',
+        amount_tva: invoice.amount_tva != null && invoice.amount_tva !== '' ? String(invoice.amount_tva) : '',
         invoice_date: formatDateForInput(invoice.invoice_date),
         invoice_due_date: formatDateForInput(invoice.invoice_due_date),
         total_amount: invoice.total_amount?.toString() || '',
@@ -170,12 +175,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   };
 
   const amountWarnings =
-    formData.status === 'extracted'
-      ? runAmountChecks(
-          { total_amount: formData.total_amount, items: formData.items },
-          formData.currency
-        )
-      : [];
+    invoice?.status === 'extracted' ? (invoice?.amount_warnings ?? []) : [];
 
   const handleValidate = async () => {
     if (!invoice?._id && !invoice?.id) return;
@@ -212,11 +212,14 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       invoice_date: formData.invoice_date?.trim() || null,
       invoice_due_date: formData.invoice_due_date?.trim() || null,
       status: formData.status,
+      ice: formData.ice?.trim() || null,
+      tva: formData.tva !== '' && formData.tva != null ? parseFloat(formData.tva) : null,
+      amount_tva: formData.amount_tva !== '' && formData.amount_tva != null ? parseFloat(formData.amount_tva) : null,
     };
 
     console.log('🚀 Submitting invoice data:', invoiceData);
 
-    const result = await editInvoice(invoice._id, invoiceData);
+    const result = await editInvoice(invoice._id || invoice.id, invoiceData);
 
     if (result) {
       toast.success(message || 'Invoice modified successfully!');
@@ -281,7 +284,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                 </CardTitleUI>
               </CardHeaderUI>
               <CardContent className="px-0 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <FormField
                     id="vendor_name"
                     label="Supplier"
@@ -301,6 +304,33 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                     placeholder="INV-2024-001"
                     required
                     error={errors.invoice_number}
+                  />
+                  <FormField
+                    id="ice"
+                    label="ICE"
+                    value={formData.ice}
+                    onChange={(e) => updateField('ice', e.target.value)}
+                    placeholder="15-digit ICE (optional)"
+                  />
+                  <FormField
+                    id="tva"
+                    type="number"
+                    label="TVA (%)"
+                    value={formData.tva}
+                    onChange={(e) => updateField('tva', e.target.value)}
+                    placeholder="e.g. 20"
+                    step="0.01"
+                    min="0"
+                  />
+                  <FormField
+                    id="amount_tva"
+                    type="number"
+                    label="Amount TVA"
+                    value={formData.amount_tva}
+                    onChange={(e) => updateField('amount_tva', e.target.value)}
+                    placeholder="TVA amount (optional)"
+                    step="0.01"
+                    min="0"
                   />
                 </div>
 

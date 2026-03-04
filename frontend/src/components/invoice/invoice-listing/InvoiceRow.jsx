@@ -20,7 +20,6 @@ import {
   Trash2,
   AlertTriangle,
 } from 'lucide-react';
-import { runAmountChecks } from '@/utils/invoiceCalculations';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -74,12 +73,9 @@ const InvoiceRow = ({
   };
 
   const isArchived = invoice.is_archived === true;
-  const amountWarnings = runAmountChecks(
-    { total_amount: invoice.total_amount, items: invoice.items || [] },
-    invoice.currency || 'MAD'
-  );
+  const amountWarnings = invoice?.amount_warnings ?? [];
   const hasAmountWarning =
-    invoice.status === 'extracted' && amountWarnings.length > 0;
+    invoice?.status === 'extracted' && amountWarnings.length > 0;
 
   return (
     <>

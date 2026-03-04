@@ -1,18 +1,12 @@
 import { useTheme } from '@/contexts';
 import { formatDate, formatCurrency } from '@/constants';
 import { AmountWarningBanner } from '@/components/invoice';
-import { runAmountChecks } from '@/utils/invoiceCalculations';
 
 const InvoiceExpandedRow = ({ invoice, colSpan = 13 }) => {
   const { isDarkMode } = useTheme();
   const isArchived = invoice?.is_archived === true;
   const amountWarnings =
-    invoice?.status === 'extracted'
-      ? runAmountChecks(
-          { total_amount: invoice.total_amount, items: invoice.items || [] },
-          invoice.currency || 'MAD'
-        )
-      : [];
+    invoice?.status === 'extracted' ? (invoice?.amount_warnings ?? []) : [];
 
   return (
     <tr

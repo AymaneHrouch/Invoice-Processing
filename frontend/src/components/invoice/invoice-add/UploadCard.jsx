@@ -88,10 +88,19 @@ const UploadCard = ({
     }
   };
 
-  // Sequential file processing
+  // Delay between requests so Azure (used in backend) isn't hit back-to-back
+  const UPLOAD_DELAY_MS = 1000;
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // Sequential file processing: one POST /invoices/upload per file (see api/fileUpload.js)
   const processFileSequentially = useCallback(
     async (filesToProcess) => {
       for (let i = 0; i < filesToProcess.length; i++) {
+        // Space out requests (e.g. for Azure rate limits)
+        if (i > 0) {
+          await delay(UPLOAD_DELAY_MS);
+        }
+
         const fileToProcess = filesToProcess[i];
 
         // Update progress
@@ -105,7 +114,6 @@ const UploadCard = ({
         updateFileStatus(fileToProcess.id, 'processing');
 
         try {
-          // Simulate processing with mock data
           const formData = new FormData();
           formData.append('files', fileToProcess.file);
           const extractedData = await uploadFiles(formData);

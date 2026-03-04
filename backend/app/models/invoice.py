@@ -35,6 +35,9 @@ class Invoice(BaseModel):
 
     # Vendor information
     vendor_name: str = Field(..., description="Vendor name")
+    ice: str | None = Field(default=None, description="ICE (Moroccan tax ID)")
+    tva: float | None = Field(default=None, description="TVA rate (e.g. 20 for 20%)")
+    amount_tva: float | None = Field(default=None, description="TVA amount (monetary)")
 
     # Financial information
     total_amount: Decimal = Field(..., gt=0, description="Total invoice amount")
@@ -97,6 +100,9 @@ class InvoiceCreate(BaseModel):
     invoice_date: datetime | None = None
     invoice_due_date: datetime | None = None
     vendor_name: str = Field(..., min_length=1, description="Vendor name")
+    ice: str | None = Field(default=None, description="ICE (Moroccan tax ID)")
+    tva: float | None = Field(default=None, description="TVA rate (e.g. 20 for 20%)")
+    amount_tva: float | None = Field(default=None, description="TVA amount (monetary)")
     total_amount: Decimal = Field(..., gt=0, description="Total invoice amount")
     currency: str = Field(default="MAD", description="Currency code")
     items: list[InvoiceItem] = Field(default_factory=list, description="List of invoice items")
@@ -182,6 +188,9 @@ class InvoiceUpdate(BaseModel):
     invoice_date: datetime | None = None
     invoice_due_date: datetime | None = None
     vendor_name: str | None = None
+    ice: str | None = None
+    tva: float | None = None
+    amount_tva: float | None = None
     total_amount: Decimal | None = None
     currency: str | None = None
     items: list[InvoiceItem] | None = None
@@ -209,10 +218,14 @@ class InvoiceBatchUpdate(BaseModel):
 
 class InvoiceResponse(BaseModel):
     """Response schema for invoices"""
+    id: str | None = Field(default=None, description="MongoDB ObjectId as string")
     invoice_number: str | None = None
     invoice_date: datetime | None = None
     invoice_due_date: datetime | None = None
     vendor_name: str | None = None
+    ice: str | None = None
+    tva: float | None = None
+    amount_tva: float | None = None
     total_amount: Decimal | None = None
     currency: str | None = None
     items: list[InvoiceItem] | None = None
@@ -228,3 +241,5 @@ class InvoiceResponse(BaseModel):
     exported_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    # Computed by backend when status is 'extracted' (amount verification warnings)
+    amount_warnings: list[str] | None = None
