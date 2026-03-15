@@ -1,235 +1,193 @@
-# Invoice Processing Project Documentation
+# Voynich — Invoice Management Platform for Moroccan SMEs
 
-## Overview
+Voynich helps Moroccan businesses manage their invoices — both the ones they send (Ventes) and the ones they receive (Achats). It uses AI to extract data from scanned supplier invoices and provides a complete emission workflow for creating DGI-compliant outgoing invoices.
 
-This project is a comprehensive invoice processing application that allows users to manage, store, and analyze invoices. The application is divided into two main parts: a FastAPI backend with MongoDB and a React frontend with Vite.
+Built to prepare Moroccan PMEs for the mandatory e-invoicing reform (DGI clearance model, UBL 2.1) rolling out in 2026-2027.
 
-## Project Architecture
+## What It Does
 
-### Project Structure
+**Achats (Purchases) — Incoming Invoices**
+- Upload supplier invoices (PDF, scanned images, photos)
+- AI-powered extraction via Azure Document Intelligence
+- Moroccan-specific field detection: ICE, TVA rate, TVA amount, vendor name (with Arabic text handling)
+- Review, correct, validate, and organize extracted data
+- Export to Excel
+
+**Ventes (Sales) — Outgoing Invoices** *(in development)*
+- Create invoices with auto-generated sequential numbering
+- Company profile with ICE, IF, RC, Patente, bank details
+- Client directory with ICE validation
+- Auto-calculated TVA (20%, 14%, 10%, 7%)
+- PDF generation (French/Arabic)
+- UBL 2.1 XML export for DGI compliance
+
+**Dashboard**
+- Overview of sales and purchase invoices
+- Revenue and expense tracking
+- Payment status monitoring
+- Work queue stats (to validate, to export, etc.)
+
+## Tech Stack
+
+### Backend
+- **Python 3.13** + **FastAPI**
+- **PyMongo** (sync) + **MongoDB Atlas**
+- **Azure Document Intelligence** for OCR (with MD5-based caching)
+- **JWT auth** (python-jose + bcrypt)
+- **openpyxl** for Excel export
+- **ruff** for linting
+- Package manager: **uv**
+
+### Frontend
+- **React 18** + **Vite**
+- **Tailwind CSS** + **shadcn/ui**
+- **Lucide React** icons
+- **React Router v6**
+- **Axios** for API calls
+- **Recharts** for dashboard charts
+
+### Database
+- **MongoDB** — collections: `invoices`, `company_profile`, `contacts`, `cache`, `users`
+
+## Project Structure
 
 ```
-├── backend/           # FastAPI API with MongoDB
-│   ├── app/           # Main source code
-│   │   ├── core/      # Core functionalities
-│   │   ├── crud/      # CRUD operations
-│   │   ├── models/    # Pydantic data models
-│   │   ├── routes/    # API endpoints
-│   │   ├── services/  # Business services
-│   │   └── utils/     # Utilities
-└── frontend/          # React application with Vite
-    ├── public/        # Static resources
-    └── src/           # React source code
-        ├── components/ # React components
-        ├── hooks/     # Custom hooks
-        ├── pages/     # Application pages
-        └── utils/     # Utilities
+backend/
+├── app/
+│   ├── main.py                 # FastAPI app, CORS, routers
+│   ├── database.py             # MongoDB connection
+│   ├── models/
+│   │   ├── invoice.py          # Invoice models (Pydantic)
+│   │   ├── company.py          # Company profile model
+│   │   ├── contact.py          # Client/supplier contact model
+│   │   └── user.py             # User model
+│   ├── crud/
+│   │   └── invoice.py          # Invoice CRUD operations
+│   ├── routes/
+│   │   ├── invoices.py         # Legacy invoice endpoints
+│   │   ├── ventes.py           # Outgoing invoice endpoints
+│   │   ├── achats.py           # Incoming invoice endpoints
+│   │   ├── company.py          # Company profile endpoints
+│   │   ├── contacts.py         # Contact directory endpoints
+│   │   ├── dashboard.py        # Dashboard stats
+│   │   └── auth.py             # Authentication
+│   ├── services/
+│   │   ├── invoices.py         # OCR extraction, field parsing
+│   │   ├── ubl.py              # UBL 2.1 XML generation
+│   │   ├── dashboard.py        # Dashboard aggregation
+│   │   └── ocr/                # OCR provider abstraction
+│   │       ├── factory.py
+│   │       ├── azure_document_intelligence_service.py
+│   │       ├── aws_textract_service.py
+│   │       └── google_cloud_documentai_service.py
+│   └── utils/
+│       └── auth.py             # JWT helpers
+├── pyproject.toml
+└── ruff.toml
+
+frontend/
+├── src/
+│   ├── App.jsx                 # Routes
+│   ├── api/                    # API clients
+│   ├── components/
+│   │   ├── shared/             # NavBar, SideBar
+│   │   ├── invoice/            # Invoice components
+│   │   ├── dashboard/          # Dashboard widgets
+│   │   └── ui/                 # shadcn/ui primitives
+│   ├── pages/                  # Route pages
+│   ├── hooks/                  # Custom React hooks
+│   ├── contexts/               # Auth, Theme
+│   └── constants/              # Config, sidebar items
+├── package.json
+└── vite.config.js
 ```
 
-## Backend (FastAPI + MongoDB)
+## Getting Started
 
-### Technologies Used
+### Prerequisites
+- Python 3.13+
+- Node.js 18+
+- MongoDB (local or Atlas)
+- Azure Document Intelligence account (for AI parsing)
 
-- **FastAPI** (v0.115.12): Modern, high-performance API framework
-- **PyMongo** (v4.0.0+): MongoDB driver for Python
-- **Pydantic** (v2.0.0+): Data validation and serialization
-- **Uvicorn** (v0.34.3): ASGI server for FastAPI
-- **Python-dotenv**: Environment variable management
+### Backend Setup
 
-### Data Model
+```bash
+cd backend
 
-The main invoice schema in MongoDB:
+# Install dependencies with uv
+uv sync
 
-```json
-{
-  "_id": ObjectId("..."),
-  "created_at": ISODate("2024-01-15T10:30:00Z"),
-  "invoice_number": "INV-2024-001",
-  "invoice_date": ISODate("2024-01-15T00:00:00Z"),
-  "vendor_name": "Acme Corporation",
-  "total_amount": 1080.00,
-  "currency": "MAD",
-  "items": [
-    {
-      "description": "Web Development Services",
-      "quantity": 40,
-      "unit_price": 25.00,
-      "total": 1000.00
-    }
-  ],
-  "category": "Professional Services",
-  "tags": ["development", "monthly-service"],
-  "source_type": "pdf",
-  "status": "processed"
-}
+# Create .env file
+cp .env.example .env
+# Edit .env with your values (see Environment Variables below)
+
+# Run the server
+uv run python -m app.main
 ```
 
-### API Endpoints
+The API runs at `http://localhost:8888/api` with Swagger docs at `/api/docs`.
 
-The API exposes several RESTful endpoints:
+### Frontend Setup
 
-- `POST /invoices/` - Create an invoice
-- `GET /invoices/` - List invoices with filtering
-- `GET /invoices/{id}` - Get a specific invoice
-- `PUT /invoices/{id}` - Update an invoice
-- `DELETE /invoices/{id}` - Delete an invoice
-- `POST /upload/single` - Upload and process a single invoice file
-- `POST /upload/batch` - Upload and process a batch of invoice files
-- `POST /upload/single` - Upload and process multiple invoice files
-- `GET /stats` - Get statistics on uploaded invoices
+```bash
+cd frontend
 
-### Database Configuration
+npm install
+npm run dev
+```
 
-MongoDB connection is configured via environment variables:
+The frontend runs at `http://localhost:5173`.
+
+### Environment Variables
+
+Create `backend/.env`:
 
 ```env
-MONGO_URL=mongodb://localhost:27017
+# MongoDB
+MONGO_URL=mongodb+srv://user:pass@cluster.mongodb.net
 DB_NAME=invoice_processing
+
+# Azure Document Intelligence (for AI invoice parsing)
+AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT=https://your-resource.cognitiveservices.azure.com
+AZURE_DOCUMENT_INTELLIGENCE_KEY=your-key
+
+# Auth
+JWT_SECRET=your-secret-key
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your-admin-password
 ```
 
-## Frontend (React + Vite)
+## OCR Providers
 
-### Technologies Used
+The app supports multiple OCR providers through a factory pattern. Currently active: **Azure Document Intelligence**. Also implemented but optional: AWS Textract, Google Cloud Document AI.
 
-- **React** (v19.1.0): UI library
-- **Vite** (v7.0.0): Fast build tool
-- **Tailwind CSS** (v4.1.11): Utility-first CSS framework
-- **Shadcn UI**: Accessible UI components
-- **Axios** (v1.10.0): HTTP client
-- **Recharts** (v3.1.0): Charting library
+The OCR pipeline includes Moroccan-specific post-processing:
+- ICE extraction (15-digit regex)
+- TVA rate detection from invoice text
+- TVA amount extraction (handles multiple Moroccan formats)
+- Arabic text cleaning from vendor names
+- Currency detection (defaults to MAD)
 
-### Main Features
+Extraction results are cached by file MD5 hash to avoid redundant API calls.
 
-1. **Dashboard**: Visualization of statistics and trends
-2. **Invoice Management**: List, add, edit, and delete invoices
-3. **Automated Processing**: Data extraction from files
+## Architecture Docs
 
-### Invoice Processing with AI
+Detailed architecture and roadmap documents are in the `docs/` folder:
 
-The application supports two methods for adding invoices:
-
-1. **Manual Entry**: Form to enter invoice details
-2. **AI Processing**: Upload files for automatic data extraction
-
-#### Supported File Types
-
-```javascript
-export const SUPPORTED_FILE_TYPES = ['.pdf', '.png', '.jpg', '.jpeg', '.doc', '.docx', '.txt'];
-export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-```
+- `docs/ARCHITECTURE.md` — Data models, Ventes/Achats workflows, route structure
+- `docs/ROADMAP.md` — Phased implementation plan (4 phases)
+- `docs/UBL.md` — UBL 2.1 technical spec and generation guide
+- `docs/MIGRATION.md` — Migration guide from v1 to v2
+- `docs/COMPETITORS.md` — Competitive landscape analysis
+- `CLAUDE.md` — Context file for AI-assisted development
 
 ## Deployment
 
-### Prerequisites
+- **Backend**: Railway (or any Docker-compatible host)
+- **Frontend**: Vercel
+- **Database**: MongoDB Atlas
 
-- Python 3.13+
-- Node.js (recent version)
-- MongoDB
+## License
 
-### Backend Installation
-
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   ```
-3. Configure environment variables (create a `.env` file)
-4. Start the server:
-   ```bash
-   cd backend
-   python -m uvicorn app.main:app --reload
-   ```
-
-### Frontend Installation
-
-1. Install dependencies:
-   ```bash
-   cd frontend
-   npm install
-   ```
-2. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-## Integration of OCR and AI Services
-
-This project uses both **paid services** and **open-source solutions** for Optical Character Recognition (OCR).
-
-### Paid Services
-We support integration with the following cloud-based OCR services:
-- **AWS Textract**
-- **Azure Document Intelligence**
-- **Google Cloud Document AI**
-
-For detailed setup instructions for these services, see the [OCR Services Setup Guide](./backend/app/services/ocr/README.md).
-### Ollama (Local Model)
-
-Ollama allows you to run AI models locally for data extraction and document processing.
-
-#### Installing Ollama
-
-1. Download and install Ollama from [https://ollama.ai/download](https://ollama.ai/download)
-2. Open a terminal and run the following command to download a model (e.g., llama4):
-
-```bash
-ollama pull llama4
-```
-
-#### Project Configuration
-
-Add the following environment variables to the backend `.env` file:
-
-```env
-OLLAMA_ENABLED=true
-OLLAMA_HOST=http://localhost:11434
-OLLAMA_MODEL=llama2
-```
-
-#### Usage
-
-```python
-import requests
-import json
-
-def extract_text_with_ollama(file_content, prompt):
-    ollama_host = os.getenv('OLLAMA_HOST')
-    ollama_model = os.getenv('OLLAMA_MODEL')
-    
-    # Prepare the prompt with the file content
-    full_prompt = f"{prompt}\n\nDocument content:\n{file_content}"
-    
-    # Call the Ollama API
-    response = requests.post(
-        f"{ollama_host}/api/generate",
-        json={
-            "model": ollama_model,
-            "prompt": full_prompt,
-            "stream": False
-        }
-    )
-    
-    result = response.json()
-    return result['response']
-```
-
-#### Running Ollama in Production
-
-To run Ollama in production, you can use Docker:
-
-```bash
-docker run -d -p 11434:11434 -v ollama:/root/.ollama ollama/ollama
-```
-
-## Implemented Best Practices
-
-1. **Separation of Concerns**: Models, CRUD, and routes are separated
-2. **Data Validation**: Pydantic models ensure data integrity
-3. **Error Handling**: Comprehensive error management
-4. **Performance**: Strategic indexing and efficient queries
-5. **Documentation**: Well-documented code and API endpoints
-
-## Conclusion
-
-This project provides a solid foundation for invoice processing with MongoDB, FastAPI, and React, using modern development best practices. It is designed to be extensible and can be easily integrated with OCR services and AI models for automatic data extraction.
+Private — Voynich Digital Solutions
