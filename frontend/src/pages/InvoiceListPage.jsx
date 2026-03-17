@@ -64,7 +64,8 @@ const InvoiceListPage = ({ direction = null }) => {
   const initialStartDate = searchParams.get('start_date') || undefined;
   const initialEndDate = searchParams.get('end_date') || undefined;
   const initialOverdue = searchParams.get('overdue') === 'true';
-  const editInvoiceId = searchParams.get('edit');
+  const editInvoiceId =
+    searchParams.get('edit') || location.state?.editId || null;
   const initialSortBy = searchParams.get('sort_by') || 'created_at';
   const initialOrder = searchParams.get('order') || 'desc';
   const initialPage = parseInt(searchParams.get('page'), 10) || 1;
@@ -294,9 +295,6 @@ const InvoiceListPage = ({ direction = null }) => {
     if (order && order !== 'desc') params.set('order', order);
     if (page && page !== 1) params.set('page', page);
     if (perPage && perPage !== 10) params.set('per_page', perPage);
-    // Preserve ?edit=<id> while the modal is open so we don't trigger an
-    // extra navigation that causes the modal to flash on arrival.
-    if (editInvoiceId) params.set('edit', editInvoiceId);
     // Only push if different
     if (params.toString() !== location.search.replace(/^\?/, '')) {
       navigate({ search: params.toString() }, { replace: false });
@@ -344,9 +342,16 @@ const InvoiceListPage = ({ direction = null }) => {
     handleFetchInvoices(page, sortBy, order, filters);
   }, [page, perPage, sortBy, order, filters]);
 
-  // Open edit modal when navigating from dashboard with ?edit=invoice_id
+  // Open edit modal when navigating with a target invoice id (URL ?edit= or location state)
   useEffect(() => {
     if (!editInvoiceId) return;
+    // Clear location state so the modal doesn't reopen on manual refresh
+    if (location.state?.editId) {
+      navigate(location.pathname + location.search, {
+        replace: true,
+        state: {},
+      });
+    }
     const openInvoiceForEdit = async () => {
       try {
         const invoice = await getInvoiceById(editInvoiceId);
