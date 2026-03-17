@@ -25,8 +25,12 @@ from app.database import init_database, get_database
 
 UTC = timezone.utc
 
-# Email shown in history entries — uses ADMIN_EMAIL env var if set
-SEED_USER = os.getenv("ADMIN_EMAIL", "admin@voynich.ma")
+# Users that appear in seeded history entries
+SEED_USERS = ["youness@gmail.com", "aymane@gmail.com", "admin@gmail.com"]
+
+
+def _user():
+    return random.choice(SEED_USERS)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -53,7 +57,7 @@ def _history(status, direction, inv_date, due_date):
         "action": "validated",
         "status_from": status_from,
         "status_to": "validated",
-        "user": SEED_USER,
+        "user": _user(),
         "timestamp": validate_at,
     })
 
@@ -67,7 +71,7 @@ def _history(status, direction, inv_date, due_date):
             "action": "sent",
             "status_from": "validated",
             "status_to": "sent",
-            "user": SEED_USER,
+            "user": _user(),
             "timestamp": sent_at,
         })
         if status == "sent":
@@ -80,7 +84,7 @@ def _history(status, direction, inv_date, due_date):
             "action": "paid",
             "status_from": "sent",
             "status_to": "paid",
-            "user": SEED_USER,
+            "user": _user(),
             "timestamp": paid_at,
         })
     else:
@@ -92,7 +96,7 @@ def _history(status, direction, inv_date, due_date):
             "action": "paid",
             "status_from": "validated",
             "status_to": "paid",
-            "user": SEED_USER,
+            "user": _user(),
             "timestamp": paid_at,
         })
 
