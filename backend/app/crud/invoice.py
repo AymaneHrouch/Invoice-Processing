@@ -404,7 +404,10 @@ class InvoiceCRUD:
 
     @staticmethod
     def get_history(invoice_id: str) -> list:
-        """Return the history array for an invoice, newest first."""
+        """Return the history array for an invoice, newest first.
+        ObjectId user values (legacy) are resolved to emails."""
+        import re
+        objectid_re = re.compile(r"^[a-f0-9]{24}$")
         try:
             collection = get_invoices_collection()
             doc = collection.find_one(
@@ -413,8 +416,21 @@ class InvoiceCRUD:
             )
             if doc is None:
                 return []
-            entries = doc.get("history") or []
-            return list(reversed(entries))
+            entries = list(reversed(doc.get("history") or []))
+
+            raw_ids = {e["user"] for e in entries if objectid_re.match(e.get("user") or "")}
+            if raw_ids:
+                from app.database import get_database
+                users_col = get_database()["users"]
+                user_map = {
+                    str(u["_id"]): u.get("email") or u.get("full_name") or str(u["_id"])
+                    for u in users_col.find({"_id": {"$in": [ObjectId(uid) for uid in raw_ids]}})
+                }
+                for e in entries:
+                    if e.get("user") in user_map:
+                        e["user"] = user_map[e["user"]]
+
+            return entries
         except Exception as e:
             logger.warning("Failed to get history for invoice %s: %s", invoice_id, e)
             return []

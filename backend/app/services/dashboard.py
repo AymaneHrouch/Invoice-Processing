@@ -691,10 +691,15 @@ def get_weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: s
     return result
 
 
+_OBJECTID_RE = __import__("re").compile(r"^[a-f0-9]{24}$")
+
+
 def get_recent_activity(limit: int = 15) -> list:
     """
     Return the most recent audit-trail events across all invoices by
     unwinding each invoice's history array and sorting newest-first.
+    ObjectId user values (from entries recorded before username was added
+    to the JWT) are resolved to emails via a batch users lookup.
     """
     pipeline = [
         {"$match": {"is_archived": {"$ne": True}, "history": {"$exists": True, "$ne": []}}},
@@ -723,7 +728,23 @@ def get_recent_activity(limit: int = 15) -> list:
         }},
     ]
     try:
-        return list(invoice_collection.aggregate(pipeline))
+        results = list(invoice_collection.aggregate(pipeline))
+
+        # Resolve any legacy ObjectId user values to email/full_name
+        raw_ids = {r["user"] for r in results if _OBJECTID_RE.match(r.get("user") or "")}
+        if raw_ids:
+            from bson import ObjectId
+            from app.database import get_database
+            users_col = get_database()["users"]
+            user_map = {
+                str(u["_id"]): u.get("email") or u.get("full_name") or str(u["_id"])
+                for u in users_col.find({"_id": {"$in": [ObjectId(uid) for uid in raw_ids]}})
+            }
+            for r in results:
+                if r.get("user") in user_map:
+                    r["user"] = user_map[r["user"]]
+
+        return results
     except Exception as e:
         logger.exception("get_recent_activity failed: %s", e)
         return []
