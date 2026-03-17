@@ -152,31 +152,6 @@ const InvoiceFilters = ({
 
           <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-              Payé
-            </Label>
-            <Select
-              value={filters.is_paid ?? 'all'}
-              onValueChange={(value) => onFilterChange('is_paid', value)}
-            >
-              <SelectTrigger
-                className={`h-11 ${
-                  isDarkMode
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'bg-white'
-                }`}
-              >
-                <SelectValue placeholder="Tous" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="true">Payé</SelectItem>
-                <SelectItem value="false">Non payé</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2 min-w-[140px] flex-1">
-            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
               Exporté
             </Label>
             <Select
