@@ -45,13 +45,13 @@ export const InvoiceStatus = {
 
 export const statusConfig = {
   extracted: {
-    label: 'Extracted',
+    label: 'Extrait',
     variant: 'outline',
     className:
       'border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400',
   },
   validated: {
-    label: 'Validated',
+    label: 'Validé',
     variant: 'default',
     className:
       'border-green-500 text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
@@ -65,7 +65,7 @@ export const calculateItemTotal = (quantity, unitPrice) => {
 export const sidebarItems = [
   {
     id: 'dashboard',
-    label: 'Dashboard',
+    label: 'Tableau de bord',
     icon: LayoutDashboard,
     path: '/dashboard',
   },
@@ -129,14 +129,14 @@ export const sidebarItems = [
   },
   {
     id: 'users',
-    label: 'User Management',
+    label: 'Gestion des utilisateurs',
     icon: Users,
     path: '/users',
     adminOnly: true,
   },
 ];
 export const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString('fr-FR', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

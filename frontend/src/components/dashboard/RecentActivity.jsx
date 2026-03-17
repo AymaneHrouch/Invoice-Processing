@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 const RecentActivity = ({ items = [] }) => {
   const { isDarkMode } = useTheme();
@@ -26,7 +27,7 @@ const RecentActivity = ({ items = [] }) => {
     if (!dateStr) return '—';
     try {
       const d = new Date(dateStr);
-      return formatDistanceToNow(d, { addSuffix: true });
+      return formatDistanceToNow(d, { addSuffix: true, locale: fr });
     } catch {
       return '—';
     }
@@ -36,9 +37,11 @@ const RecentActivity = ({ items = [] }) => {
     <Card className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">Recent Activity</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Activité récente
+          </CardTitle>
           <Button variant="outline" size="sm">
-            <Link to="/invoices/list">View All</Link>
+            <Link to="/invoices/list">Tout voir</Link>
           </Button>
         </div>
       </CardHeader>
@@ -50,12 +53,12 @@ const RecentActivity = ({ items = [] }) => {
               const iconColor = getIconColor(item);
               const label =
                 item.status === 'failed'
-                  ? 'Extraction failed'
+                  ? 'Extraction échouée'
                   : item.is_exported
-                    ? 'Exported'
+                    ? 'Exporté'
                     : item.status === 'validated'
-                      ? 'Validated'
-                      : 'Extracted';
+                      ? 'Validé'
+                      : 'Extrait';
 
               return (
                 <button
@@ -116,7 +119,7 @@ const RecentActivity = ({ items = [] }) => {
                 isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}
             >
-              No recent activity
+              Aucune activité récente
             </p>
           </div>
         )}

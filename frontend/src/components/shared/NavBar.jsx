@@ -92,20 +92,20 @@ const NavBar = () => {
                   className={`w-full flex items-center gap-3 px-4 py-2 text-left ${isDarkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-50 text-gray-700'}`}
                 >
                   <User className="w-4 h-4" />
-                  <span className="text-sm">Profile</span>
+                  <span className="text-sm">Profil</span>
                 </button>
                 <button
                   className={`w-full flex items-center gap-3 px-4 py-2 text-left ${isDarkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-50 text-gray-700'}`}
                 >
                   <Settings className="w-4 h-4" />
-                  <span className="text-sm">Settings</span>
+                  <span className="text-sm">Paramètres</span>
                 </button>
                 <Separator className="my-2" />
                 <button
                   className={`w-full ${isDarkMode ? 'hover:bg-gray-700 text-red-400' : 'hover:bg-gray-50 text-red-600'} cursor-pointer`}
                   onClick={logout}
                 >
-                  <span className="text-sm">Log out</span>
+                  <span className="text-sm">Se déconnecter</span>
                 </button>
               </div>
             )}

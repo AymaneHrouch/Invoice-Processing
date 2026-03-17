@@ -10,11 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useTheme } from '@/contexts';
 
-const InvoiceFilters = ({
-  filters,
-  onFilterChange,
-  onClearFilters,
-}) => {
+const InvoiceFilters = ({ filters, onFilterChange, onClearFilters }) => {
   const { isDarkMode } = useTheme();
 
   return (
@@ -25,14 +21,14 @@ const InvoiceFilters = ({
     >
       <CardHeader>
         <CardTitle className={isDarkMode ? 'text-white' : 'text-gray-800'}>
-          Filters
+          Filtres
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-              Status
+              Statut
             </Label>
             <Select
               value={filters.status}
@@ -45,19 +41,19 @@ const InvoiceFilters = ({
                     : 'bg-white'
                 }`}
               >
-                <SelectValue placeholder="All" />
+                <SelectValue placeholder="Tous" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="extracted">Extracted</SelectItem>
-                <SelectItem value="validated">Validated</SelectItem>
+                <SelectItem value="all">Tous</SelectItem>
+                <SelectItem value="extracted">Extrait</SelectItem>
+                <SelectItem value="validated">Validé</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-              Category
+              Catégorie
             </Label>
             <Select
               value={filters.category}
@@ -70,10 +66,10 @@ const InvoiceFilters = ({
                     : 'bg-white'
                 }`}
               >
-                <SelectValue placeholder="All" />
+                <SelectValue placeholder="Tous" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="all">Tous</SelectItem>
                 <SelectItem value="Services">Services</SelectItem>
                 <SelectItem value="Equipment">Equipment</SelectItem>
                 <SelectItem value="Software">Software</SelectItem>
@@ -87,7 +83,7 @@ const InvoiceFilters = ({
 
           <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-              Paid
+              Payé
             </Label>
             <Select
               value={filters.is_paid ?? 'all'}
@@ -100,19 +96,19 @@ const InvoiceFilters = ({
                     : 'bg-white'
                 }`}
               >
-                <SelectValue placeholder="All" />
+                <SelectValue placeholder="Tous" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="true">Paid</SelectItem>
-                <SelectItem value="false">Unpaid</SelectItem>
+                <SelectItem value="all">Tous</SelectItem>
+                <SelectItem value="true">Payé</SelectItem>
+                <SelectItem value="false">Non payé</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-              Export
+              Exporté
             </Label>
             <Select
               value={filters.is_exported ?? 'all'}
@@ -125,12 +121,12 @@ const InvoiceFilters = ({
                     : 'bg-white'
                 }`}
               >
-                <SelectValue placeholder="All" />
+                <SelectValue placeholder="Tous" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="false">Not Exported</SelectItem>
-                <SelectItem value="true">Exported</SelectItem>
+                <SelectItem value="all">Tous</SelectItem>
+                <SelectItem value="false">Non exporté</SelectItem>
+                <SelectItem value="true">Exporté</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -148,10 +144,15 @@ const InvoiceFilters = ({
                   : ''
               }`}
               onClick={() =>
-                onFilterChange('include_archived', !(filters.include_archived ?? false))
+                onFilterChange(
+                  'include_archived',
+                  !(filters.include_archived ?? false),
+                )
               }
             >
-              {filters.include_archived ? 'Hide archives' : 'Show archives'}
+              {filters.include_archived
+                ? 'Masquer les archives'
+                : 'Afficher les archives'}
             </Button>
           </div>
 
@@ -165,7 +166,7 @@ const InvoiceFilters = ({
                   : 'text-gray-500 hover:text-gray-800 hover:underline'
               }`}
             >
-              Clear filters
+              Effacer les filtres
             </button>
           </div>
         </div>

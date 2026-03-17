@@ -152,7 +152,7 @@ const UploadCard = ({
       );
 
       if (newFiles.length === 0) {
-        setMessage('All selected files have already been uploaded.');
+        setMessage('Tous les fichiers sélectionnés ont déjà été téléchargés.');
         return;
       }
 
@@ -167,7 +167,7 @@ const UploadCard = ({
 
       if (validFiles.length !== newFiles.length) {
         setError(
-          'Some files were skipped. Only PDF, PNG, JPG, and JPEG files under 10MB are supported.',
+          'Certains fichiers ont été ignorés. Seuls les fichiers PDF, PNG, JPG et JPEG de moins de 10 Mo sont acceptés.',
         );
       }
 
@@ -181,7 +181,7 @@ const UploadCard = ({
         await processFileSequentially(addedFiles);
 
         setSuccess(true);
-        setMessage(`Successfully processed ${validFiles.length} file(s).`);
+        setMessage(`${validFiles.length} fichier(s) traité(s) avec succès.`);
       }
     },
     [isFileAlreadyUploaded, addFiles, processFileSequentially, setIsProcessing],
@@ -198,10 +198,11 @@ const UploadCard = ({
           className={`flex items-center gap-2 text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
         >
           <Sparkles className="w-5 h-5 text-purple-600" />
-          Artificial Intelligence
+          Intelligence Artificielle
         </h3>
         <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>
-          Drag and drop your invoices and let AI extract the data automatically
+          Glissez-déposez vos factures et laissez l&apos;IA extraire les données
+          automatiquement
         </p>
       </div>
       <div className="p-6">
@@ -225,12 +226,12 @@ const UploadCard = ({
               <h3
                 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
               >
-                Drag and drop your invoices
+                Glissez-déposez vos factures
               </h3>
               <p
                 className={`text-sm mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
               >
-                Supported formats: PDF, PNG, JPG, JPEG
+                Formats supportés : PDF, PNG, JPG, JPEG
               </p>
             </div>
             <div className="flex items-center justify-center gap-4">
@@ -242,7 +243,7 @@ const UploadCard = ({
                 className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium transition-colors ${isDarkMode ? 'border-gray-600 text-gray-300 bg-gray-700 hover:bg-gray-600' : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'}`}
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Choose files
+                Choisir des fichiers
               </button>
               <input
                 ref={fileInputRef}
@@ -261,7 +262,7 @@ const UploadCard = ({
             <h4
               className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
             >
-              Uploaded Files ({files.length}):
+              Fichiers téléchargés ({files.length}) :
             </h4>
             {files.map((fileItem, index) => (
               <div
@@ -291,14 +292,14 @@ const UploadCard = ({
                         }`}
                       >
                         {fileItem.status === 'pending'
-                          ? 'Waiting...'
+                          ? 'En attente...'
                           : fileItem.status === 'processing'
-                            ? 'Processing...'
+                            ? 'Traitement...'
                             : fileItem.status === 'completed'
-                              ? 'Saved'
+                              ? 'Enregistré'
                               : fileItem.status === 'error'
-                                ? 'Error'
-                                : 'Unknown'}
+                                ? 'Erreur'
+                                : 'Inconnu'}
                       </span>
                     )}
                     <button
@@ -336,14 +337,14 @@ const UploadCard = ({
                   <p
                     className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
                   >
-                    Processing {processingProgress.current} of{' '}
-                    {processingProgress.total} files
+                    Traitement du fichier {processingProgress.current} sur{' '}
+                    {processingProgress.total}
                   </p>
                   {processingProgress.currentFileName && (
                     <p
                       className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}
                     >
-                      Current: {processingProgress.currentFileName}
+                      Fichier actuel : {processingProgress.currentFileName}
                     </p>
                   )}
                 </>
@@ -352,7 +353,7 @@ const UploadCard = ({
                 <p
                   className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
                 >
-                  Processing files with AI...
+                  Traitement des fichiers par l&apos;IA...
                 </p>
               )}
             </div>

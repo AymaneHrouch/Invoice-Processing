@@ -167,16 +167,16 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     const newErrors = {};
 
     if (!formData.vendor_name?.trim()) {
-      newErrors.vendor_name = 'Supplier name is required!';
+      newErrors.vendor_name = 'Le nom du fournisseur est requis !';
     }
     if (!formData.invoice_number?.trim()) {
-      newErrors.invoice_number = 'Invoice number is required!';
+      newErrors.invoice_number = 'Le numéro de facture est requis !';
     }
     if (!formData.total_amount || parseFloat(formData.total_amount) <= 0) {
-      newErrors.total_amount = 'Amount must be greater than 0!';
+      newErrors.total_amount = 'Le montant doit être supérieur à 0 !';
     }
     if (!formData.category?.trim()) {
-      newErrors.category = 'Category is required!';
+      newErrors.category = 'La catégorie est requise !';
     }
 
     setErrors(newErrors);
@@ -191,13 +191,13 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     setValidating(true);
     try {
       await validateInvoice(invoice._id || invoice.id);
-      toast.success('Invoice validated successfully');
+      toast.success('Facture validée avec succès');
       if (onSuccess) {
         onSuccess({ ...invoice, status: 'validated' });
       }
       onClose();
     } catch (e) {
-      toast.error(e.message || 'Failed to validate invoice');
+      toast.error(e.message || 'Échec de la validation de la facture');
     } finally {
       setValidating(false);
     }
@@ -210,7 +210,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     console.log('📤 Form submission - formData:', formData);
 
     if (!validateForm()) {
-      toast.error('Please correct the errors in the form.');
+      toast.error('Veuillez corriger les erreurs dans le formulaire.');
       return;
     }
 
@@ -237,7 +237,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     const result = await editInvoice(invoice._id || invoice.id, invoiceData);
 
     if (result) {
-      toast.success(message || 'Invoice modified successfully!');
+      toast.success(message || 'Facture modifiée avec succès !');
       reset();
 
       // ✅ SOLUTION: Passer les données mises à jour au parent
@@ -272,10 +272,11 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
         <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
           <DialogHeader className="px-8 py-5">
             <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">
-              Edit Invoice
+              Modifier la facture
             </DialogTitle>
             <DialogDescription className="text-gray-600 dark:text-gray-400">
-              Modify the details of your invoice and save your changes.
+              Modifiez les détails de votre facture et enregistrez vos
+              modifications.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -298,7 +299,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                 <CardTitleUI
                   className={`flex items-center gap-2 text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
-                  Invoice Details
+                  Détails de la facture
                 </CardTitleUI>
               </CardHeaderUI>
               <CardContent className="px-0 space-y-6">
@@ -313,7 +314,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                   />
                   <FormField
                     id="invoice_number"
-                    label="Number"
+                    label="Numéro"
                     value={formData.invoice_number}
                     onChange={(e) =>
                       updateField('invoice_number', e.target.value)
@@ -327,7 +328,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                     label="ICE"
                     value={formData.ice}
                     onChange={(e) => updateField('ice', e.target.value)}
-                    placeholder="15-digit ICE (optional)"
+                    placeholder="ICE à 15 chiffres (optionnel)"
                   />
                   <FormField
                     id="tva"
@@ -335,17 +336,17 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                     label="TVA (%)"
                     value={formData.tva}
                     onChange={(e) => updateField('tva', e.target.value)}
-                    placeholder="e.g. 20"
+                    placeholder="ex. 20"
                     step="0.01"
                     min="0"
                   />
                   <FormField
                     id="amount_tva"
                     type="number"
-                    label="Amount TVA"
+                    label="Montant TVA"
                     value={formData.amount_tva}
                     onChange={(e) => updateField('amount_tva', e.target.value)}
-                    placeholder="TVA amount (optional)"
+                    placeholder="Montant TVA (optionnel)"
                     step="0.01"
                     min="0"
                   />
@@ -356,7 +357,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                   <FormField
                     id="total_amount"
                     type="number"
-                    label="Amount"
+                    label="Montant"
                     value={formData.total_amount}
                     onChange={(e) =>
                       updateField('total_amount', e.target.value)
@@ -368,18 +369,18 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                   />
                   <FormField
                     type="select"
-                    label="Currency"
+                    label="Devise"
                     value={formData.currency}
                     onChange={(value) => updateField('currency', value)}
                     options={currencies}
                   />
                   <FormField
                     type="select"
-                    label="Category"
+                    label="Catégorie"
                     value={formData.category}
                     onChange={(value) => updateField('category', value)}
                     options={categories}
-                    placeholder="Select a category"
+                    placeholder="Sélectionner une catégorie"
                     required
                     error={errors.category}
                   />
@@ -390,7 +391,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                   <FormField
                     id="invoice_date"
                     type="date"
-                    label="Invoice Date"
+                    label="Date de facture"
                     value={formData.invoice_date}
                     onChange={(e) =>
                       updateField('invoice_date', e.target.value)
@@ -399,7 +400,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                   <FormField
                     id="invoice_due_date"
                     type="date"
-                    label="Due Date"
+                    label="Date d'échéance"
                     value={formData.invoice_due_date}
                     onChange={(e) =>
                       updateField('invoice_due_date', e.target.value)
@@ -421,11 +422,11 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                 <div className="flex flex-wrap items-center gap-4">
                   <FormField
                     type="select"
-                    label="Status"
+                    label="Statut"
                     value={formData.status}
                     onChange={(value) => updateField('status', value)}
                     options={['extracted', 'validated']}
-                    placeholder="Select status"
+                    placeholder="Sélectionner le statut"
                   />
                   {formData.status === 'extracted' && (
                     <Button
@@ -435,7 +436,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                       className="bg-green-600 hover:bg-green-700 text-white"
                     >
                       <CheckCircle className="w-4 h-4 mr-2" />
-                      {validating ? 'Validating...' : 'Validate'}
+                      {validating ? 'Validation...' : 'Valider'}
                     </Button>
                   )}
                 </div>
@@ -460,7 +461,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                 variant="outline"
                 className="border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
               >
-                Cancel
+                Annuler
               </Button>
             </DialogClose>
             <Button
@@ -471,7 +472,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
               disabled={loading}
             >
               <Save className="w-5 h-5 mr-2" />
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading ? 'Enregistrement...' : 'Enregistrer les modifications'}
             </Button>
           </DialogFooter>
         </div>

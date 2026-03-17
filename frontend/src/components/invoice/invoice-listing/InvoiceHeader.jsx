@@ -14,7 +14,7 @@ import { useTheme } from '@/contexts';
 const DIRECTION_CONFIG = {
   incoming: { label: 'Achats', icon: ShoppingCart },
   outgoing: { label: 'Ventes', icon: TrendingUp },
-  default: { label: 'Invoice Management', icon: FileText },
+  default: { label: 'Gestion des factures', icon: FileText },
 };
 
 const InvoiceHeader = ({
@@ -54,12 +54,12 @@ const InvoiceHeader = ({
         {onSearchChange && (
           <div className="flex items-center gap-2">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-              Search
+              Rechercher
             </Label>
             <Input
               value={searchValue}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Vendor..."
+              placeholder="Fournisseur..."
               className={`w-48 h-9 ${
                 isDarkMode
                   ? 'bg-gray-700 border-gray-600 text-white'
@@ -77,12 +77,12 @@ const InvoiceHeader = ({
             className="flex items-center gap-2"
           >
             <span>↓</span>
-            Export ({invoiceData?.total ?? 0} invoices)
+            Exporter ({invoiceData?.total ?? 0} factures)
           </Button>
         )}
         <div className="flex items-center gap-2">
           <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
-            Sort by:
+            Trier par :
           </Label>
           <Select value={sortBy} onValueChange={(value) => onSort(value)}>
             <SelectTrigger
@@ -95,11 +95,11 @@ const InvoiceHeader = ({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="created_at">Created Date</SelectItem>
-              <SelectItem value="invoice_date">Invoice Date</SelectItem>
-              <SelectItem value="total_amount">Amount</SelectItem>
-              <SelectItem value="vendor_name">Vendor</SelectItem>
-              <SelectItem value="status">Status</SelectItem>
+              <SelectItem value="created_at">Date de création</SelectItem>
+              <SelectItem value="invoice_date">Date de facture</SelectItem>
+              <SelectItem value="total_amount">Montant</SelectItem>
+              <SelectItem value="vendor_name">Fournisseur</SelectItem>
+              <SelectItem value="status">Statut</SelectItem>
             </SelectContent>
           </Select>
           <Button
@@ -116,11 +116,11 @@ const InvoiceHeader = ({
             isDarkMode ? 'text-gray-400' : 'text-gray-500'
           }`}
         >
-          Page {invoiceData?.page || 0} of {invoiceData?.totalPages || 0}
+          Page {invoiceData?.page || 0} sur {invoiceData?.totalPages || 0}
           <span
             className={`ml-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
           >
-            ({invoiceData?.total || 0} total invoices)
+            ({invoiceData?.total || 0} factures au total)
           </span>
         </div>
       </div>

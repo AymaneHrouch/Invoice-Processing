@@ -156,12 +156,12 @@ const InvoiceListPage = ({ direction = null }) => {
     try {
       const result = await batchUpdateInvoices([...selectedIds], updates);
       toast.success(
-        result.message || `Updated ${result.updated_count} invoice(s)`,
+        result.message || `${result.updated_count} facture(s) mise(s) à jour`,
       );
       setSelectedIds(new Set());
       handleFetchInvoices(page, sortBy, order, filters);
     } catch (err) {
-      toast.error(err.message || 'Batch update failed');
+      toast.error(err.message || 'Mise à jour groupée échouée');
     } finally {
       setBatchLoading(false);
     }
@@ -199,10 +199,10 @@ const InvoiceListPage = ({ direction = null }) => {
     const success = await removeInvoice(invoiceId);
 
     if (success) {
-      toast.success(deleteMessage || 'Invoice deleted successfully!');
+      toast.success(deleteMessage || 'Facture supprimée avec succès !');
       handleDeleteSuccess(invoiceId); // ✅ Mise à jour locale
     } else {
-      toast.error(deleteError || 'Admin Access Required');
+      toast.error(deleteError || 'Accès administrateur requis');
     }
   };
 
@@ -384,9 +384,9 @@ const InvoiceListPage = ({ direction = null }) => {
           return next;
         });
       }
-      toast.success('Invoice archived');
+      toast.success('Facture archivée');
     } catch (err) {
-      toast.error(err.message || 'Archive failed');
+      toast.error(err.message || 'Archivage échoué');
     }
   };
 
@@ -395,9 +395,9 @@ const InvoiceListPage = ({ direction = null }) => {
     try {
       const updated = await restoreInvoice(id);
       handleUpdateInvoice(updated);
-      toast.success('Invoice restored');
+      toast.success('Facture restaurée');
     } catch (err) {
-      toast.error(err.message || 'Restore failed');
+      toast.error(err.message || 'Restauration échouée');
     }
   };
 
@@ -405,10 +405,10 @@ const InvoiceListPage = ({ direction = null }) => {
     setExportLoading(true);
     try {
       await exportInvoices(filters);
-      toast.success('Invoices exported successfully');
+      toast.success('Factures exportées avec succès');
       handleFetchInvoices(page, sortBy, order, filters);
     } catch (err) {
-      toast.error(err.message || 'Export failed');
+      toast.error(err.message || 'Exportation échouée');
     } finally {
       setExportLoading(false);
     }
@@ -435,7 +435,7 @@ const InvoiceListPage = ({ direction = null }) => {
             <CardContent className="flex flex-col items-center justify-center py-12">
               <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
               <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-                Loading invoices...
+                Chargement des factures...
               </p>
             </CardContent>
           </Card>
@@ -450,11 +450,11 @@ const InvoiceListPage = ({ direction = null }) => {
       <>
         <div className="max-w-full mx-auto my-8 px-6">
           <Alert variant="destructive" className="mb-4">
-            <AlertTitle>Error loading invoices</AlertTitle>
+            <AlertTitle>Erreur de chargement</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
           <Button onClick={() => handleFetchInvoices()} className="mt-4">
-            Retry
+            Réessayer
           </Button>
         </div>
         {editModal}
@@ -504,7 +504,7 @@ const InvoiceListPage = ({ direction = null }) => {
               {(filters.status && filters.status !== 'all') ||
               filters.vendor_name ||
               (filters.category && filters.category !== 'all') ? (
-                'No invoices match the current filters. Try adjusting your search criteria.'
+                "Aucune facture ne correspond aux filtres actuels. Essayez d'ajuster vos critères de recherche."
               ) : direction === 'incoming' ? (
                 <>
                   Aucune facture d&apos;achat pour le moment.{' '}
@@ -526,7 +526,7 @@ const InvoiceListPage = ({ direction = null }) => {
                   </button>
                 </>
               ) : (
-                'There are no invoices to display.'
+                'Aucune facture à afficher.'
               )}
             </AlertDescription>
           </Alert>
@@ -569,7 +569,7 @@ const InvoiceListPage = ({ direction = null }) => {
               isDarkMode ? 'text-blue-200' : 'text-blue-800'
             }`}
           >
-            {selectedIds.size} invoice(s) selected
+            {selectedIds.size} facture(s) sélectionnée(s)
           </span>
           <div className="flex items-center gap-2 flex-wrap">
             <Button
@@ -579,7 +579,7 @@ const InvoiceListPage = ({ direction = null }) => {
               disabled={batchLoading}
               className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
             >
-              Validate
+              Valider
             </Button>
             <Button
               size="sm"
@@ -588,7 +588,7 @@ const InvoiceListPage = ({ direction = null }) => {
               disabled={batchLoading}
               className="border-green-500 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-900/20"
             >
-              Mark as Paid
+              Marquer payé
             </Button>
             <Popover open={moreDropdownOpen} onOpenChange={setMoreDropdownOpen}>
               <PopoverTrigger asChild>
@@ -599,7 +599,7 @@ const InvoiceListPage = ({ direction = null }) => {
                   className="border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-500 dark:text-gray-400 dark:hover:bg-gray-800"
                 >
                   <MoreHorizontal className="w-4 h-4 mr-1" />
-                  More
+                  Plus
                   <ChevronDown className="w-3.5 h-3.5 ml-1" />
                 </Button>
               </PopoverTrigger>
@@ -615,7 +615,7 @@ const InvoiceListPage = ({ direction = null }) => {
                     }}
                     disabled={batchLoading}
                   >
-                    Mark as Unpaid
+                    Marquer non payé
                   </Button>
                   <Button
                     size="sm"
@@ -627,7 +627,7 @@ const InvoiceListPage = ({ direction = null }) => {
                     }}
                     disabled={batchLoading}
                   >
-                    Set Incoming
+                    Définir comme achat
                   </Button>
                   <Button
                     size="sm"
@@ -639,7 +639,7 @@ const InvoiceListPage = ({ direction = null }) => {
                     }}
                     disabled={batchLoading}
                   >
-                    Set Outgoing
+                    Définir comme vente
                   </Button>
                   <Button
                     size="sm"
@@ -651,7 +651,7 @@ const InvoiceListPage = ({ direction = null }) => {
                     }}
                     disabled={batchLoading}
                   >
-                    Mark Unexported
+                    Marquer non exporté
                   </Button>
                   <Button
                     size="sm"
@@ -663,7 +663,7 @@ const InvoiceListPage = ({ direction = null }) => {
                     }}
                     disabled={batchLoading}
                   >
-                    Archive
+                    Archiver
                   </Button>
                   <Button
                     size="sm"
@@ -675,7 +675,7 @@ const InvoiceListPage = ({ direction = null }) => {
                     }}
                     disabled={batchLoading}
                   >
-                    Unarchive
+                    Désarchiver
                   </Button>
                   <Button
                     size="sm"
@@ -687,7 +687,7 @@ const InvoiceListPage = ({ direction = null }) => {
                     }}
                     disabled={batchLoading}
                   >
-                    Unvalidate
+                    Invalider
                   </Button>
                 </div>
               </PopoverContent>
@@ -699,7 +699,7 @@ const InvoiceListPage = ({ direction = null }) => {
             onClick={() => setSelectedIds(new Set())}
             className="ml-auto"
           >
-            Clear selection
+            Effacer la sélection
           </Button>
         </div>
       )}

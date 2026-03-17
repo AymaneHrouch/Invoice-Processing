@@ -45,10 +45,10 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [~] **Frontend**: Improve AI parsing reliability — skipped, needs research into Azure DI preprocessing options
 - [~] **Frontend**: Add confidence indicators on extracted fields — skipped, depends on whether Azure DI returns per-field confidence scores (unverified)
 
-### 1.5 UI Language Consistency
-- [ ] **Frontend**: Audit all user-facing text (labels, buttons, placeholders, empty states, error messages, toasts) and unify to French
-- [ ] **Frontend**: Pages to cover: InvoiceListPage, InvoiceAddPage, ManualInvoice, AutoInvoice, EditInvoice, ContactsPage, CompanyProfilePage, DashboardPage, LoginPage, sidebar, NavBar
-- [ ] **Note**: Developer-facing text (code comments, console logs, git commits) stays in English
+### 1.5 UI Language Consistency ✅
+- [x] **Frontend**: Audit all user-facing text (labels, buttons, placeholders, empty states, error messages, toasts) and unify to French
+- [x] **Frontend**: Pages covered: InvoiceListPage, InvoiceAddPage, ManualInvoice, AutoInvoice, EditInvoice, LoginPage, SideBar, NavBar, InvoiceFilters, InvoiceTableHeader, InvoiceHeader, InvoiceRow, InvoicePagination, UploadCard
+- [x] **Note**: Developer-facing text (code comments, console logs, git commits) stays in English
 - [ ] **Future**: i18n multi-language support (fr/ar/en) — deferred until platform is stable
 
 ### 1.6 Invoice Model Evolution ✅

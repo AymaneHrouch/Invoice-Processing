@@ -1,5 +1,10 @@
 import React from 'react';
-import { FiFileText, FiCheckCircle, FiUpload, FiDownload } from 'react-icons/fi';
+import {
+  FiFileText,
+  FiCheckCircle,
+  FiUpload,
+  FiDownload,
+} from 'react-icons/fi';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from '@/contexts';
 import { Link } from 'react-router-dom';
@@ -12,7 +17,7 @@ const WorkQueueWidgets = ({ stats }) => {
   const widgets = [
     {
       key: 'all_invoices',
-      title: 'All Invoices',
+      title: 'Toutes les factures',
       value: stats.all_invoices ?? 0,
       icon: FiFileText,
       color: 'slate',
@@ -21,7 +26,7 @@ const WorkQueueWidgets = ({ stats }) => {
     },
     {
       key: 'to_validate',
-      title: 'To Validate',
+      title: 'À valider',
       value: stats.to_validate ?? 0,
       icon: FiCheckCircle,
       color: 'blue',
@@ -30,7 +35,7 @@ const WorkQueueWidgets = ({ stats }) => {
     },
     {
       key: 'ready_to_export',
-      title: 'Ready to Export',
+      title: 'Prêt à exporter',
       value: stats.ready_to_export ?? 0,
       icon: FiUpload,
       color: 'green',
@@ -39,7 +44,7 @@ const WorkQueueWidgets = ({ stats }) => {
     },
     {
       key: 'exported_this_month',
-      title: 'Exported This Month',
+      title: 'Exporté ce mois',
       value: stats.exported_this_month ?? 0,
       icon: FiDownload,
       color: 'gray',
@@ -79,7 +84,9 @@ const WorkQueueWidgets = ({ stats }) => {
         const content = (
           <Card
             className={`bg-white dark:bg-slate-800 border ${colors.border} ${
-              w.clickable ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''
+              w.clickable
+                ? 'cursor-pointer hover:shadow-lg transition-shadow'
+                : ''
             }`}
           >
             <CardContent className="p-6">

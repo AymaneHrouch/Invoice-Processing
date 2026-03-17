@@ -24,7 +24,7 @@ const InvoiceTableHeader = ({
               checked={allSelected}
               onChange={(e) => onSelectAll?.(e.target.checked)}
               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              title="Select all"
+              title="Tout sélectionner"
             />
           </th>
         )}
@@ -42,7 +42,7 @@ const InvoiceTableHeader = ({
               : 'text-gray-600 border-gray-200'
           }`}
         >
-          Invoice #
+          Facture #
         </th>
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap ${
@@ -51,7 +51,7 @@ const InvoiceTableHeader = ({
               : 'text-gray-600 border-gray-200'
           }`}
         >
-          Vendor
+          Fournisseur
         </th>
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap ${
@@ -69,7 +69,7 @@ const InvoiceTableHeader = ({
               : 'text-gray-600 border-gray-200'
           }`}
         >
-          Status
+          Statut
         </th>
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap ${
@@ -78,7 +78,7 @@ const InvoiceTableHeader = ({
               : 'text-gray-600 border-gray-200'
           }`}
         >
-          Amount
+          Montant
         </th>
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap w-32 ${
@@ -87,7 +87,7 @@ const InvoiceTableHeader = ({
               : 'text-gray-600 border-gray-200'
           }`}
         >
-          Category
+          Catégorie
         </th>
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap ${
@@ -116,7 +116,7 @@ const InvoiceTableHeader = ({
               : 'text-gray-600 border-gray-200'
           }`}
         >
-          Paid
+          Payé
         </th>
         <th
           className={`px-3 py-4 text-center font-semibold border-b whitespace-nowrap ${
@@ -125,7 +125,7 @@ const InvoiceTableHeader = ({
               : 'text-gray-600 border-gray-200'
           }`}
         >
-          Exported
+          Exporté
         </th>
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap ${

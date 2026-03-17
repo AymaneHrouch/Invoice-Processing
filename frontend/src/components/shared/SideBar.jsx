@@ -115,7 +115,7 @@ const Sidebar = ({ profileComplete = true }) => {
               )}
               {item.id === 'company' && !profileComplete && (
                 <span className="text-xs font-semibold text-orange-500">
-                  Setup
+                  Configurer
                 </span>
               )}
               {item.hasChildren && (
@@ -246,10 +246,10 @@ const Sidebar = ({ profileComplete = true }) => {
                 : 'text-red-600 hover:bg-red-50 hover:text-red-700'
             }
           `}
-          title={isCollapsed ? 'Log out' : ''}
+          title={isCollapsed ? 'Se déconnecter' : ''}
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!isCollapsed && <span className="font-medium">Log out</span>}
+          {!isCollapsed && <span className="font-medium">Se déconnecter</span>}
         </button>
       </div>
     </div>

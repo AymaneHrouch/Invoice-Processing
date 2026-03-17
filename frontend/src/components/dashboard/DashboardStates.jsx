@@ -16,7 +16,7 @@ export const DashboardLoading = () => {
           <span
             className={`text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
           >
-            Loading dashboard...
+            Chargement du tableau de bord...
           </span>
         </div>
       </div>
@@ -37,7 +37,7 @@ export const DashboardError = ({ error, onRetry }) => {
           <h2
             className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
           >
-            Failed to Load Dashboard
+            Échec du chargement
           </h2>
           <p
             className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
@@ -45,7 +45,7 @@ export const DashboardError = ({ error, onRetry }) => {
             {error}
           </p>
           <Button onClick={onRetry} className="mt-4">
-            Retry
+            Réessayer
           </Button>
         </div>
       </div>

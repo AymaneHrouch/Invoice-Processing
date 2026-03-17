@@ -120,7 +120,7 @@ const InvoiceRow = ({
             variant="ghost"
             size="sm"
             onClick={() => onToggleExpand(invoice.id || invoice._id)}
-            aria-label={isExpanded ? 'Collapse' : 'Expand'}
+            aria-label={isExpanded ? 'Réduire' : 'Développer'}
             className={`p-1 h-6 w-6 ${
               isDarkMode
                 ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-600'
@@ -243,7 +243,7 @@ const InvoiceRow = ({
                   ? 'opacity-50 cursor-wait'
                   : 'cursor-pointer'
               }
-              title="Click to toggle direction"
+              title="Cliquer pour changer la direction"
             >
               <Badge
                 variant="outline"
@@ -269,7 +269,7 @@ const InvoiceRow = ({
             onChange={(e) => handleToggleField('is_paid', e.target.checked)}
             disabled={togglingField === 'is_paid'}
             className="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4 cursor-pointer"
-            title="Toggle paid"
+            title="Basculer payé"
           />
         </td>
         <td
@@ -284,7 +284,7 @@ const InvoiceRow = ({
             tabIndex={-1}
             onClick={(e) => e.preventDefault()}
             className="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4 cursor-pointer"
-            title="Set automatically on export"
+            title="Défini automatiquement à l'export"
           />
         </td>
         <td
@@ -294,7 +294,7 @@ const InvoiceRow = ({
         >
           <div className="flex gap-2">
             <button
-              title="Edit"
+              title="Modifier"
               className={`p-2 rounded-md border border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700 transition cursor-pointer 
                 ${isDarkMode ? 'border-green-400 text-green-400 hover:bg-green-900/20 hover:text-green-300' : ''}`}
               onClick={() => {
@@ -310,7 +310,7 @@ const InvoiceRow = ({
             >
               <AlertDialogTrigger asChild>
                 <button
-                  title="Delete"
+                  title="Supprimer"
                   className={`p-2 rounded-md border border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700 transition cursor-pointer 
                     ${isDarkMode ? 'border-red-400 text-red-400 hover:bg-red-900/20 hover:text-red-300' : ''}`}
                   onClick={() => setDeleteDialogOpen(true)}
@@ -320,28 +320,28 @@ const InvoiceRow = ({
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+                  <AlertDialogTitle>Supprimer la facture</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Are you sure you want to delete invoice{' '}
-                    <b>#{invoice.invoice_number}</b>? This action cannot be
-                    undone.
+                    Êtes-vous sûr de vouloir supprimer la facture{' '}
+                    <b>#{invoice.invoice_number}</b> ? Cette action est
+                    irréversible.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={async () => {
                       setDeleteDialogOpen(false);
                       await onDelete(invoice);
                     }}
                   >
-                    Delete
+                    Supprimer
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
             <button
-              title="Export PDF"
+              title="Exporter PDF"
               className={`p-2 rounded-md border border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer 
                 ${isDarkMode ? 'border-blue-400 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300' : ''}`}
               onClick={() => onExportPDF(invoice)}
@@ -350,7 +350,7 @@ const InvoiceRow = ({
             </button>
             {onArchive && !isArchived && (
               <button
-                title="Archive"
+                title="Archiver"
                 className={`p-2 rounded-md border border-gray-500 text-gray-600 hover:bg-gray-50 hover:text-gray-700 transition cursor-pointer 
                   ${isDarkMode ? 'border-gray-400 text-gray-400 hover:bg-gray-900/20 hover:text-gray-300' : ''}`}
                 onClick={() => onArchive(invoice)}
@@ -360,7 +360,7 @@ const InvoiceRow = ({
             )}
             {onRestore && isArchived && (
               <button
-                title="Restore"
+                title="Restaurer"
                 className={`p-2 rounded-md border border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700 transition cursor-pointer 
                   ${isDarkMode ? 'border-green-400 text-green-400 hover:bg-green-900/20 hover:text-green-300' : ''}`}
                 onClick={() => onRestore(invoice)}
