@@ -31,17 +31,22 @@ const InvoiceFilters = ({ filters, onFilterChange, onClearFilters }) => {
     setEndDateInput(filters.end_date ?? '');
   }, [filters.end_date]);
 
-  // Debounce: only fire onFilterChange 600ms after the user stops typing
+  // Debounce: only fire onFilterChange 600ms after the user stops typing,
+  // and only if the value actually changed (prevents spurious fetches on mount).
   useEffect(() => {
+    const newVal = startDateInput || undefined;
+    if (newVal === filters.start_date) return;
     const t = setTimeout(() => {
-      onFilterChange('start_date', startDateInput || undefined);
+      onFilterChange('start_date', newVal);
     }, 600);
     return () => clearTimeout(t);
   }, [startDateInput]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    const newVal = endDateInput || undefined;
+    if (newVal === filters.end_date) return;
     const t = setTimeout(() => {
-      onFilterChange('end_date', endDateInput || undefined);
+      onFilterChange('end_date', newVal);
     }, 600);
     return () => clearTimeout(t);
   }, [endDateInput]); // eslint-disable-line react-hooks/exhaustive-deps
