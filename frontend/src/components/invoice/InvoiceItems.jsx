@@ -6,7 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { calculateItemTotal } from '@/constants';
 
-const InvoiceItems = ({ items = [], currency = 'MAD', onItemsChange }) => {
+const InvoiceItems = ({
+  items = [],
+  currency = 'MAD',
+  onItemsChange,
+  disabled = false,
+}) => {
   const [newItem, setNewItem] = useState({
     name: '',
     description: '',
@@ -54,7 +59,14 @@ const InvoiceItems = ({ items = [], currency = 'MAD', onItemsChange }) => {
       </h3>
 
       {/* Add new item form */}
-      <Card className="bg-transparent border-dashed">
+      {disabled && (
+        <p className="text-xs text-amber-700 dark:text-amber-400 italic">
+          Articles non modifiables sur une facture validée.
+        </p>
+      )}
+      <Card
+        className={`bg-transparent border-dashed${disabled ? ' opacity-50 pointer-events-none' : ''}`}
+      >
         <CardContent className="p-4">
           <div className="space-y-4">
             {/* Première ligne: Nom de l'item */}
@@ -181,14 +193,16 @@ const InvoiceItems = ({ items = [], currency = 'MAD', onItemsChange }) => {
                       </span>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeItem(index)}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  {!disabled && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeItem(index)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

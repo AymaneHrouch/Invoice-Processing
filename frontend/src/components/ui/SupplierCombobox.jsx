@@ -19,6 +19,8 @@ const SupplierCombobox = ({
   onChange, // (name: string) => void
   onIceChange, // (ice: string) => void
   onContactSelect, // (contact: object) => void — optional, called when a contact is selected
+  onManualInput, // () => void — optional, called when user types manually (not selects)
+  disabled = false,
   error,
   required = false,
   label = 'Fournisseur',
@@ -76,6 +78,7 @@ const SupplierCombobox = ({
     const val = e.target.value;
     setInputValue(val);
     onChange(val);
+    if (onManualInput) onManualInput();
     setOpen(true);
   };
 
@@ -129,8 +132,9 @@ const SupplierCombobox = ({
         <Input
           value={inputValue}
           onChange={handleInput}
-          onFocus={() => inputValue.trim() && setOpen(true)}
+          onFocus={() => !disabled && inputValue.trim() && setOpen(true)}
           placeholder={placeholder}
+          disabled={disabled}
           className={Icon ? 'pl-10' : ''}
         />
 

@@ -441,6 +441,9 @@ def restore_invoice(invoice_id: str = Path(..., description="MongoDB ObjectId of
         raise HTTPException(status_code=500, detail=str(e))
 
 
+FINANCIAL_FIELDS = {'total_amount', 'subtotal_ht', 'tva', 'amount_tva', 'items'}
+
+
 @router.put("/{invoice_id}", response_model=InvoiceResponse, summary="Update invoice by ID")
 def update_invoice_by_id(
         invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
@@ -449,12 +452,23 @@ def update_invoice_by_id(
     try:
         logger.info("Updating invoice %s", invoice_id)
 
+        existing = InvoiceCRUD.get_invoice_by_id(invoice_id)
+        if existing and existing.status in ('validated', 'paid'):
+            changed = FINANCIAL_FIELDS & set(update_data.model_dump(exclude_unset=True).keys())
+            if changed:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Montants non modifiables sur une facture validée."
+                )
+
         invoice = InvoiceCRUD.update_invoice(invoice_id, update_data)
         if not invoice:
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
 
         logger.info("Invoice updated successfully: %s", invoice_id)
         return invoice_to_response(invoice)
+    except HTTPException:
+        raise
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
     except Exception as e:

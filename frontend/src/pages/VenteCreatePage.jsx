@@ -53,6 +53,7 @@ export default function VenteCreatePage() {
   });
 
   const [errors, setErrors] = useState({});
+  const [clientLocked, setClientLocked] = useState(false);
 
   useEffect(() => {
     Promise.all([getCompanyProfile(), getNextVenteNumber()])
@@ -238,13 +239,15 @@ export default function VenteCreatePage() {
               iceValue={form.client_ice}
               onChange={set('client_name')}
               onIceChange={set('client_ice')}
-              onContactSelect={(c) =>
+              onContactSelect={(c) => {
                 setForm((prev) => ({
                   ...prev,
                   contact_id: c._id || null,
                   client_ice: c.ice || prev.client_ice,
-                }))
-              }
+                }));
+                setClientLocked(true);
+              }}
+              onManualInput={() => setClientLocked(false)}
               contactType="client"
               label="Nom du client"
               placeholder="Saisir ou sélectionner un client"
@@ -258,10 +261,16 @@ export default function VenteCreatePage() {
                 value={form.client_ice}
                 onChange={setEvent('client_ice')}
                 placeholder="ICE à 15 chiffres (optionnel)"
+                disabled={clientLocked}
                 className={
                   isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''
                 }
               />
+              {clientLocked && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                  Modifier depuis les Contacts
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

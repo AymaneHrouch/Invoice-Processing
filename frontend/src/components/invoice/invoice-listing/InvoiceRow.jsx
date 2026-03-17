@@ -32,6 +32,7 @@ import {
   Archive,
   ArchiveRestore,
   Banknote,
+  Check,
   CheckCircle,
   ChevronDown,
   ChevronUp,
@@ -43,6 +44,7 @@ import {
   Trash2,
   AlertTriangle,
   Undo2,
+  X,
 } from 'lucide-react';
 
 const InvoiceRow = ({
@@ -122,6 +124,8 @@ const InvoiceRow = ({
 
   const direction = invoice.direction;
   const status = invoice.status;
+
+  const canEditAmount = direction === 'incoming' && status === 'extracted';
 
   // Build contextual action items
   const actions = [];
@@ -356,18 +360,35 @@ const InvoiceRow = ({
               {formatDate(invoice.invoice_date)}
             </span>
             {editingField === 'invoice_due_date' ? (
-              <input
-                type="date"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onBlur={commitEdit}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitEdit();
-                  if (e.key === 'Escape') cancelEdit();
-                }}
-                autoFocus
-                className={`date-input text-xs h-6 w-28 rounded border px-1 [color-scheme:light] dark:[color-scheme:dark] ${isDarkMode ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
-              />
+              <div className="flex items-center gap-1">
+                <input
+                  type="date"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitEdit();
+                    if (e.key === 'Escape') cancelEdit();
+                  }}
+                  autoFocus
+                  className={`date-input text-xs h-6 w-28 rounded border px-1 [color-scheme:light] dark:[color-scheme:dark] ${isDarkMode ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
+                />
+                <button
+                  type="button"
+                  onClick={commitEdit}
+                  className="text-green-600 hover:text-green-700 dark:text-green-400"
+                  title="Confirmer"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  className="text-red-500 hover:text-red-600 dark:text-red-400"
+                  title="Annuler"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
             ) : (
               <button
                 type="button"
@@ -415,21 +436,38 @@ const InvoiceRow = ({
           className={`px-3 py-4 border-b align-middle ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
           {editingField === 'total_amount' ? (
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onBlur={commitEdit}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitEdit();
-                if (e.key === 'Escape') cancelEdit();
-              }}
-              autoFocus
-              className={`text-sm h-7 w-28 rounded border px-2 font-semibold ${isDarkMode ? 'bg-gray-700 border-gray-500 text-green-400' : 'bg-white border-gray-300 text-green-700'}`}
-            />
-          ) : (
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitEdit();
+                  if (e.key === 'Escape') cancelEdit();
+                }}
+                autoFocus
+                className={`text-sm h-7 w-24 rounded border px-2 font-semibold ${isDarkMode ? 'bg-gray-700 border-gray-500 text-green-400' : 'bg-white border-gray-300 text-green-700'}`}
+              />
+              <button
+                type="button"
+                onClick={commitEdit}
+                className="text-green-600 hover:text-green-700 dark:text-green-400"
+                title="Confirmer"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="text-red-500 hover:text-red-600 dark:text-red-400"
+                title="Annuler"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : canEditAmount ? (
             <button
               type="button"
               onClick={() =>
@@ -449,6 +487,18 @@ const InvoiceRow = ({
               )}
               <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
             </button>
+          ) : (
+            <span className="font-semibold text-green-600 text-base">
+              {formatCurrency(invoice.total_amount, invoice.currency)}
+              {hasAmountWarning && (
+                <span
+                  className="ml-1 text-amber-500 cursor-help inline-flex"
+                  title={amountWarnings.join('\n')}
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                </span>
+              )}
+            </span>
           )}
         </td>
         <td

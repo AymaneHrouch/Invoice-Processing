@@ -50,6 +50,7 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
   const { addInvoice, loading, error, success, message, reset } =
     useAddInvoice();
   const { categories } = useCategories();
+  const [vendorLocked, setVendorLocked] = useState(false);
 
   // ✅ État local direct
   const [formData, setFormData] = useState({
@@ -228,6 +229,8 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
               iceValue={formData.ice}
               onChange={(val) => updateField('vendor_name', val)}
               onIceChange={(ice) => updateField('ice', ice)}
+              onContactSelect={() => setVendorLocked(true)}
+              onManualInput={() => setVendorLocked(false)}
               error={errors.vendor_name}
               placeholder="Saisir le nom du fournisseur"
               required
@@ -242,13 +245,21 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
               icon={Hash}
               required
             />
-            <FormField
-              id="ice"
-              label="ICE"
-              value={formData.ice}
-              onChange={(e) => updateField('ice', e.target.value)}
-              placeholder="ICE à 15 chiffres (optionnel)"
-            />
+            <div className="space-y-1">
+              <FormField
+                id="ice"
+                label="ICE"
+                value={formData.ice}
+                onChange={(e) => updateField('ice', e.target.value)}
+                placeholder="ICE à 15 chiffres (optionnel)"
+                disabled={vendorLocked}
+              />
+              {vendorLocked && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                  Modifier depuis les Contacts
+                </p>
+              )}
+            </div>
             <FormField
               id="tva"
               type="number"
