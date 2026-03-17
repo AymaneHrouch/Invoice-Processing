@@ -44,7 +44,7 @@ const formatDateForInput = (dateString) => {
   }
 };
 
-const ManualInvoice = () => {
+const ManualInvoice = ({ direction = 'incoming' }) => {
   const { isDarkMode } = useTheme();
   const { addInvoice, loading, error, success, message, reset } =
     useAddInvoice();
@@ -65,6 +65,7 @@ const ManualInvoice = () => {
     tags: [],
     source_type: 'manual',
     status: 'extracted',
+    direction,
   });
 
   const [errors, setErrors] = useState({});

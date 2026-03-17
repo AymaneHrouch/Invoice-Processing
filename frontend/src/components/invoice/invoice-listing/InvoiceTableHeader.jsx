@@ -1,17 +1,22 @@
-import { useTheme } from "@/contexts";
+import { useTheme } from '@/contexts';
 
-const InvoiceTableHeader = ({ showSelect, allSelected, onSelectAll }) => {
+const InvoiceTableHeader = ({
+  showSelect,
+  allSelected,
+  onSelectAll,
+  showDirection = true,
+}) => {
   const { isDarkMode } = useTheme();
 
   return (
-    <thead className={isDarkMode ? "bg-gray-700" : "bg-gray-50"}>
+    <thead className={isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}>
       <tr>
         {showSelect && (
           <th
             className={`px-3 py-4 text-center font-semibold border-b w-10 ${
               isDarkMode
-                ? "text-gray-300 border-gray-600"
-                : "text-gray-600 border-gray-200"
+                ? 'text-gray-300 border-gray-600'
+                : 'text-gray-600 border-gray-200'
             }`}
           >
             <input
@@ -26,15 +31,15 @@ const InvoiceTableHeader = ({ showSelect, allSelected, onSelectAll }) => {
         <th
           className={`px-3 py-4 text-left font-semibold border-b ${
             isDarkMode
-              ? "text-gray-300 border-gray-600"
-              : "text-gray-600 border-gray-200"
+              ? 'text-gray-300 border-gray-600'
+              : 'text-gray-600 border-gray-200'
           }`}
         ></th>
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap ${
             isDarkMode
-              ? "text-gray-300 border-gray-600"
-              : "text-gray-600 border-gray-200"
+              ? 'text-gray-300 border-gray-600'
+              : 'text-gray-600 border-gray-200'
           }`}
         >
           Invoice #
@@ -42,8 +47,8 @@ const InvoiceTableHeader = ({ showSelect, allSelected, onSelectAll }) => {
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap ${
             isDarkMode
-              ? "text-gray-300 border-gray-600"
-              : "text-gray-600 border-gray-200"
+              ? 'text-gray-300 border-gray-600'
+              : 'text-gray-600 border-gray-200'
           }`}
         >
           Vendor
@@ -51,8 +56,8 @@ const InvoiceTableHeader = ({ showSelect, allSelected, onSelectAll }) => {
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap ${
             isDarkMode
-              ? "text-gray-300 border-gray-600"
-              : "text-gray-600 border-gray-200"
+              ? 'text-gray-300 border-gray-600'
+              : 'text-gray-600 border-gray-200'
           }`}
         >
           Date
@@ -60,8 +65,8 @@ const InvoiceTableHeader = ({ showSelect, allSelected, onSelectAll }) => {
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap w-24 ${
             isDarkMode
-              ? "text-gray-300 border-gray-600"
-              : "text-gray-600 border-gray-200"
+              ? 'text-gray-300 border-gray-600'
+              : 'text-gray-600 border-gray-200'
           }`}
         >
           Status
@@ -69,8 +74,8 @@ const InvoiceTableHeader = ({ showSelect, allSelected, onSelectAll }) => {
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap ${
             isDarkMode
-              ? "text-gray-300 border-gray-600"
-              : "text-gray-600 border-gray-200"
+              ? 'text-gray-300 border-gray-600'
+              : 'text-gray-600 border-gray-200'
           }`}
         >
           Amount
@@ -78,8 +83,8 @@ const InvoiceTableHeader = ({ showSelect, allSelected, onSelectAll }) => {
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap w-32 ${
             isDarkMode
-              ? "text-gray-300 border-gray-600"
-              : "text-gray-600 border-gray-200"
+              ? 'text-gray-300 border-gray-600'
+              : 'text-gray-600 border-gray-200'
           }`}
         >
           Category
@@ -87,26 +92,28 @@ const InvoiceTableHeader = ({ showSelect, allSelected, onSelectAll }) => {
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap ${
             isDarkMode
-              ? "text-gray-300 border-gray-600"
-              : "text-gray-600 border-gray-200"
+              ? 'text-gray-300 border-gray-600'
+              : 'text-gray-600 border-gray-200'
           }`}
         >
           Source
         </th>
+        {showDirection && (
+          <th
+            className={`px-3 py-4 text-center font-semibold border-b whitespace-nowrap ${
+              isDarkMode
+                ? 'text-gray-300 border-gray-600'
+                : 'text-gray-600 border-gray-200'
+            }`}
+          >
+            Direction
+          </th>
+        )}
         <th
           className={`px-3 py-4 text-center font-semibold border-b whitespace-nowrap ${
             isDarkMode
-              ? "text-gray-300 border-gray-600"
-              : "text-gray-600 border-gray-200"
-          }`}
-        >
-          Direction
-        </th>
-        <th
-          className={`px-3 py-4 text-center font-semibold border-b whitespace-nowrap ${
-            isDarkMode
-              ? "text-gray-300 border-gray-600"
-              : "text-gray-600 border-gray-200"
+              ? 'text-gray-300 border-gray-600'
+              : 'text-gray-600 border-gray-200'
           }`}
         >
           Paid
@@ -114,8 +121,8 @@ const InvoiceTableHeader = ({ showSelect, allSelected, onSelectAll }) => {
         <th
           className={`px-3 py-4 text-center font-semibold border-b whitespace-nowrap ${
             isDarkMode
-              ? "text-gray-300 border-gray-600"
-              : "text-gray-600 border-gray-200"
+              ? 'text-gray-300 border-gray-600'
+              : 'text-gray-600 border-gray-200'
           }`}
         >
           Exported
@@ -123,8 +130,8 @@ const InvoiceTableHeader = ({ showSelect, allSelected, onSelectAll }) => {
         <th
           className={`px-3 py-4 text-left font-semibold border-b whitespace-nowrap ${
             isDarkMode
-              ? "text-gray-300 border-gray-600"
-              : "text-gray-600 border-gray-200"
+              ? 'text-gray-300 border-gray-600'
+              : 'text-gray-600 border-gray-200'
           }`}
         >
           Actions

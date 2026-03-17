@@ -8,7 +8,7 @@ import { useTheme } from '@/contexts';
 
 const TAB_COOKIE_KEY = 'lastInvoiceTab';
 
-const InvoiceAddPage = () => {
+const InvoiceAddPage = ({ direction = 'incoming' }) => {
   const { isDarkMode } = useTheme();
   const [activeTab, setActiveTab] = useState('manual');
 
@@ -81,12 +81,12 @@ const InvoiceAddPage = () => {
 
         {/* Manual Invoice Tab Content */}
         <TabsContent value="manual">
-          <ManualInvoice />
+          <ManualInvoice direction={direction} />
         </TabsContent>
 
         {/* Auto Invoice Tab Content */}
         <TabsContent value="file">
-          <AutoInvoice />
+          <AutoInvoice direction={direction} />
         </TabsContent>
       </Tabs>
     </main>

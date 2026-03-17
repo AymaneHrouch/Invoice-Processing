@@ -23,6 +23,7 @@ const UploadCard = ({
   setIsProcessing,
   processingProgress,
   setProcessingProgress,
+  direction = 'incoming',
 }) => {
   const { isDarkMode } = useTheme();
   const fileInputRef = useRef(null);
@@ -116,7 +117,7 @@ const UploadCard = ({
         try {
           const formData = new FormData();
           formData.append('files', fileToProcess.file);
-          const extractedData = await uploadFiles(formData);
+          const extractedData = await uploadFiles(formData, direction);
           console.log(extractedData);
 
           // Ensure tags array exists in extracted data
@@ -270,9 +271,7 @@ const UploadCard = ({
                 <div
                   className={`flex items-center justify-between ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}
                 >
-                  <div
-                    className="flex items-center gap-2 flex-1"
-                  >
+                  <div className="flex items-center gap-2 flex-1">
                     {getFileStatusIcon(fileItem.status)}
                     <span className="flex-1">{fileItem.name}</span>
                   </div>

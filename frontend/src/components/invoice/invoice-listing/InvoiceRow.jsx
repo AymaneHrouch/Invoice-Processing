@@ -44,6 +44,7 @@ const InvoiceRow = ({
   onUpdateField,
   isSelected,
   onSelect,
+  showDirection = true,
 }) => {
   const { isDarkMode } = useTheme();
 
@@ -56,7 +57,9 @@ const InvoiceRow = ({
     if (!onUpdateField || togglingField) return;
     setTogglingField(field);
     try {
-      const updated = await onUpdateField(invoice.id || invoice._id, { [field]: value });
+      const updated = await onUpdateField(invoice.id || invoice._id, {
+        [field]: value,
+      });
       if (onUpdate && updated) onUpdate(updated);
     } finally {
       setTogglingField(null);
@@ -220,35 +223,41 @@ const InvoiceRow = ({
             {getSourceIcon(invoice.source_type)} {invoice.source_type}
           </span>
         </td>
-        <td
-          className={`px-3 py-4 border-b align-middle text-center ${
-            isDarkMode ? 'border-gray-600' : 'border-gray-100'
-          }`}
-        >
-          <button
-            type="button"
-            onClick={() =>
-              handleToggleField(
-                'direction',
-                invoice.direction === 'outgoing' ? 'incoming' : 'outgoing',
-              )
-            }
-            disabled={togglingField === 'direction'}
-            className={togglingField === 'direction' ? 'opacity-50 cursor-wait' : 'cursor-pointer'}
-            title="Click to toggle direction"
+        {showDirection && (
+          <td
+            className={`px-3 py-4 border-b align-middle text-center ${
+              isDarkMode ? 'border-gray-600' : 'border-gray-100'
+            }`}
           >
-            <Badge
-              variant="outline"
-              className={
-                invoice.direction === 'outgoing'
-                  ? 'min-w-[44px] text-center justify-center border-orange-500 text-orange-600 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400'
-                  : 'min-w-[44px] text-center justify-center border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
+            <button
+              type="button"
+              onClick={() =>
+                handleToggleField(
+                  'direction',
+                  invoice.direction === 'outgoing' ? 'incoming' : 'outgoing',
+                )
               }
+              disabled={togglingField === 'direction'}
+              className={
+                togglingField === 'direction'
+                  ? 'opacity-50 cursor-wait'
+                  : 'cursor-pointer'
+              }
+              title="Click to toggle direction"
             >
-              {invoice.direction === 'outgoing' ? 'OUT' : 'IN'}
-            </Badge>
-          </button>
-        </td>
+              <Badge
+                variant="outline"
+                className={
+                  invoice.direction === 'outgoing'
+                    ? 'min-w-[44px] text-center justify-center border-orange-500 text-orange-600 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400'
+                    : 'min-w-[44px] text-center justify-center border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
+                }
+              >
+                {invoice.direction === 'outgoing' ? 'OUT' : 'IN'}
+              </Badge>
+            </button>
+          </td>
+        )}
         <td
           className={`px-3 py-4 border-b align-middle text-center ${
             isDarkMode ? 'border-gray-600' : 'border-gray-100'

@@ -73,7 +73,10 @@ def create_invoice(invoice_data: InvoiceCreate):
 
 
 @router.post("/upload")
-async def handle_upload_files(files: list[UploadFile] = File(...)):
+async def handle_upload_files(
+    files: list[UploadFile] = File(...),
+    direction: str = Query("incoming", description="Invoice direction: incoming or outgoing"),
+):
 
     extracted_data = []
 
@@ -101,6 +104,7 @@ async def handle_upload_files(files: list[UploadFile] = File(...)):
                 tags=invoice_data.get("tags", []),
                 source_type=source_type,
                 status="extracted",
+                direction=direction,
             )
             saved_invoice = InvoiceCRUD.create_invoice(invoice_create)
             logger.info("Saved invoice from %s with ID: %s", file.filename, saved_invoice.id)
@@ -210,6 +214,7 @@ def get_invoices(
         is_exported: bool | None = Query(None, description="Filter by export status"),
         is_paid: bool | None = Query(None, description="Filter by paid status"),
         include_archived: bool = Query(False, description="Include archived invoices"),
+        direction: str | None = Query(None, description="Filter by direction (incoming/outgoing)"),
 ):
     """
     Get all invoices with optional filtering and pagination
@@ -230,6 +235,7 @@ def get_invoices(
             is_exported=is_exported,
             is_paid=is_paid,
             include_archived=include_archived,
+            direction=direction,
         )
         response.headers["X-Total-Count"] = str(result["total"])
         response.headers["X-Total-Pages"] = str(result["total_pages"])

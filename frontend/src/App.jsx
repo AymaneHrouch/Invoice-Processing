@@ -105,7 +105,7 @@ function App() {
               path="/achats"
               element={
                 <ProtectedRoute>
-                  <InvoiceListPage />
+                  <InvoiceListPage direction="incoming" />
                 </ProtectedRoute>
               }
             />
@@ -113,7 +113,7 @@ function App() {
               path="/achats/import"
               element={
                 <ProtectedRoute>
-                  <InvoiceAddPage />
+                  <InvoiceAddPage direction="incoming" />
                 </ProtectedRoute>
               }
             />
@@ -123,7 +123,7 @@ function App() {
               path="/ventes"
               element={
                 <ProtectedRoute>
-                  <InvoiceListPage />
+                  <InvoiceListPage direction="outgoing" />
                 </ProtectedRoute>
               }
             />
@@ -131,7 +131,7 @@ function App() {
               path="/ventes/new"
               element={
                 <ProtectedRoute>
-                  <InvoiceAddPage />
+                  <InvoiceAddPage direction="outgoing" />
                 </ProtectedRoute>
               }
             />

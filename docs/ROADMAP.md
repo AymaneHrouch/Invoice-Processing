@@ -34,10 +34,14 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [x] **Frontend**: `ContactsPage.jsx` — reads initial `?type=` from URL so sidebar Fournisseurs/Clients links auto-filter the page
 - [x] **Frontend**: *(added)* Active section highlighting — parent sidebar item (Achats/Ventes) gets a blue accent when any of its children is the current route, even when collapsed
 
-### 1.4 Achats Improvements
-- [ ] **Backend**: New routes `GET /achats`, `POST /achats/upload`, `GET /achats/{id}` (wrappers that filter `direction=incoming`)
-- [ ] **Frontend**: `AchatsListPage.jsx` — adapted from current `InvoiceListPage.jsx`, filtered to incoming only
-- [ ] **Frontend**: `AchatImportPage.jsx` — adapted from current `InvoiceAddPage.jsx` (upload + manual)
+### 1.4 Achats Improvements ✅
+- [x] **Backend**: Add `direction` filter to `GET /invoices/` — Achats/Ventes list pages each query their own direction
+- [x] **Backend**: Add `direction` query param to `POST /invoices/upload` — AI-processed invoices saved with correct direction
+- [x] **Frontend**: `InvoiceListPage` accepts `direction` prop — `/achats` locks to incoming, `/ventes` locks to outgoing
+- [x] **Frontend**: *(added)* Context-aware page header — Achats shows shopping cart + "Achats", Ventes shows trending-up + "Ventes"
+- [x] **Frontend**: *(added)* Context-aware empty state — shows localized message with a direct link to import (Achats) or create (Ventes)
+- [x] **Frontend**: *(added)* Direction column hidden on Achats/Ventes lists — redundant when page is already direction-locked; still visible on generic invoice view
+- [x] **Frontend**: `InvoiceAddPage` + `ManualInvoice` + `AutoInvoice` + `UploadCard` accept `direction` prop — invoices created with correct direction from both manual and AI flows
 - [ ] **Frontend**: Improve AI parsing reliability — add image preprocessing hints in upload UI
 - [ ] **Frontend**: Add confidence indicators on extracted fields (if Azure DI returns confidence scores)
 

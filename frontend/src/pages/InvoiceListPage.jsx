@@ -9,7 +9,15 @@ import {
 } from '@/components/ui/popover';
 import { useTheme } from '@/contexts';
 import { exportToPDF } from '@/constants/exportToPDF';
-import { fetchInvoices, getInvoiceById, updateInvoice, batchUpdateInvoices, exportInvoices, archiveInvoice, restoreInvoice } from '@/api/invoice';
+import {
+  fetchInvoices,
+  getInvoiceById,
+  updateInvoice,
+  batchUpdateInvoices,
+  exportInvoices,
+  archiveInvoice,
+  restoreInvoice,
+} from '@/api/invoice';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import {
@@ -24,7 +32,7 @@ import {
 import { useDeleteInvoice } from '@/hooks/useDeleteInvoice';
 import { toast } from 'sonner';
 
-const InvoiceListPage = () => {
+const InvoiceListPage = ({ direction = null }) => {
   const { isDarkMode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
@@ -32,7 +40,8 @@ const InvoiceListPage = () => {
 
   const initialStatus = searchParams.get('status') || 'all';
   const initialIsExported = searchParams.get('is_exported') ?? 'all';
-  const initialIncludeArchived = searchParams.get('include_archived') === 'true';
+  const initialIncludeArchived =
+    searchParams.get('include_archived') === 'true';
   const initialVendorName = searchParams.get('vendor_name') || '';
   const initialCategory = searchParams.get('category') || 'all';
   const initialIsPaid = searchParams.get('is_paid') ?? 'all';
@@ -57,7 +66,14 @@ const InvoiceListPage = () => {
     vendor_name: initialVendorName,
     category: initialCategory,
     is_paid: initialIsPaid,
+    direction: direction ?? undefined,
   });
+
+  // Keep direction filter in sync if the prop changes (e.g. navigating between /achats and /ventes)
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, direction: direction ?? undefined }));
+    setPage(1);
+  }, [direction]);
 
   // Separate state for the vendor input to prevent immediate API calls
   const [vendorSearchInput, setVendorSearchInput] = useState(initialVendorName);
@@ -101,7 +117,10 @@ const InvoiceListPage = () => {
       ),
     }));
 
-    if (selectedInvoice && (selectedInvoice._id || selectedInvoice.id) === updatedId) {
+    if (
+      selectedInvoice &&
+      (selectedInvoice._id || selectedInvoice.id) === updatedId
+    ) {
       setSelectedInvoice(updatedInvoice);
     }
 
@@ -120,9 +139,7 @@ const InvoiceListPage = () => {
   const handleSelectAll = (checked) => {
     if (!invoiceData?.data) return;
     if (checked) {
-      setSelectedIds(
-        new Set(invoiceData.data.map((inv) => inv.id || inv._id)),
-      );
+      setSelectedIds(new Set(invoiceData.data.map((inv) => inv.id || inv._id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -138,7 +155,9 @@ const InvoiceListPage = () => {
     setBatchLoading(true);
     try {
       const result = await batchUpdateInvoices([...selectedIds], updates);
-      toast.success(result.message || `Updated ${result.updated_count} invoice(s)`);
+      toast.success(
+        result.message || `Updated ${result.updated_count} invoice(s)`,
+      );
       setSelectedIds(new Set());
       handleFetchInvoices(page, sortBy, order, filters);
     } catch (err) {
@@ -194,7 +213,8 @@ const InvoiceListPage = () => {
     setInvoiceData((prevData) => ({
       ...prevData,
       data: prevData.data.map((invoice) =>
-        (invoice._id || invoice.id) === (updatedInvoice._id || updatedInvoice.id)
+        (invoice._id || invoice.id) ===
+        (updatedInvoice._id || updatedInvoice.id)
           ? updatedInvoice
           : invoice,
       ),
@@ -334,7 +354,14 @@ const InvoiceListPage = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ status: 'all', is_exported: 'all', include_archived: false, vendor_name: '', category: 'all', is_paid: 'all' });
+    setFilters({
+      status: 'all',
+      is_exported: 'all',
+      include_archived: false,
+      vendor_name: '',
+      category: 'all',
+      is_paid: 'all',
+    });
     setVendorSearchInput('');
     setPage(1);
   };
@@ -439,44 +466,71 @@ const InvoiceListPage = () => {
     return (
       <>
         <div className="max-w-full mx-auto my-8 px-6">
-        <InvoiceHeader
-          invoiceData={invoiceData}
-          sortBy={sortBy}
-          order={order}
-          onSort={handleSort}
-          onExport={handleExport}
-          exportLoading={exportLoading}
-          searchValue={vendorSearchInput}
-          onSearchChange={(value) => handleFilterChange('vendor_name', value)}
-        />
-        <InvoiceFilters
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onClearFilters={clearFilters}
-        />
-        <Alert
-          className={
-            isDarkMode
-              ? 'border-blue-900 bg-gray-800'
-              : 'border-blue-200 bg-blue-50'
-          }
-        >
-          <AlertTitle
-            className={isDarkMode ? 'text-blue-300' : 'text-blue-800'}
+          <InvoiceHeader
+            invoiceData={invoiceData}
+            sortBy={sortBy}
+            order={order}
+            onSort={handleSort}
+            onExport={handleExport}
+            exportLoading={exportLoading}
+            searchValue={vendorSearchInput}
+            onSearchChange={(value) => handleFilterChange('vendor_name', value)}
+            direction={direction}
+          />
+          <InvoiceFilters
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onClearFilters={clearFilters}
+          />
+          <Alert
+            className={
+              isDarkMode
+                ? 'border-blue-900 bg-gray-800'
+                : 'border-blue-200 bg-blue-50'
+            }
           >
-            No invoices found
-          </AlertTitle>
-          <AlertDescription
-            className={isDarkMode ? 'text-blue-400' : 'text-blue-600'}
-          >
-            {(filters.status && filters.status !== 'all') ||
-            filters.vendor_name ||
-            (filters.category && filters.category !== 'all')
-              ? 'No invoices match the current filters. Try adjusting your search criteria.'
-              : 'There are no invoices to display.'}
-          </AlertDescription>
-        </Alert>
-      </div>
+            <AlertTitle
+              className={isDarkMode ? 'text-blue-300' : 'text-blue-800'}
+            >
+              {direction === 'incoming'
+                ? "Aucune facture d'achat"
+                : direction === 'outgoing'
+                  ? 'Aucune facture de vente'
+                  : 'No invoices found'}
+            </AlertTitle>
+            <AlertDescription
+              className={isDarkMode ? 'text-blue-400' : 'text-blue-600'}
+            >
+              {(filters.status && filters.status !== 'all') ||
+              filters.vendor_name ||
+              (filters.category && filters.category !== 'all') ? (
+                'No invoices match the current filters. Try adjusting your search criteria.'
+              ) : direction === 'incoming' ? (
+                <>
+                  Aucune facture d&apos;achat pour le moment.{' '}
+                  <button
+                    onClick={() => navigate('/achats/import')}
+                    className="underline hover:no-underline"
+                  >
+                    Importer une facture
+                  </button>
+                </>
+              ) : direction === 'outgoing' ? (
+                <>
+                  Aucune facture de vente pour le moment.{' '}
+                  <button
+                    onClick={() => navigate('/ventes/new')}
+                    className="underline hover:no-underline"
+                  >
+                    Créer une facture
+                  </button>
+                </>
+              ) : (
+                'There are no invoices to display.'
+              )}
+            </AlertDescription>
+          </Alert>
+        </div>
         {editModal}
       </>
     );
@@ -493,6 +547,7 @@ const InvoiceListPage = () => {
         exportLoading={exportLoading}
         searchValue={vendorSearchInput}
         onSearchChange={(value) => handleFilterChange('vendor_name', value)}
+        direction={direction}
       />
 
       <InvoiceFilters
@@ -666,6 +721,7 @@ const InvoiceListPage = () => {
               )
             }
             onSelectAll={handleSelectAll}
+            showDirection={!direction}
           />
           <tbody>
             {invoiceData.data.flatMap((invoice) => [
@@ -683,6 +739,7 @@ const InvoiceListPage = () => {
                 onUpdateField={handleUpdateField}
                 isSelected={selectedIds.has(invoice.id || invoice._id)}
                 onSelect={handleSelect}
+                showDirection={!direction}
               />,
               ...(expandedRows.has(invoice.id || invoice._id)
                 ? [

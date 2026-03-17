@@ -61,7 +61,9 @@ export const restoreInvoice = async (id) => {
 
 export const validateInvoice = async (id) => {
   try {
-    const response = await api.patch(`/invoices/${id}/status`, { status: 'validated' });
+    const response = await api.patch(`/invoices/${id}/status`, {
+      status: 'validated',
+    });
     return response.data;
   } catch (error) {
     if (error.response?.data?.detail) {
@@ -83,9 +85,11 @@ export const getInvoiceById = async (id) => {
 export const exportInvoices = async (filters = {}) => {
   try {
     const params = {};
-    if (filters.status && filters.status !== 'all') params.status = filters.status;
+    if (filters.status && filters.status !== 'all')
+      params.status = filters.status;
     if (filters.vendor_name) params.vendor_name = filters.vendor_name;
-    if (filters.category && filters.category !== 'all') params.category = filters.category;
+    if (filters.category && filters.category !== 'all')
+      params.category = filters.category;
     if (filters.is_exported !== undefined && filters.is_exported !== 'all') {
       params.is_exported = filters.is_exported === 'true';
     }
@@ -134,17 +138,25 @@ export const fetchInvoices = async (
 ) => {
   try {
     const params = {
-      page, per_page: perPage, sort_by: sortBy, order,
-      ...(filters.status && filters.status !== 'all' && { status: filters.status }),
+      page,
+      per_page: perPage,
+      sort_by: sortBy,
+      order,
+      ...(filters.status &&
+        filters.status !== 'all' && { status: filters.status }),
       ...(filters.vendor_name && { vendor_name: filters.vendor_name }),
-      ...(filters.category && filters.category !== 'all' && { category: filters.category }),
-      ...(filters.is_exported !== undefined && filters.is_exported !== 'all' && {
-        is_exported: filters.is_exported === 'true',
-      }),
-      ...(filters.is_paid !== undefined && filters.is_paid !== 'all' && {
-        is_paid: filters.is_paid === 'true',
-      }),
+      ...(filters.category &&
+        filters.category !== 'all' && { category: filters.category }),
+      ...(filters.is_exported !== undefined &&
+        filters.is_exported !== 'all' && {
+          is_exported: filters.is_exported === 'true',
+        }),
+      ...(filters.is_paid !== undefined &&
+        filters.is_paid !== 'all' && {
+          is_paid: filters.is_paid === 'true',
+        }),
       ...(filters.include_archived && { include_archived: true }),
+      ...(filters.direction && { direction: filters.direction }),
     };
 
     const response = await api.get('/invoices/', { params });
@@ -198,7 +210,13 @@ export const deleteInvoice = async (id) => {
 export const getTopInvoicesByCategory = async (category, limit = 10) => {
   try {
     const response = await api.get('/invoices/', {
-      params: { category, sort_by: 'total_amount', order: 'desc', per_page: limit, page: 1 },
+      params: {
+        category,
+        sort_by: 'total_amount',
+        order: 'desc',
+        per_page: limit,
+        page: 1,
+      },
     });
     return response.data;
   } catch (error) {
