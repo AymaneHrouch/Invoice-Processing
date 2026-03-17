@@ -13,6 +13,7 @@ import {
   DashboardPage,
   CompanyProfilePage,
   ContactsPage,
+  VenteCreatePage,
 } from '@/pages';
 import { useTheme, useAuth } from '@/contexts';
 import { getCompanyProfile } from '@/api/company';
@@ -131,7 +132,7 @@ function App() {
               path="/ventes/new"
               element={
                 <ProtectedRoute>
-                  <InvoiceAddPage direction="outgoing" />
+                  <VenteCreatePage />
                 </ProtectedRoute>
               }
             />

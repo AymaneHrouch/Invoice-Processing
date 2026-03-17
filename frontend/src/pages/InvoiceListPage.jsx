@@ -18,6 +18,7 @@ import {
   archiveInvoice,
   restoreInvoice,
 } from '@/api/invoice';
+import { validateVente, markVenteSent, markVentePaid } from '@/api/ventes';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import {
@@ -401,6 +402,27 @@ const InvoiceListPage = ({ direction = null }) => {
     }
   };
 
+  const handleStatusTransition = async (invoice, action) => {
+    const id = invoice._id || invoice.id;
+    const labels = {
+      validate: 'validée',
+      'mark-sent': 'marquée envoyée',
+      'mark-paid': 'marquée payée',
+    };
+    try {
+      let updated;
+      if (action === 'validate') updated = await validateVente(id);
+      else if (action === 'mark-sent') updated = await markVenteSent(id);
+      else if (action === 'mark-paid') updated = await markVentePaid(id);
+      if (updated) handleUpdateInvoice(updated);
+      toast.success(`Facture ${labels[action] || 'mise à jour'}.`);
+    } catch (err) {
+      toast.error(
+        err.response?.data?.detail || err.message || 'Action échouée.',
+      );
+    }
+  };
+
   const handleExport = async () => {
     setExportLoading(true);
     try {
@@ -737,6 +759,7 @@ const InvoiceListPage = ({ direction = null }) => {
                 onEdit={handleEdit}
                 onUpdate={handleUpdateInvoice}
                 onUpdateField={handleUpdateField}
+                onStatusTransition={handleStatusTransition}
                 isSelected={selectedIds.has(invoice.id || invoice._id)}
                 onSelect={handleSelect}
                 showDirection={!direction}

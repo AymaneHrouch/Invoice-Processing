@@ -18,11 +18,13 @@ const SupplierCombobox = ({
   iceValue = '',
   onChange, // (name: string) => void
   onIceChange, // (ice: string) => void
+  onContactSelect, // (contact: object) => void — optional, called when a contact is selected
   error,
   required = false,
   label = 'Supplier',
   placeholder = 'Enter supplier name',
   icon: Icon = Building,
+  contactType = 'supplier', // 'supplier' | 'client'
 }) => {
   const [inputValue, setInputValue] = useState(value);
   const [options, setOptions] = useState([]);
@@ -46,7 +48,7 @@ const SupplierCombobox = ({
       setLoading(true);
       try {
         const results = await getContacts({
-          type: 'supplier',
+          type: contactType,
           q: inputValue.trim(),
         });
         setOptions(results);
@@ -81,6 +83,7 @@ const SupplierCombobox = ({
     setInputValue(contact.name);
     onChange(contact.name);
     if (contact.ice && onIceChange) onIceChange(contact.ice);
+    if (onContactSelect) onContactSelect(contact);
     setOpen(false);
   };
 
@@ -91,7 +94,7 @@ const SupplierCombobox = ({
       const created = await createContact({
         name: inputValue.trim(),
         ice: iceValue || undefined,
-        contact_type: ['supplier'],
+        contact_type: [contactType],
       });
       toast.success(`"${created.name}" ajouté aux contacts.`);
       setOpen(false);
@@ -164,7 +167,7 @@ const SupplierCombobox = ({
                 <Plus className="w-4 h-4" />
                 {adding
                   ? 'Ajout…'
-                  : `Ajouter "${inputValue}" comme fournisseur`}
+                  : `Ajouter "${inputValue}" comme ${contactType === 'client' ? 'client' : 'fournisseur'}`}
               </button>
             )}
 

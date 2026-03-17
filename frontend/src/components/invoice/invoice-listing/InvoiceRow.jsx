@@ -13,9 +13,12 @@ import { EditInvoice } from '@/components/invoice';
 import {
   Archive,
   ArchiveRestore,
+  Banknote,
+  CheckCircle,
   ChevronDown,
   ChevronUp,
   Download,
+  Send,
   SquarePen,
   Trash2,
   AlertTriangle,
@@ -42,6 +45,7 @@ const InvoiceRow = ({
   onRestore,
   onUpdate,
   onUpdateField,
+  onStatusTransition,
   isSelected,
   onSelect,
   showDirection = true,
@@ -348,6 +352,43 @@ const InvoiceRow = ({
             >
               <Download className="w-4 h-4" />
             </button>
+            {/* Ventes status transitions */}
+            {onStatusTransition &&
+              invoice.direction === 'outgoing' &&
+              invoice.status === 'draft' && (
+                <button
+                  title="Valider"
+                  className={`p-2 rounded-md border border-indigo-500 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 transition cursor-pointer
+                  ${isDarkMode ? 'border-indigo-400 text-indigo-400 hover:bg-indigo-900/20 hover:text-indigo-300' : ''}`}
+                  onClick={() => onStatusTransition(invoice, 'validate')}
+                >
+                  <CheckCircle className="w-4 h-4" />
+                </button>
+              )}
+            {onStatusTransition &&
+              invoice.direction === 'outgoing' &&
+              invoice.status === 'validated' && (
+                <button
+                  title="Marquer envoyé"
+                  className={`p-2 rounded-md border border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer
+                  ${isDarkMode ? 'border-blue-400 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300' : ''}`}
+                  onClick={() => onStatusTransition(invoice, 'mark-sent')}
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              )}
+            {onStatusTransition &&
+              invoice.direction === 'outgoing' &&
+              (invoice.status === 'validated' || invoice.status === 'sent') && (
+                <button
+                  title="Marquer payé"
+                  className={`p-2 rounded-md border border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition cursor-pointer
+                  ${isDarkMode ? 'border-emerald-400 text-emerald-400 hover:bg-emerald-900/20 hover:text-emerald-300' : ''}`}
+                  onClick={() => onStatusTransition(invoice, 'mark-paid')}
+                >
+                  <Banknote className="w-4 h-4" />
+                </button>
+              )}
             {onArchive && !isArchived && (
               <button
                 title="Archiver"

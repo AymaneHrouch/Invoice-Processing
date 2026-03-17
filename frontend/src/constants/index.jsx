@@ -44,6 +44,7 @@ export const InvoiceStatus = {
 };
 
 export const statusConfig = {
+  // Achats statuses
   extracted: {
     label: 'Extrait',
     variant: 'outline',
@@ -55,6 +56,25 @@ export const statusConfig = {
     variant: 'default',
     className:
       'border-green-500 text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
+  },
+  // Ventes statuses
+  draft: {
+    label: 'Brouillon',
+    variant: 'outline',
+    className:
+      'border-gray-400 text-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-400',
+  },
+  sent: {
+    label: 'Envoyé',
+    variant: 'outline',
+    className:
+      'border-indigo-500 text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-400',
+  },
+  paid: {
+    label: 'Payé',
+    variant: 'default',
+    className:
+      'border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400',
   },
 };
 
