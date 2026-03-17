@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/contexts';
 import {
@@ -11,18 +10,13 @@ import {
 } from '@/constants';
 import { EditInvoice } from '@/components/invoice';
 import {
-  Archive,
-  ArchiveRestore,
-  Banknote,
-  CheckCircle,
-  ChevronDown,
-  ChevronUp,
-  Download,
-  Send,
-  SquarePen,
-  Trash2,
-  AlertTriangle,
-} from 'lucide-react';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -34,6 +28,21 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import {
+  Archive,
+  ArchiveRestore,
+  Banknote,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  MoreHorizontal,
+  Send,
+  SquarePen,
+  Trash2,
+  AlertTriangle,
+  Undo2,
+} from 'lucide-react';
 
 const InvoiceRow = ({
   invoice,
@@ -71,12 +80,7 @@ const InvoiceRow = ({
   };
 
   const handleEditSuccess = (updatedInvoice) => {
-    console.log('✅ Invoice updated successfully:', updatedInvoice);
-
-    // Appeler la fonction de mise à jour du composant parent
-    if (onUpdate) {
-      onUpdate(updatedInvoice);
-    }
+    if (onUpdate) onUpdate(updatedInvoice);
   };
 
   const isArchived = invoice.is_archived === true;
@@ -84,6 +88,153 @@ const InvoiceRow = ({
   const amountWarnings = invoice?.amount_warnings ?? [];
   const hasAmountWarning =
     invoice?.status === 'extracted' && amountWarnings.length > 0;
+
+  const direction = invoice.direction;
+  const status = invoice.status;
+
+  // Build contextual action items
+  const actions = [];
+
+  // Edit — always available (except archived for ventes validated+)
+  actions.push({ key: 'edit', label: 'Modifier', icon: SquarePen });
+
+  actions.push({ key: 'sep1', type: 'separator' });
+
+  // Status transitions
+  if (direction === 'outgoing') {
+    if (status === 'draft') {
+      actions.push({
+        key: 'validate',
+        label: 'Valider',
+        icon: CheckCircle,
+        color: 'text-indigo-600 dark:text-indigo-400',
+      });
+    }
+    if (status === 'validated') {
+      actions.push({
+        key: 'invalidate',
+        label: 'Invalider (→ brouillon)',
+        icon: Undo2,
+        color: 'text-gray-500',
+      });
+      actions.push({
+        key: 'mark-sent',
+        label: 'Marquer envoyé',
+        icon: Send,
+        color: 'text-blue-600 dark:text-blue-400',
+      });
+      actions.push({
+        key: 'mark-paid',
+        label: 'Marquer payé',
+        icon: Banknote,
+        color: 'text-emerald-600 dark:text-emerald-400',
+      });
+    }
+    if (status === 'sent') {
+      actions.push({
+        key: 'unmark-sent',
+        label: 'Annuler envoi (→ validé)',
+        icon: Undo2,
+        color: 'text-gray-500',
+      });
+      actions.push({
+        key: 'mark-paid',
+        label: 'Marquer payé',
+        icon: Banknote,
+        color: 'text-emerald-600 dark:text-emerald-400',
+      });
+    }
+    if (status === 'paid') {
+      actions.push({
+        key: 'unmark-paid',
+        label: 'Annuler paiement (→ envoyé)',
+        icon: Undo2,
+        color: 'text-gray-500',
+      });
+    }
+  }
+
+  if (direction === 'incoming') {
+    if (status === 'extracted') {
+      actions.push({
+        key: 'validate',
+        label: 'Valider',
+        icon: CheckCircle,
+        color: 'text-indigo-600 dark:text-indigo-400',
+      });
+    }
+    if (status === 'validated') {
+      actions.push({
+        key: 'invalidate',
+        label: 'Invalider (→ extrait)',
+        icon: Undo2,
+        color: 'text-gray-500',
+      });
+    }
+  }
+
+  actions.push({ key: 'sep2', type: 'separator' });
+
+  // PDF
+  actions.push({
+    key: 'pdf',
+    label: 'Télécharger PDF',
+    icon: Download,
+    color: 'text-blue-600 dark:text-blue-400',
+  });
+
+  actions.push({ key: 'sep3', type: 'separator' });
+
+  // Archive / Restore
+  if (isArchived) {
+    actions.push({
+      key: 'restore',
+      label: 'Restaurer',
+      icon: ArchiveRestore,
+      color: 'text-green-600 dark:text-green-400',
+    });
+  } else {
+    actions.push({
+      key: 'archive',
+      label: 'Archiver',
+      icon: Archive,
+      color: 'text-gray-500',
+    });
+  }
+
+  // Delete
+  actions.push({
+    key: 'delete',
+    label: 'Supprimer',
+    icon: Trash2,
+    color: 'text-red-600 dark:text-red-400',
+  });
+
+  const handleAction = (key) => {
+    switch (key) {
+      case 'edit':
+        setSelectedInvoice(invoice);
+        setEditModalOpen(true);
+        break;
+      case 'pdf':
+        onExportPDF(invoice);
+        break;
+      case 'archive':
+        onArchive?.(invoice);
+        break;
+      case 'restore':
+        onRestore?.(invoice);
+        break;
+      case 'delete':
+        setDeleteDialogOpen(true);
+        break;
+      case 'invalidate':
+        onStatusTransition?.(invoice, 'invalidate');
+        break;
+      default:
+        onStatusTransition?.(invoice, key);
+    }
+  };
 
   return (
     <>
@@ -104,9 +255,7 @@ const InvoiceRow = ({
       >
         {onSelect && (
           <td
-            className={`px-3 py-4 border-b align-middle text-center w-10 ${
-              isDarkMode ? 'border-gray-600' : 'border-gray-100'
-            }`}
+            className={`px-3 py-4 border-b align-middle text-center w-10 ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
           >
             <input
               type="checkbox"
@@ -121,54 +270,39 @@ const InvoiceRow = ({
           </td>
         )}
         <td
-          className={`px-3 py-4 border-b align-middle ${
-            isDarkMode ? 'border-gray-600' : 'border-gray-100'
-          }`}
+          className={`px-3 py-4 border-b align-middle ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onToggleExpand(invoice.id || invoice._id)}
-            aria-label={isExpanded ? 'Réduire' : 'Développer'}
-            className={`p-1 h-6 w-6 ${
-              isDarkMode
-                ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-600'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`p-1 h-6 w-6 ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-600' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'}`}
           >
             {isExpanded ? <ChevronUp /> : <ChevronDown />}
           </Button>
         </td>
         <td
-          className={`px-3 py-4 border-b align-middle ${
-            isDarkMode ? 'border-gray-600' : 'border-gray-100'
-          }`}
+          className={`px-3 py-4 border-b align-middle ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
           <span
-            className={`font-semibold ${
-              isDarkMode ? 'text-gray-200' : 'text-gray-800'
-            }`}
+            className={`font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
           >
             {invoice.invoice_number}
           </span>
         </td>
         <td
-          className={`px-3 py-4 border-b align-middle ${
-            isDarkMode ? 'border-gray-600' : 'border-gray-100'
-          }`}
+          className={`px-3 py-4 border-b align-middle ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
           <span
-            className={`font-medium ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-600'
-            }`}
+            className={`font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
           >
-            {invoice.vendor_name}
+            {invoice.direction === 'outgoing'
+              ? invoice.client_name
+              : invoice.vendor_name}
           </span>
         </td>
         <td
-          className={`px-3 py-4 border-b align-middle ${
-            isDarkMode ? 'border-gray-600' : 'border-gray-100'
-          }`}
+          className={`px-3 py-4 border-b align-middle ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
           <div className="flex flex-col gap-0.5">
             <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
@@ -185,9 +319,7 @@ const InvoiceRow = ({
           </div>
         </td>
         <td
-          className={`px-3 py-4 border-b align-middle w-24 ${
-            isDarkMode ? 'border-gray-600' : 'border-gray-100'
-          }`}
+          className={`px-3 py-4 border-b align-middle w-24 ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
           <Badge
             variant={statusConfig[invoice.status]?.variant || 'outline'}
@@ -197,9 +329,7 @@ const InvoiceRow = ({
           </Badge>
         </td>
         <td
-          className={`px-3 py-4 border-b align-middle ${
-            isDarkMode ? 'border-gray-600' : 'border-gray-100'
-          }`}
+          className={`px-3 py-4 border-b align-middle ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
           <span className="inline-flex items-center gap-1.5 font-semibold text-green-600 text-base">
             {formatCurrency(invoice.total_amount, invoice.currency)}
@@ -214,9 +344,7 @@ const InvoiceRow = ({
           </span>
         </td>
         <td
-          className={`px-3 py-4 border-b align-middle w-32 ${
-            isDarkMode ? 'border-gray-600' : 'border-gray-100'
-          }`}
+          className={`px-3 py-4 border-b align-middle w-32 ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
           <Badge
             variant="secondary"
@@ -230,23 +358,17 @@ const InvoiceRow = ({
           </Badge>
         </td>
         <td
-          className={`px-3 py-4 border-b align-middle ${
-            isDarkMode ? 'border-gray-600' : 'border-gray-100'
-          }`}
+          className={`px-3 py-4 border-b align-middle ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
           <span
-            className={`flex items-center gap-1 text-xs ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-500'
-            }`}
+            className={`flex items-center gap-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
           >
             {getSourceIcon(invoice.source_type)} {invoice.source_type}
           </span>
         </td>
         {showDirection && (
           <td
-            className={`px-3 py-4 border-b align-middle text-center ${
-              isDarkMode ? 'border-gray-600' : 'border-gray-100'
-            }`}
+            className={`px-3 py-4 border-b align-middle text-center ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
           >
             <button
               type="button"
@@ -278,23 +400,27 @@ const InvoiceRow = ({
           </td>
         )}
         <td
-          className={`px-3 py-4 border-b align-middle text-center ${
-            isDarkMode ? 'border-gray-600' : 'border-gray-100'
-          }`}
+          className={`px-3 py-4 border-b align-middle text-center ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
-          <input
-            type="checkbox"
-            checked={Boolean(invoice.is_paid)}
-            onChange={(e) => handleToggleField('is_paid', e.target.checked)}
-            disabled={togglingField === 'is_paid'}
-            className="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4 cursor-pointer"
-            title="Basculer payé"
-          />
+          {direction === 'incoming' ? (
+            <input
+              type="checkbox"
+              checked={Boolean(invoice.is_paid)}
+              onChange={(e) => handleToggleField('is_paid', e.target.checked)}
+              disabled={togglingField === 'is_paid'}
+              className="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4 cursor-pointer"
+              title="Basculer payé"
+            />
+          ) : (
+            <span
+              className={`text-xs ${invoice.status === 'paid' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+            >
+              {invoice.status === 'paid' ? 'Oui' : '—'}
+            </span>
+          )}
         </td>
         <td
-          className={`px-3 py-4 border-b align-middle text-center ${
-            isDarkMode ? 'border-gray-600' : 'border-gray-100'
-          }`}
+          className={`px-3 py-4 border-b align-middle text-center ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
           <input
             type="checkbox"
@@ -306,138 +432,81 @@ const InvoiceRow = ({
           />
         </td>
         <td
-          className={`px-3 py-4 border-b align-middle ${
-            isDarkMode ? 'border-gray-600' : 'border-gray-100'
-          }`}
+          className={`px-3 py-4 border-b align-middle ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
-          <div className="flex gap-2">
-            <button
-              title="Modifier"
-              className={`p-2 rounded-md border border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700 transition cursor-pointer 
-                ${isDarkMode ? 'border-green-400 text-green-400 hover:bg-green-900/20 hover:text-green-300' : ''}`}
-              onClick={() => {
-                setSelectedInvoice(invoice);
-                setEditModalOpen(true);
-              }}
-            >
-              <SquarePen className="w-4 h-4" />
-            </button>
-            <AlertDialog
-              open={deleteDialogOpen}
-              onOpenChange={setDeleteDialogOpen}
-            >
-              <AlertDialogTrigger asChild>
-                <button
-                  title="Supprimer"
-                  className={`p-2 rounded-md border border-red-500 text-red-600 hover:bg-red-50 hover:text-red-700 transition cursor-pointer 
-                    ${isDarkMode ? 'border-red-400 text-red-400 hover:bg-red-900/20 hover:text-red-300' : ''}`}
-                  onClick={() => setDeleteDialogOpen(true)}
+          <AlertDialog
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+          >
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                {actions.map((action) => {
+                  if (action.type === 'separator')
+                    return <DropdownMenuSeparator key={action.key} />;
+                  const Icon = action.icon;
+                  if (action.key === 'delete') {
+                    return (
+                      <AlertDialogTrigger asChild key="delete">
+                        <DropdownMenuItem className="text-red-600 dark:text-red-400 focus:text-red-600 cursor-pointer">
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Supprimer
+                        </DropdownMenuItem>
+                      </AlertDialogTrigger>
+                    );
+                  }
+                  return (
+                    <DropdownMenuItem
+                      key={action.key}
+                      className={`cursor-pointer ${action.color || ''}`}
+                      onSelect={() => handleAction(action.key)}
+                    >
+                      <Icon className="w-4 h-4 mr-2" />
+                      {action.label}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Supprimer la facture</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Êtes-vous sûr de vouloir supprimer la facture{' '}
+                  <b>#{invoice.invoice_number}</b> ? Cette action est
+                  irréversible.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={async () => {
+                    setDeleteDialogOpen(false);
+                    await onDelete(invoice);
+                  }}
                 >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Supprimer la facture</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Êtes-vous sûr de vouloir supprimer la facture{' '}
-                    <b>#{invoice.invoice_number}</b> ? Cette action est
-                    irréversible.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={async () => {
-                      setDeleteDialogOpen(false);
-                      await onDelete(invoice);
-                    }}
-                  >
-                    Supprimer
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            <button
-              title="Exporter PDF"
-              className={`p-2 rounded-md border border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer 
-                ${isDarkMode ? 'border-blue-400 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300' : ''}`}
-              onClick={() => onExportPDF(invoice)}
-            >
-              <Download className="w-4 h-4" />
-            </button>
-            {/* Ventes status transitions */}
-            {onStatusTransition &&
-              invoice.direction === 'outgoing' &&
-              invoice.status === 'draft' && (
-                <button
-                  title="Valider"
-                  className={`p-2 rounded-md border border-indigo-500 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 transition cursor-pointer
-                  ${isDarkMode ? 'border-indigo-400 text-indigo-400 hover:bg-indigo-900/20 hover:text-indigo-300' : ''}`}
-                  onClick={() => onStatusTransition(invoice, 'validate')}
-                >
-                  <CheckCircle className="w-4 h-4" />
-                </button>
-              )}
-            {onStatusTransition &&
-              invoice.direction === 'outgoing' &&
-              invoice.status === 'validated' && (
-                <button
-                  title="Marquer envoyé"
-                  className={`p-2 rounded-md border border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition cursor-pointer
-                  ${isDarkMode ? 'border-blue-400 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300' : ''}`}
-                  onClick={() => onStatusTransition(invoice, 'mark-sent')}
-                >
-                  <Send className="w-4 h-4" />
-                </button>
-              )}
-            {onStatusTransition &&
-              invoice.direction === 'outgoing' &&
-              (invoice.status === 'validated' || invoice.status === 'sent') && (
-                <button
-                  title="Marquer payé"
-                  className={`p-2 rounded-md border border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 transition cursor-pointer
-                  ${isDarkMode ? 'border-emerald-400 text-emerald-400 hover:bg-emerald-900/20 hover:text-emerald-300' : ''}`}
-                  onClick={() => onStatusTransition(invoice, 'mark-paid')}
-                >
-                  <Banknote className="w-4 h-4" />
-                </button>
-              )}
-            {onArchive && !isArchived && (
-              <button
-                title="Archiver"
-                className={`p-2 rounded-md border border-gray-500 text-gray-600 hover:bg-gray-50 hover:text-gray-700 transition cursor-pointer 
-                  ${isDarkMode ? 'border-gray-400 text-gray-400 hover:bg-gray-900/20 hover:text-gray-300' : ''}`}
-                onClick={() => onArchive(invoice)}
-              >
-                <Archive className="w-4 h-4" />
-              </button>
-            )}
-            {onRestore && isArchived && (
-              <button
-                title="Restaurer"
-                className={`p-2 rounded-md border border-green-500 text-green-600 hover:bg-green-50 hover:text-green-700 transition cursor-pointer 
-                  ${isDarkMode ? 'border-green-400 text-green-400 hover:bg-green-900/20 hover:text-green-300' : ''}`}
-                onClick={() => onRestore(invoice)}
-              >
-                <ArchiveRestore className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+                  Supprimer
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </td>
       </tr>
 
-      {/* Edit Invoice Modal */}
       {editModalOpen && selectedInvoice && (
         <EditInvoice
           key={selectedInvoice._id}
           open={editModalOpen}
           onClose={() => {
             setEditModalOpen(false);
-            setSelectedInvoice(null); // ✅ Reset aussi selectedInvoice
+            setSelectedInvoice(null);
           }}
           invoice={selectedInvoice}
-          onSuccess={handleEditSuccess} // ✅ CORRECTION: Enlever les parenthèses ()
+          onSuccess={handleEditSuccess}
         />
       )}
     </>

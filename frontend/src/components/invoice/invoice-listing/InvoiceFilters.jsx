@@ -13,7 +13,35 @@ import { Label } from '@/components/ui/label';
 import { useTheme } from '@/contexts';
 import { useCategories } from '@/hooks/useCategories';
 
-const InvoiceFilters = ({ filters, onFilterChange, onClearFilters }) => {
+const STATUS_OPTIONS = {
+  incoming: [
+    { value: 'all', label: 'Tous' },
+    { value: 'extracted', label: 'Extrait' },
+    { value: 'validated', label: 'Validé' },
+  ],
+  outgoing: [
+    { value: 'all', label: 'Tous' },
+    { value: 'draft', label: 'Brouillon' },
+    { value: 'validated', label: 'Validé' },
+    { value: 'sent', label: 'Envoyé' },
+    { value: 'paid', label: 'Payé' },
+  ],
+  all: [
+    { value: 'all', label: 'Tous' },
+    { value: 'draft', label: 'Brouillon' },
+    { value: 'extracted', label: 'Extrait' },
+    { value: 'validated', label: 'Validé' },
+    { value: 'sent', label: 'Envoyé' },
+    { value: 'paid', label: 'Payé' },
+  ],
+};
+
+const InvoiceFilters = ({
+  filters,
+  onFilterChange,
+  onClearFilters,
+  direction,
+}) => {
   const { isDarkMode } = useTheme();
   const { categories } = useCategories();
 
@@ -82,9 +110,13 @@ const InvoiceFilters = ({ filters, onFilterChange, onClearFilters }) => {
                 <SelectValue placeholder="Tous" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="extracted">Extrait</SelectItem>
-                <SelectItem value="validated">Validé</SelectItem>
+                {(STATUS_OPTIONS[direction] ?? STATUS_OPTIONS.all).map(
+                  (opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ),
+                )}
               </SelectContent>
             </Select>
           </div>

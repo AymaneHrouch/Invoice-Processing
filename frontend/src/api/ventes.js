@@ -58,6 +58,33 @@ export const markVentePaid = async (id) => {
   return response.data;
 };
 
+export const invalidateVente = async (id) => {
+  const response = await api.post(
+    `/ventes/${id}/invalidate`,
+    {},
+    getAuthConfig(),
+  );
+  return response.data;
+};
+
+export const unmarkVenteSent = async (id) => {
+  const response = await api.post(
+    `/ventes/${id}/unmark-sent`,
+    {},
+    getAuthConfig(),
+  );
+  return response.data;
+};
+
+export const unmarkVentePaid = async (id) => {
+  const response = await api.post(
+    `/ventes/${id}/unmark-paid`,
+    {},
+    getAuthConfig(),
+  );
+  return response.data;
+};
+
 export const exportVentes = async (filters = {}) => {
   try {
     const params = {};

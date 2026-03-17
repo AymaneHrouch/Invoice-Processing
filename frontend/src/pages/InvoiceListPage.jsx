@@ -12,6 +12,8 @@ import {
   fetchInvoices,
   getInvoiceById,
   updateInvoice,
+  validateInvoice,
+  invalidateInvoice,
   batchUpdateInvoices,
   exportInvoices,
   exportAchats,
@@ -21,8 +23,11 @@ import {
 } from '@/api/invoice';
 import {
   validateVente,
+  invalidateVente,
   markVenteSent,
   markVentePaid,
+  unmarkVenteSent,
+  unmarkVentePaid,
   downloadVentePdf,
   exportVentes,
 } from '@/api/ventes';
@@ -425,16 +430,34 @@ const InvoiceListPage = ({ direction = null }) => {
 
   const handleStatusTransition = async (invoice, action) => {
     const id = invoice._id || invoice.id;
+    const isOutgoing = invoice.direction === 'outgoing';
     const labels = {
       validate: 'validée',
+      invalidate: 'invalidée',
       'mark-sent': 'marquée envoyée',
       'mark-paid': 'marquée payée',
+      'unmark-sent': 'repassée en validé',
+      'unmark-paid': 'repassée en envoyé',
     };
     try {
       let updated;
-      if (action === 'validate') updated = await validateVente(id);
-      else if (action === 'mark-sent') updated = await markVenteSent(id);
-      else if (action === 'mark-paid') updated = await markVentePaid(id);
+      if (action === 'validate') {
+        updated = isOutgoing
+          ? await validateVente(id)
+          : await validateInvoice(id);
+      } else if (action === 'invalidate') {
+        updated = isOutgoing
+          ? await invalidateVente(id)
+          : await invalidateInvoice(id);
+      } else if (action === 'mark-sent') {
+        updated = await markVenteSent(id);
+      } else if (action === 'mark-paid') {
+        updated = await markVentePaid(id);
+      } else if (action === 'unmark-sent') {
+        updated = await unmarkVenteSent(id);
+      } else if (action === 'unmark-paid') {
+        updated = await unmarkVentePaid(id);
+      }
       if (updated) handleUpdateInvoice(updated);
       toast.success(`Facture ${labels[action] || 'mise à jour'}.`);
     } catch (err) {
@@ -554,6 +577,7 @@ const InvoiceListPage = ({ direction = null }) => {
             filters={filters}
             onFilterChange={handleFilterChange}
             onClearFilters={clearFilters}
+            direction={direction}
           />
           <Alert
             className={
@@ -628,6 +652,7 @@ const InvoiceListPage = ({ direction = null }) => {
         filters={filters}
         onFilterChange={handleFilterChange}
         onClearFilters={clearFilters}
+        direction={direction}
       />
 
       {selectedIds.size > 0 && (
@@ -658,12 +683,27 @@ const InvoiceListPage = ({ direction = null }) => {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleBatchUpdate({ is_paid: true })}
+              onClick={() =>
+                handleBatchUpdate({
+                  status: direction === 'outgoing' ? 'draft' : 'extracted',
+                })
+              }
               disabled={batchLoading}
-              className="border-green-500 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-900/20"
+              className="border-gray-500 text-gray-600 hover:bg-gray-50 dark:border-gray-400 dark:text-gray-400 dark:hover:bg-gray-800"
             >
-              Marquer payé
+              Invalider
             </Button>
+            {direction !== 'outgoing' && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBatchUpdate({ is_paid: true })}
+                disabled={batchLoading}
+                className="border-green-500 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-900/20"
+              >
+                Marquer payé
+              </Button>
+            )}
             <Popover open={moreDropdownOpen} onOpenChange={setMoreDropdownOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -691,30 +731,34 @@ const InvoiceListPage = ({ direction = null }) => {
                   >
                     Marquer non payé
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="justify-start font-normal"
-                    onClick={() => {
-                      setMoreDropdownOpen(false);
-                      handleBatchUpdate({ direction: 'incoming' });
-                    }}
-                    disabled={batchLoading}
-                  >
-                    Définir comme achat
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="justify-start font-normal"
-                    onClick={() => {
-                      setMoreDropdownOpen(false);
-                      handleBatchUpdate({ direction: 'outgoing' });
-                    }}
-                    disabled={batchLoading}
-                  >
-                    Définir comme vente
-                  </Button>
+                  {!direction && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="justify-start font-normal"
+                        onClick={() => {
+                          setMoreDropdownOpen(false);
+                          handleBatchUpdate({ direction: 'incoming' });
+                        }}
+                        disabled={batchLoading}
+                      >
+                        Définir comme achat
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="justify-start font-normal"
+                        onClick={() => {
+                          setMoreDropdownOpen(false);
+                          handleBatchUpdate({ direction: 'outgoing' });
+                        }}
+                        disabled={batchLoading}
+                      >
+                        Définir comme vente
+                      </Button>
+                    </>
+                  )}
                   <Button
                     size="sm"
                     variant="ghost"
@@ -762,21 +806,6 @@ const InvoiceListPage = ({ direction = null }) => {
                     disabled={batchLoading}
                   >
                     Désarchiver
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="justify-start font-normal"
-                    onClick={() => {
-                      setMoreDropdownOpen(false);
-                      handleBatchUpdate({
-                        status:
-                          direction === 'outgoing' ? 'draft' : 'extracted',
-                      });
-                    }}
-                    disabled={batchLoading}
-                  >
-                    Invalider
                   </Button>
                 </div>
               </PopoverContent>

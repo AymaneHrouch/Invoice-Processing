@@ -293,6 +293,64 @@ def mark_paid(
     return _to_response(updated)
 
 
+@router.post("/{vente_id}/invalidate", response_model=InvoiceResponse)
+def invalidate_vente(
+    vente_id: str = Path(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Revert validated → draft."""
+    try:
+        inv = InvoiceCRUD.get_invoice_by_id(vente_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID invalide.") from None
+    if not inv or inv.direction != "outgoing":
+        raise HTTPException(status_code=404, detail="Facture introuvable.")
+    if inv.status != "validated":
+        raise HTTPException(status_code=400, detail="Seules les factures validées peuvent être invalidées.")
+    updated = InvoiceCRUD.update_invoice(vente_id, InvoiceUpdate(status="draft"))
+    logger.info("Vente %s invalidated by %s", vente_id, current_user.get("user_id"))
+    return _to_response(updated)
+
+
+@router.post("/{vente_id}/unmark-sent", response_model=InvoiceResponse)
+def unmark_sent(
+    vente_id: str = Path(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Revert sent → validated."""
+    try:
+        inv = InvoiceCRUD.get_invoice_by_id(vente_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID invalide.") from None
+    if not inv or inv.direction != "outgoing":
+        raise HTTPException(status_code=404, detail="Facture introuvable.")
+    if inv.status != "sent":
+        raise HTTPException(status_code=400, detail="La facture doit être envoyée pour annuler l'envoi.")
+    updated = InvoiceCRUD.update_invoice(vente_id, InvoiceUpdate(status="validated"))
+    return _to_response(updated)
+
+
+@router.post("/{vente_id}/unmark-paid", response_model=InvoiceResponse)
+def unmark_paid(
+    vente_id: str = Path(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Revert paid → sent."""
+    try:
+        inv = InvoiceCRUD.get_invoice_by_id(vente_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID invalide.") from None
+    if not inv or inv.direction != "outgoing":
+        raise HTTPException(status_code=404, detail="Facture introuvable.")
+    if inv.status != "paid":
+        raise HTTPException(status_code=400, detail="La facture doit être payée pour annuler le paiement.")
+    updated = InvoiceCRUD.update_invoice(
+        vente_id,
+        InvoiceUpdate(status="sent", is_paid=False),
+    )
+    return _to_response(updated)
+
+
 @router.get("/{vente_id}/pdf")
 def download_vente_pdf(
     vente_id: str = Path(...),
