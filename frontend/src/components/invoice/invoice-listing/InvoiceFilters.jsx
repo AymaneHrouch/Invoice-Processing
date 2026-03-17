@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -15,6 +16,35 @@ import { useCategories } from '@/hooks/useCategories';
 const InvoiceFilters = ({ filters, onFilterChange, onClearFilters }) => {
   const { isDarkMode } = useTheme();
   const { categories } = useCategories();
+
+  // Local state for date inputs — debounced before propagating to parent
+  const [startDateInput, setStartDateInput] = useState(
+    filters.start_date ?? '',
+  );
+  const [endDateInput, setEndDateInput] = useState(filters.end_date ?? '');
+
+  // Sync local state when parent clears filters
+  useEffect(() => {
+    setStartDateInput(filters.start_date ?? '');
+  }, [filters.start_date]);
+  useEffect(() => {
+    setEndDateInput(filters.end_date ?? '');
+  }, [filters.end_date]);
+
+  // Debounce: only fire onFilterChange 600ms after the user stops typing
+  useEffect(() => {
+    const t = setTimeout(() => {
+      onFilterChange('start_date', startDateInput || undefined);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [startDateInput]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      onFilterChange('end_date', endDateInput || undefined);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [endDateInput]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Card
@@ -139,10 +169,8 @@ const InvoiceFilters = ({ filters, onFilterChange, onClearFilters }) => {
             </Label>
             <Input
               type="date"
-              value={filters.start_date ?? ''}
-              onChange={(e) =>
-                onFilterChange('start_date', e.target.value || undefined)
-              }
+              value={startDateInput}
+              onChange={(e) => setStartDateInput(e.target.value)}
               className={`h-11 ${
                 isDarkMode
                   ? 'bg-gray-700 border-gray-600 text-white'
@@ -157,10 +185,8 @@ const InvoiceFilters = ({ filters, onFilterChange, onClearFilters }) => {
             </Label>
             <Input
               type="date"
-              value={filters.end_date ?? ''}
-              onChange={(e) =>
-                onFilterChange('end_date', e.target.value || undefined)
-              }
+              value={endDateInput}
+              onChange={(e) => setEndDateInput(e.target.value)}
               className={`h-11 ${
                 isDarkMode
                   ? 'bg-gray-700 border-gray-600 text-white'
