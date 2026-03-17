@@ -69,8 +69,8 @@ const DashboardPage = () => {
             getAEncaisser(),
             getAPayer(),
             getTvaBalance(periodParams),
-            getTopVendors(5, 'MAD', 'outgoing'),
-            getTopVendors(5, 'MAD', 'incoming'),
+            getTopVendors(5, 'outgoing'),
+            getTopVendors(5, 'incoming'),
           ]);
         setPmeKpis(kpis);
         setAEncaisser(encaisser);

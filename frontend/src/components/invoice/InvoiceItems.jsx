@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Package } from 'lucide-react';
+import { Plus, Trash2, Package, Pencil, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,8 @@ const InvoiceItems = ({
     total: 0,
   });
   const [nameError, setNameError] = useState(false);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editingItem, setEditingItem] = useState(null);
 
   const addItem = () => {
     if (!newItem.name.trim()) {
@@ -49,6 +51,30 @@ const InvoiceItems = ({
       e.preventDefault();
       addItem();
     }
+  };
+
+  const startEdit = (index) => {
+    setEditingIndex(index);
+    setEditingItem({ ...items[index] });
+  };
+
+  const cancelEdit = () => {
+    setEditingIndex(null);
+    setEditingItem(null);
+  };
+
+  const confirmEdit = () => {
+    if (!editingItem.name.trim()) return;
+    const total = calculateItemTotal(
+      editingItem.quantity,
+      editingItem.unit_price,
+    );
+    const updated = items.map((item, i) =>
+      i === editingIndex ? { ...editingItem, total: parseFloat(total) } : item,
+    );
+    onItemsChange(updated);
+    setEditingIndex(null);
+    setEditingItem(null);
   };
 
   return (
@@ -173,37 +199,141 @@ const InvoiceItems = ({
               className="border-l-4 border-l-blue-500 hover:shadow-md transition-shadow"
             >
               <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 space-y-2">
-                    <div className="font-medium text-gray-900 dark:text-white text-base">
-                      {item.name}
+                {editingIndex === index ? (
+                  /* Inline edit form */
+                  <div className="space-y-3">
+                    <Input
+                      value={editingItem.name}
+                      onChange={(e) =>
+                        setEditingItem((prev) => ({
+                          ...prev,
+                          name: e.target.value,
+                        }))
+                      }
+                      placeholder="Nom de l'article"
+                      className="text-sm"
+                    />
+                    <Input
+                      value={editingItem.description}
+                      onChange={(e) =>
+                        setEditingItem((prev) => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
+                      placeholder="Description"
+                      className="text-sm"
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Quantité</Label>
+                        <Input
+                          type="number"
+                          value={editingItem.quantity}
+                          onChange={(e) =>
+                            setEditingItem((prev) => ({
+                              ...prev,
+                              quantity: parseInt(e.target.value) || 1,
+                            }))
+                          }
+                          min="1"
+                          className="text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Prix unitaire</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={editingItem.unit_price}
+                          onChange={(e) =>
+                            setEditingItem((prev) => ({
+                              ...prev,
+                              unit_price: parseFloat(e.target.value) || 0,
+                            }))
+                          }
+                          className="text-sm"
+                        />
+                      </div>
                     </div>
-                    <div className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                      {item.description}
-                    </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-500 flex items-center gap-2">
-                      <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-xs">
-                        Qty: {item.quantity}
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-xs text-gray-500">
+                        Total:{' '}
+                        <span className="font-semibold text-gray-800 dark:text-white">
+                          {calculateItemTotal(
+                            editingItem.quantity,
+                            editingItem.unit_price,
+                          )}{' '}
+                          {currency}
+                        </span>
                       </span>
-                      <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-xs">
-                        Unit: {item.unit_price} {currency}
-                      </span>
-                      <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded text-xs font-medium">
-                        Total: {item.total} {currency}
-                      </span>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={cancelEdit}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={confirmEdit}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <Check className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                  {!disabled && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeItem(index)}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
+                ) : (
+                  /* Read view */
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="font-medium text-gray-900 dark:text-white text-base">
+                        {item.name}
+                      </div>
+                      {item.description && (
+                        <div className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                          {item.description}
+                        </div>
+                      )}
+                      <div className="text-sm text-gray-500 dark:text-gray-500 flex items-center gap-2">
+                        <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-xs">
+                          Qty: {item.quantity}
+                        </span>
+                        <span className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-xs">
+                          Unit: {item.unit_price} {currency}
+                        </span>
+                        <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded text-xs font-medium">
+                          Total: {item.total} {currency}
+                        </span>
+                      </div>
+                    </div>
+                    {!disabled && (
+                      <div className="flex gap-1 flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => startEdit(index)}
+                          className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeItem(index)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

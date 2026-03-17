@@ -50,7 +50,6 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
   const { addInvoice, loading, error, success, message, reset } =
     useAddInvoice();
   const { categories } = useCategories();
-  const [vendorLocked, setVendorLocked] = useState(false);
 
   // ✅ État local direct
   const [formData, setFormData] = useState({
@@ -226,11 +225,8 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <SupplierCombobox
               value={formData.vendor_name}
-              iceValue={formData.ice}
               onChange={(val) => updateField('vendor_name', val)}
               onIceChange={(ice) => updateField('ice', ice)}
-              onContactSelect={() => setVendorLocked(true)}
-              onManualInput={() => setVendorLocked(false)}
               error={errors.vendor_name}
               placeholder="Saisir le nom du fournisseur"
               required
@@ -246,19 +242,16 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
               required
             />
             <div className="space-y-1">
-              <FormField
-                id="ice"
-                label="ICE"
-                value={formData.ice}
-                onChange={(e) => updateField('ice', e.target.value)}
-                placeholder="ICE à 15 chiffres (optionnel)"
-                disabled={vendorLocked}
-              />
-              {vendorLocked && (
-                <p className="text-xs text-gray-400 dark:text-gray-500 italic">
-                  Modifier depuis les Contacts
-                </p>
-              )}
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                ICE
+              </label>
+              <div
+                className={`flex items-center h-10 px-3 rounded-md border text-sm font-mono ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+              >
+                {formData.ice || (
+                  <span className="text-gray-400 font-sans">—</span>
+                )}
+              </div>
             </div>
             <FormField
               id="tva"
@@ -270,16 +263,29 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
               step="0.01"
               min="0"
             />
-            <FormField
-              id="amount_tva"
-              type="number"
-              label="Montant TVA"
-              value={formData.amount_tva}
-              onChange={(e) => updateField('amount_tva', e.target.value)}
-              placeholder="Montant TVA (optionnel)"
-              step="0.01"
-              min="0"
-            />
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Montant TVA
+              </label>
+              <div
+                className={`flex items-center h-10 px-3 rounded-md border text-sm ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+              >
+                {(() => {
+                  const ht = parseFloat(formData.total_amount) || 0;
+                  const rate = parseFloat(formData.tva) || 0;
+                  const amt =
+                    ht > 0 && rate > 0 ? ((ht * rate) / 100).toFixed(2) : null;
+                  return amt ? (
+                    `${amt} ${formData.currency}`
+                  ) : (
+                    <span className="text-gray-400">—</span>
+                  );
+                })()}
+              </div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                HT × TVA%
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">

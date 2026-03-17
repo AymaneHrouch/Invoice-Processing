@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -53,7 +52,6 @@ export default function VenteCreatePage() {
   });
 
   const [errors, setErrors] = useState({});
-  const [clientLocked, setClientLocked] = useState(false);
 
   useEffect(() => {
     Promise.all([getCompanyProfile(), getNextVenteNumber()])
@@ -236,7 +234,6 @@ export default function VenteCreatePage() {
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <SupplierCombobox
               value={form.client_name}
-              iceValue={form.client_ice}
               onChange={set('client_name')}
               onIceChange={set('client_ice')}
               onContactSelect={(c) => {
@@ -245,32 +242,20 @@ export default function VenteCreatePage() {
                   contact_id: c._id || null,
                   client_ice: c.ice || prev.client_ice,
                 }));
-                setClientLocked(true);
               }}
-              onManualInput={() => setClientLocked(false)}
               contactType="client"
               label="Nom du client"
               placeholder="Saisir ou sélectionner un client"
               required
               error={errors.client_name}
             />
-            <div className="space-y-2">
-              <Label htmlFor="client_ice">ICE client</Label>
-              <Input
-                id="client_ice"
-                value={form.client_ice}
-                onChange={setEvent('client_ice')}
-                placeholder="ICE à 15 chiffres (optionnel)"
-                disabled={clientLocked}
-                className={
-                  isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : ''
-                }
-              />
-              {clientLocked && (
-                <p className="text-xs text-gray-400 dark:text-gray-500 italic">
-                  Modifier depuis les Contacts
-                </p>
-              )}
+            <div className="space-y-1">
+              <Label>ICE client</Label>
+              <div
+                className={`flex items-center h-10 px-3 rounded-md border text-sm font-mono ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+              >
+                {form.client_ice || <span className="text-gray-400">—</span>}
+              </div>
             </div>
           </CardContent>
         </Card>

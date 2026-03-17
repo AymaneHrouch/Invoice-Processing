@@ -15,11 +15,9 @@ import { Label } from './label';
 
 const SupplierCombobox = ({
   value = '',
-  iceValue = '',
   onChange, // (name: string) => void
-  onIceChange, // (ice: string) => void
+  onIceChange, // (ice: string) => void — called when an existing contact is selected
   onContactSelect, // (contact: object) => void — optional, called when a contact is selected
-  onManualInput, // () => void — optional, called when user types manually (not selects)
   disabled = false,
   error,
   required = false,
@@ -33,6 +31,8 @@ const SupplierCombobox = ({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [iceInput, setIceInput] = useState('');
+  const addingRef = useRef(false);
   const containerRef = useRef(null);
 
   // Sync external value changes (e.g. when the form resets or loads invoice data)
@@ -78,7 +78,7 @@ const SupplierCombobox = ({
     const val = e.target.value;
     setInputValue(val);
     onChange(val);
-    if (onManualInput) onManualInput();
+    setIceInput('');
     setOpen(true);
   };
 
@@ -87,23 +87,30 @@ const SupplierCombobox = ({
     onChange(contact.name);
     if (contact.ice && onIceChange) onIceChange(contact.ice);
     if (onContactSelect) onContactSelect(contact);
+    setIceInput('');
     setOpen(false);
   };
 
   const handleAddNew = async () => {
-    if (!inputValue.trim()) return;
+    if (addingRef.current || !inputValue.trim()) return;
+    addingRef.current = true;
     setAdding(true);
     try {
       const created = await createContact({
         name: inputValue.trim(),
-        ice: iceValue || undefined,
+        ice: iceInput.trim() || undefined,
         contact_type: [contactType],
       });
       toast.success(`"${created.name}" ajouté aux contacts.`);
-      setOpen(false);
+      setOptions((prev) => [...prev, created]);
+      // Notify parent of selection without closing dropdown — user sees "Contact existant"
+      onChange(created.name);
+      if (created.ice && onIceChange) onIceChange(created.ice);
+      if (onContactSelect) onContactSelect(created);
     } catch {
       toast.error('Impossible de créer le contact.');
     } finally {
+      addingRef.current = false;
       setAdding(false);
     }
   };
@@ -162,17 +169,31 @@ const SupplierCombobox = ({
               ))}
 
             {!loading && !exactMatch && (
-              <button
-                type="button"
-                onMouseDown={handleAddNew}
-                disabled={adding}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-t border-gray-100 dark:border-gray-700"
-              >
-                <Plus className="w-4 h-4" />
-                {adding
-                  ? 'Ajout…'
-                  : `Ajouter "${inputValue}" comme ${contactType === 'client' ? 'client' : 'fournisseur'}`}
-              </button>
+              <div className="border-t border-gray-100 dark:border-gray-700 px-3 py-2 space-y-2">
+                <p className="text-xs text-blue-600 flex items-center gap-1">
+                  <Plus className="w-3.5 h-3.5" />
+                  Créer «&nbsp;{inputValue}&nbsp;» comme{' '}
+                  {contactType === 'client' ? 'client' : 'fournisseur'}
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={iceInput}
+                    onChange={(e) => setIceInput(e.target.value)}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    placeholder="ICE (optionnel)"
+                    className="flex-1 text-xs border border-gray-200 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 outline-none focus:border-blue-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddNew}
+                    disabled={adding}
+                    className="text-xs px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                  >
+                    {adding ? '…' : 'Créer'}
+                  </button>
+                </div>
+              </div>
             )}
 
             {!loading && exactMatch && (

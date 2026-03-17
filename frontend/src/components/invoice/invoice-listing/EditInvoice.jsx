@@ -69,8 +69,6 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   const { editInvoice, loading, error, message, reset } = useEditInvoice();
   const { categories } = useCategories();
   const [actionLoading, setActionLoading] = useState(null);
-  const [vendorLocked, setVendorLocked] = useState(false);
-  const [clientLocked, setClientLocked] = useState(false);
 
   // ✅ État local direct - plus simple et plus fiable
   const [formData, setFormData] = useState({
@@ -80,10 +78,9 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     invoice_number: '',
     ice: '',
     tva: '',
-    amount_tva: '',
     invoice_date: '',
     invoice_due_date: '',
-    total_amount: '',
+    subtotal_ht: '',
     currency: 'MAD',
     category: '',
     items: [],
@@ -108,13 +105,12 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
         ice: invoice.ice ?? '',
         tva:
           invoice.tva != null && invoice.tva !== '' ? String(invoice.tva) : '',
-        amount_tva:
-          invoice.amount_tva != null && invoice.amount_tva !== ''
-            ? String(invoice.amount_tva)
-            : '',
         invoice_date: formatDateForInput(invoice.invoice_date),
         invoice_due_date: formatDateForInput(invoice.invoice_due_date),
-        total_amount: invoice.total_amount?.toString() || '',
+        subtotal_ht:
+          invoice.subtotal_ht?.toString() ||
+          invoice.total_amount?.toString() ||
+          '',
         currency: invoice.currency || 'MAD',
         category: invoice.category || '',
         items: Array.isArray(invoice.items)
@@ -130,10 +126,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
         status: invoice.status || 'extracted',
       });
 
-      // Reset des erreurs et des locks contact
       setErrors({});
-      setVendorLocked(false);
-      setClientLocked(false);
 
       console.log('✅ Invoice data loaded successfully');
     }
@@ -170,18 +163,9 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       total: Number(item.total) || 0,
     }));
 
-    const computed =
-      invoice?.direction === 'outgoing'
-        ? processedItems.reduce(
-            (sum, item) => sum + (Number(item.total) || 0),
-            0,
-          )
-        : null;
-
     setFormData((prev) => ({
       ...prev,
       items: processedItems,
-      ...(computed !== null ? { total_amount: String(computed) } : {}),
     }));
   };
 
@@ -209,8 +193,11 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     if (!formData.invoice_number?.trim()) {
       newErrors.invoice_number = 'Le numéro de facture est requis !';
     }
-    if (!formData.total_amount || parseFloat(formData.total_amount) <= 0) {
-      newErrors.total_amount = 'Le montant doit être supérieur à 0 !';
+    if (
+      invoice?.direction !== 'outgoing' &&
+      (!formData.subtotal_ht || parseFloat(formData.subtotal_ht) <= 0)
+    ) {
+      newErrors.subtotal_ht = 'Le montant HT doit être supérieur à 0 !';
     }
     if (!formData.category?.trim()) {
       newErrors.category = 'La catégorie est requise !';
@@ -219,6 +206,17 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
+  // Derived: HT → TVA → TTC
+  const tvaRate = parseFloat(formData.tva) || 0;
+  const subtotalHT =
+    invoice?.direction === 'outgoing'
+      ? formData.items.reduce((sum, item) => sum + (Number(item.total) || 0), 0)
+      : parseFloat(formData.subtotal_ht) || 0;
+  const computedAmountTva = parseFloat(
+    ((subtotalHT * tvaRate) / 100).toFixed(2),
+  );
+  const computedTotal = parseFloat((subtotalHT + computedAmountTva).toFixed(2));
 
   const amountWarnings =
     invoice?.status === 'extracted' ? (invoice?.amount_warnings ?? []) : [];
@@ -282,7 +280,9 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     // Préparer les données pour l'envoi
     const invoiceData = {
       ...formData,
-      total_amount: parseFloat(formData.total_amount),
+      subtotal_ht: subtotalHT || null,
+      amount_tva: computedAmountTva > 0 ? computedAmountTva : null,
+      total_amount: computedTotal > 0 ? computedTotal : subtotalHT,
       invoice_date: formData.invoice_date?.trim() || null,
       invoice_due_date: formData.invoice_due_date?.trim() || null,
       status: formData.status,
@@ -290,10 +290,6 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       tva:
         formData.tva !== '' && formData.tva != null
           ? parseFloat(formData.tva)
-          : null,
-      amount_tva:
-        formData.amount_tva !== '' && formData.amount_tva != null
-          ? parseFloat(formData.amount_tva)
           : null,
     };
 
@@ -370,15 +366,15 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
               </CardHeaderUI>
               <CardContent className="px-0 space-y-6">
                 {invoice?.direction === 'outgoing' ? (
-                  /* Vente: client fields only, no vendor/ICE/TVA% */
+                  /* Vente: client fields + tva% + computed amount_tva */
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <SupplierCombobox
                       value={formData.client_name}
-                      iceValue={formData.client_ice}
                       onChange={(val) => updateField('client_name', val)}
                       onIceChange={(ice) => updateField('client_ice', ice)}
-                      onContactSelect={() => setClientLocked(true)}
-                      onManualInput={() => setClientLocked(false)}
+                      onContactSelect={(c) =>
+                        updateField('client_ice', c.ice || formData.client_ice)
+                      }
                       contactType="client"
                       label="Nom du client"
                       placeholder="Saisir ou sélectionner un client"
@@ -387,21 +383,16 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                       disabled={allFieldsLocked}
                     />
                     <div className="space-y-1">
-                      <FormField
-                        id="client_ice"
-                        label="ICE client"
-                        value={formData.client_ice}
-                        onChange={(e) =>
-                          updateField('client_ice', e.target.value)
-                        }
-                        placeholder="ICE à 15 chiffres (optionnel)"
-                        disabled={clientLocked || allFieldsLocked}
-                      />
-                      {clientLocked && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500 italic">
-                          Modifier depuis les Contacts
-                        </p>
-                      )}
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        ICE client
+                      </label>
+                      <div
+                        className={`flex items-center h-10 px-3 rounded-md border text-sm font-mono ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                      >
+                        {formData.client_ice || (
+                          <span className="text-gray-400 font-sans">—</span>
+                        )}
+                      </div>
                     </div>
                     <FormField
                       id="invoice_number"
@@ -416,14 +407,12 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                       disabled={allFieldsLocked}
                     />
                     <FormField
-                      id="amount_tva"
+                      id="tva"
                       type="number"
-                      label="Montant TVA"
-                      value={formData.amount_tva}
-                      onChange={(e) =>
-                        updateField('amount_tva', e.target.value)
-                      }
-                      placeholder="Montant TVA (optionnel)"
+                      label="TVA (%)"
+                      value={formData.tva}
+                      onChange={(e) => updateField('tva', e.target.value)}
+                      placeholder="ex. 20"
                       step="0.01"
                       min="0"
                       disabled={financialLocked}
@@ -434,11 +423,11 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <SupplierCombobox
                       value={formData.vendor_name}
-                      iceValue={formData.ice}
                       onChange={(val) => updateField('vendor_name', val)}
                       onIceChange={(ice) => updateField('ice', ice)}
-                      onContactSelect={() => setVendorLocked(true)}
-                      onManualInput={() => setVendorLocked(false)}
+                      onContactSelect={(c) =>
+                        updateField('ice', c.ice || formData.ice)
+                      }
                       error={errors.vendor_name}
                       required
                       disabled={allFieldsLocked}
@@ -456,19 +445,16 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                       disabled={allFieldsLocked}
                     />
                     <div className="space-y-1">
-                      <FormField
-                        id="ice"
-                        label="ICE"
-                        value={formData.ice}
-                        onChange={(e) => updateField('ice', e.target.value)}
-                        placeholder="ICE à 15 chiffres (optionnel)"
-                        disabled={vendorLocked || allFieldsLocked}
-                      />
-                      {vendorLocked && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500 italic">
-                          Modifier depuis les Contacts
-                        </p>
-                      )}
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        ICE
+                      </label>
+                      <div
+                        className={`flex items-center h-10 px-3 rounded-md border text-sm font-mono ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                      >
+                        {formData.ice || (
+                          <span className="text-gray-400 font-sans">—</span>
+                        )}
+                      </div>
                     </div>
                     <FormField
                       id="tva"
@@ -481,34 +467,21 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                       min="0"
                       disabled={financialLocked}
                     />
-                    <FormField
-                      id="amount_tva"
-                      type="number"
-                      label="Montant TVA"
-                      value={formData.amount_tva}
-                      onChange={(e) =>
-                        updateField('amount_tva', e.target.value)
-                      }
-                      placeholder="Montant TVA (optionnel)"
-                      step="0.01"
-                      min="0"
-                      disabled={financialLocked}
-                    />
                   </div>
                 )}
 
-                {/* Première ligne: Amount, Currency, Category */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Montants: HT, TVA, TTC */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {invoice?.direction === 'outgoing' ? (
                     <div className="space-y-1">
                       <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Montant
+                        Montant HT
                       </label>
                       <div
-                        className={`flex items-center h-10 px-3 rounded-md border text-sm font-semibold text-green-700 dark:text-green-400 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}
+                        className={`flex items-center h-10 px-3 rounded-md border text-sm ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
                       >
-                        {formData.total_amount
-                          ? `${parseFloat(formData.total_amount).toFixed(2)} ${formData.currency}`
+                        {subtotalHT > 0
+                          ? `${subtotalHT.toFixed(2)} ${formData.currency}`
                           : '—'}
                       </div>
                       <p className="text-xs text-gray-400 dark:text-gray-500 italic">
@@ -517,20 +490,50 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                     </div>
                   ) : (
                     <FormField
-                      id="total_amount"
+                      id="subtotal_ht"
                       type="number"
-                      label="Montant"
-                      value={formData.total_amount}
+                      label="Montant HT"
+                      value={formData.subtotal_ht}
                       onChange={(e) =>
-                        updateField('total_amount', e.target.value)
+                        updateField('subtotal_ht', e.target.value)
                       }
                       placeholder="0.00"
                       step="0.01"
                       required
-                      error={errors.total_amount}
+                      error={errors.subtotal_ht}
                       disabled={financialLocked}
                     />
                   )}
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Montant TVA
+                    </label>
+                    <div
+                      className={`flex items-center h-10 px-3 rounded-md border text-sm ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                    >
+                      {computedAmountTva > 0
+                        ? `${computedAmountTva.toFixed(2)} ${formData.currency}`
+                        : '—'}
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                      HT × TVA%
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Total TTC
+                    </label>
+                    <div
+                      className={`flex items-center h-10 px-3 rounded-md border text-sm font-semibold text-green-700 dark:text-green-400 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}
+                    >
+                      {computedTotal > 0
+                        ? `${computedTotal.toFixed(2)} ${formData.currency}`
+                        : '—'}
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                      HT + TVA
+                    </p>
+                  </div>
                   <FormField
                     type="select"
                     label="Devise"
@@ -539,6 +542,10 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                     options={currencies}
                     disabled={allFieldsLocked}
                   />
+                </div>
+
+                {/* Catégorie */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     type="select"
                     label="Catégorie"
