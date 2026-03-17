@@ -170,7 +170,22 @@ const Sidebar = ({ profileComplete = true }) => {
                   title={isCollapsed ? child.label : ''}
                 >
                   <ChildIcon className="w-4 h-4 flex-shrink-0" />
-                  <span>{child.label}</span>
+                  <span className="flex-1 text-left">{child.label}</span>
+                  {child.id === 'ventes-clients' && contactsCount !== null && (
+                    <span
+                      className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${isChildActive ? 'bg-blue-200 text-blue-700' : isDarkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-50 text-blue-600'}`}
+                    >
+                      {contactTypeCounts.client}
+                    </span>
+                  )}
+                  {child.id === 'achats-suppliers' &&
+                    contactsCount !== null && (
+                      <span
+                        className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${isChildActive ? 'bg-purple-200 text-purple-700' : isDarkMode ? 'bg-purple-900/30 text-purple-400' : 'bg-purple-50 text-purple-600'}`}
+                      >
+                        {contactTypeCounts.supplier}
+                      </span>
+                    )}
                 </button>
               );
             })}
