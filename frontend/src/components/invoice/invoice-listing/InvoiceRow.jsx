@@ -171,6 +171,21 @@ const InvoiceRow = ({
         color: 'text-gray-500',
       });
     }
+    if (!invoice.is_paid) {
+      actions.push({
+        key: 'achat-mark-paid',
+        label: 'Marquer payé',
+        icon: Banknote,
+        color: 'text-emerald-600 dark:text-emerald-400',
+      });
+    } else {
+      actions.push({
+        key: 'achat-unmark-paid',
+        label: 'Annuler paiement',
+        icon: Undo2,
+        color: 'text-gray-500',
+      });
+    }
   }
 
   actions.push({ key: 'sep2', type: 'separator' });
@@ -230,6 +245,12 @@ const InvoiceRow = ({
         break;
       case 'invalidate':
         onStatusTransition?.(invoice, 'invalidate');
+        break;
+      case 'achat-mark-paid':
+        handleToggleField('is_paid', true);
+        break;
+      case 'achat-unmark-paid':
+        handleToggleField('is_paid', false);
         break;
       default:
         onStatusTransition?.(invoice, key);
@@ -402,22 +423,11 @@ const InvoiceRow = ({
         <td
           className={`px-3 py-4 border-b align-middle text-center ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
-          {direction === 'incoming' ? (
-            <input
-              type="checkbox"
-              checked={Boolean(invoice.is_paid)}
-              onChange={(e) => handleToggleField('is_paid', e.target.checked)}
-              disabled={togglingField === 'is_paid'}
-              className="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4 cursor-pointer"
-              title="Basculer payé"
-            />
-          ) : (
-            <span
-              className={`text-xs ${invoice.status === 'paid' ? 'text-emerald-600 dark:text-emerald-400 font-medium' : isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
-            >
-              {invoice.status === 'paid' ? 'Oui' : '—'}
-            </span>
-          )}
+          <span
+            className={`text-xs ${invoice.is_paid ? 'text-emerald-600 dark:text-emerald-400 font-medium' : isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+          >
+            {invoice.is_paid ? 'Oui' : '—'}
+          </span>
         </td>
         <td
           className={`px-3 py-4 border-b align-middle text-center ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
