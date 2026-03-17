@@ -25,6 +25,9 @@ from app.database import init_database, get_database
 
 UTC = timezone.utc
 
+# Email shown in history entries — uses ADMIN_EMAIL env var if set
+SEED_USER = os.getenv("ADMIN_EMAIL", "admin@voynich.ma")
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -36,6 +39,66 @@ def _date(days_ago=0):
     return _now() - timedelta(days=days_ago)
 
 
+def _history(status, direction, inv_date, due_date):
+    """Build a realistic audit-trail for a seeded invoice."""
+    entries = []
+
+    if status in ("extracted", "draft"):
+        return []
+
+    # Validation: 1–3 days after invoice date
+    validate_at = inv_date + timedelta(days=random.randint(1, 3))
+    status_from = "draft" if direction == "outgoing" else "extracted"
+    entries.append({
+        "action": "validated",
+        "status_from": status_from,
+        "status_to": "validated",
+        "user": SEED_USER,
+        "timestamp": validate_at,
+    })
+
+    if status == "validated":
+        return entries
+
+    if direction == "outgoing":
+        # Sent: 1–4 days after validation
+        sent_at = validate_at + timedelta(days=random.randint(1, 4))
+        entries.append({
+            "action": "sent",
+            "status_from": "validated",
+            "status_to": "sent",
+            "user": SEED_USER,
+            "timestamp": sent_at,
+        })
+        if status == "sent":
+            return entries
+        # Paid: near due date (±5 days), min 1 day after sent
+        base = due_date if due_date else sent_at + timedelta(days=30)
+        paid_at = base + timedelta(days=random.randint(-5, 5))
+        paid_at = max(paid_at, sent_at + timedelta(days=1))
+        entries.append({
+            "action": "paid",
+            "status_from": "sent",
+            "status_to": "paid",
+            "user": SEED_USER,
+            "timestamp": paid_at,
+        })
+    else:
+        # Incoming paid: near due date, min 1 day after validation
+        base = due_date if due_date else validate_at + timedelta(days=30)
+        paid_at = base + timedelta(days=random.randint(-5, 5))
+        paid_at = max(paid_at, validate_at + timedelta(days=1))
+        entries.append({
+            "action": "paid",
+            "status_from": "validated",
+            "status_to": "paid",
+            "user": SEED_USER,
+            "timestamp": paid_at,
+        })
+
+    return entries
+
+
 def _invoice(
     invoice_number, direction, vendor_name, vendor_ice,
     client_name, client_ice, items, tva, status,
@@ -45,6 +108,9 @@ def _invoice(
     subtotal = sum(i["quantity"] * i["unit_price"] for i in items)
     tva_amount = round(subtotal * tva / 100, 2)
     total = round(subtotal + tva_amount, 2)
+    history = _history(status, direction, invoice_date, due_date)
+    last_action_at = history[-1]["timestamp"] if history else _now()
+    paid_at = history[-1]["timestamp"] if (history and is_paid) else None
     return {
         "invoice_number": invoice_number,
         "direction": direction,
@@ -56,6 +122,7 @@ def _invoice(
         "invoice_due_date": due_date,
         "status": status,
         "is_paid": is_paid,
+        "paid_at": paid_at,
         "is_archived": False,
         "is_exported": False,
         "currency": currency,
@@ -76,8 +143,9 @@ def _invoice(
         ],
         "tags": [],
         "source_type": "manual",
-        "created_at": _now(),
-        "updated_at": _now(),
+        "history": history,
+        "created_at": invoice_date,
+        "updated_at": last_action_at,
     }
 
 
