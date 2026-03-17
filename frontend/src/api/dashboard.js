@@ -63,6 +63,13 @@ export const getAPayer = async (limit = 10) => {
   return response.data;
 };
 
+export const getRecentActivity = async (limit = 15) => {
+  const response = await api.get('/dashboard/recent-activity', {
+    params: { limit },
+  });
+  return response.data;
+};
+
 export const getTvaBalance = async ({ year, quarter } = {}) => {
   const params = {};
   if (year !== undefined) params.year = year;

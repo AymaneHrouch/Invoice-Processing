@@ -6,6 +6,7 @@ import {
   getAEncaisser,
   getAPayer,
   getTvaBalance,
+  getRecentActivity,
 } from '@/api/dashboard';
 import {
   DashboardHeader,
@@ -54,6 +55,7 @@ const DashboardPage = () => {
   const [tvaBalance, setTvaBalance] = useState(null);
   const [topClients, setTopClients] = useState([]);
   const [topSuppliers, setTopSuppliers] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
   const [tvaPeriod, setTvaPeriod] = useState('this_quarter');
   const [tvaLoading, setTvaLoading] = useState(false);
 
@@ -63,7 +65,7 @@ const DashboardPage = () => {
         setLoading(true);
         setError(null);
         const periodParams = getPeriodParams('this_quarter');
-        const [kpis, encaisser, payer, tva, clients, suppliers] =
+        const [kpis, encaisser, payer, tva, clients, suppliers, activity] =
           await Promise.all([
             getPmeKpis(),
             getAEncaisser(),
@@ -71,6 +73,7 @@ const DashboardPage = () => {
             getTvaBalance(periodParams),
             getTopVendors(5, 'outgoing'),
             getTopVendors(5, 'incoming'),
+            getRecentActivity(15),
           ]);
         setPmeKpis(kpis);
         setAEncaisser(encaisser);
@@ -78,6 +81,7 @@ const DashboardPage = () => {
         setTvaBalance(tva);
         setTopClients(clients);
         setTopSuppliers(suppliers);
+        setRecentActivity(activity);
       } catch (err) {
         setError(err.message);
         console.error('Dashboard data fetch error:', err);
@@ -112,9 +116,6 @@ const DashboardPage = () => {
       <DashboardError error={error} onRetry={() => window.location.reload()} />
     );
   }
-
-  // workQueueData shape expected by RecentActivity — we no longer fetch it but keep component working
-  const recentItems = [];
 
   return (
     <div
@@ -171,7 +172,7 @@ const DashboardPage = () => {
       </div>
 
       <div className="max-w-2xl">
-        <RecentActivity items={recentItems} />
+        <RecentActivity items={recentActivity} />
       </div>
     </div>
   );

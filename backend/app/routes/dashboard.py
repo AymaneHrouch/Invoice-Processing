@@ -76,6 +76,11 @@ def a_payer(limit: int = Query(10, ge=1, le=50)):
     return dashboard.get_a_payer(limit)
 
 
+@router.get("/recent-activity")
+def recent_activity(limit: int = Query(15, ge=1, le=30)):
+    return dashboard.get_recent_activity(limit)
+
+
 @router.get("/tva-balance")
 def tva_balance(
     year: int | None = Query(None, description="Year (default: current year)"),

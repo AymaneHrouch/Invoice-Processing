@@ -1,126 +1,149 @@
-import React from 'react';
-import { FiCheckCircle, FiUpload, FiAlertTriangle } from 'react-icons/fi';
+import {
+  ShieldCheck,
+  ShieldOff,
+  Send,
+  RotateCcw,
+  CircleDollarSign,
+  BadgeCheck,
+  History,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts';
-import { Link, useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
+const ACTION_CONFIG = {
+  validated: {
+    label: 'Validée',
+    icon: ShieldCheck,
+    color: 'text-indigo-600',
+    bg: 'bg-indigo-50 dark:bg-indigo-900/30',
+  },
+  invalidated: {
+    label: 'Invalidée',
+    icon: ShieldOff,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+  sent: {
+    label: 'Marquée envoyée',
+    icon: Send,
+    color: 'text-blue-600',
+    bg: 'bg-blue-50 dark:bg-blue-900/30',
+  },
+  unmark_sent: {
+    label: 'Envoi annulé',
+    icon: RotateCcw,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+  paid: {
+    label: 'Marquée payée',
+    icon: CircleDollarSign,
+    color: 'text-emerald-600',
+    bg: 'bg-emerald-50 dark:bg-emerald-900/30',
+  },
+  unmark_paid: {
+    label: 'Paiement annulé',
+    icon: RotateCcw,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+  created: {
+    label: 'Créée',
+    icon: BadgeCheck,
+    color: 'text-violet-600',
+    bg: 'bg-violet-50 dark:bg-violet-900/30',
+  },
+  _default: {
+    label: 'Mis à jour',
+    icon: History,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+};
+
+const formatTime = (ts) => {
+  if (!ts) return '—';
+  try {
+    return formatDistanceToNow(new Date(ts), { addSuffix: true, locale: fr });
+  } catch {
+    return '—';
+  }
+};
+
 const RecentActivity = ({ items = [] }) => {
   const { isDarkMode } = useTheme();
-  const navigate = useNavigate();
-
-  const getIcon = (item) => {
-    if (item.status === 'failed') return FiAlertTriangle;
-    if (item.is_exported) return FiUpload;
-    return FiCheckCircle;
-  };
-
-  const getIconColor = (item) => {
-    if (item.status === 'failed') return 'text-red-500';
-    if (item.is_exported) return 'text-gray-500';
-    return 'text-green-500';
-  };
-
-  const formatTime = (dateStr) => {
-    if (!dateStr) return '—';
-    try {
-      const d = new Date(dateStr);
-      return formatDistanceToNow(d, { addSuffix: true, locale: fr });
-    } catch {
-      return '—';
-    }
-  };
 
   return (
-    <Card className="bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            Activité récente
-          </CardTitle>
-          <Button variant="outline" size="sm">
-            <Link to="/invoices/list">Tout voir</Link>
-          </Button>
-        </div>
+    <Card
+      className={`${isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}
+    >
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <History className="w-4 h-4" />
+          Dernières actions
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        {items.length > 0 ? (
-          <div className="space-y-3">
-            {items.map((item) => {
-              const Icon = getIcon(item);
-              const iconColor = getIconColor(item);
-              const label =
-                item.status === 'failed'
-                  ? 'Extraction échouée'
-                  : item.is_exported
-                    ? 'Exporté'
-                    : item.status === 'validated'
-                      ? 'Validé'
-                      : 'Extrait';
+        {items.length === 0 ? (
+          <p
+            className={`text-sm text-center py-6 italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+          >
+            Aucune activité récente.
+          </p>
+        ) : (
+          <div className="space-y-0">
+            {items.map((item, i) => {
+              const isLast = i === items.length - 1;
+              const cfg = ACTION_CONFIG[item.action] || ACTION_CONFIG._default;
+              const Icon = cfg.icon;
+              const name =
+                item.direction === 'outgoing'
+                  ? item.client_name || item.vendor_name || '—'
+                  : item.vendor_name || '—';
 
               return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => navigate(`/invoices/list?edit=${item.id}`)}
-                  className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors text-left ${
-                    isDarkMode
-                      ? 'border-gray-700 hover:bg-gray-800'
-                      : 'border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className={`w-5 h-5 ${iconColor}`} />
-                    <div>
-                      <p
-                        className={`font-medium ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}
-                      >
-                        {item.invoice_number || item.vendor_name || '—'}
-                      </p>
-                      {item.vendor_name && (
-                        <p
-                          className={`text-sm ${
-                            isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                          }`}
-                        >
-                          {item.vendor_name}
-                        </p>
-                      )}
+                <div key={i} className="flex gap-3">
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${cfg.bg}`}
+                    >
+                      <Icon className={`w-4 h-4 ${cfg.color}`} />
                     </div>
+                    {!isLast && (
+                      <div
+                        className={`w-px flex-1 my-1 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}
+                      />
+                    )}
                   </div>
-                  <div className="text-right">
+                  <div className={`pb-4 min-w-0 ${isLast ? 'pb-0' : ''}`}>
                     <p
-                      className={`text-sm font-medium ${
-                        isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                      }`}
+                      className={`text-sm font-medium leading-tight ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
                     >
-                      {label}
+                      {cfg.label}
+                      {item.invoice_number && (
+                        <span
+                          className={`ml-1.5 font-mono text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                        >
+                          {item.invoice_number}
+                        </span>
+                      )}
                     </p>
                     <p
-                      className={`text-xs ${
-                        isDarkMode ? 'text-gray-500' : 'text-gray-500'
-                      }`}
+                      className={`text-xs mt-0.5 truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
                     >
-                      {formatTime(item.updated_at)}
+                      {name}
+                    </p>
+                    <p
+                      className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+                    >
+                      {item.user} · {formatTime(item.timestamp)}
                     </p>
                   </div>
-                </button>
+                </div>
               );
             })}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <p
-              className={`text-sm ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}
-            >
-              Aucune activité récente
-            </p>
           </div>
         )}
       </CardContent>

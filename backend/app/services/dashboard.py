@@ -689,3 +689,41 @@ def get_weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: s
         })
 
     return result
+
+
+def get_recent_activity(limit: int = 15) -> list:
+    """
+    Return the most recent audit-trail events across all invoices by
+    unwinding each invoice's history array and sorting newest-first.
+    """
+    pipeline = [
+        {"$match": {"is_archived": {"$ne": True}, "history": {"$exists": True, "$ne": []}}},
+        {"$project": {
+            "invoice_number": 1,
+            "vendor_name": 1,
+            "client_name": 1,
+            "direction": 1,
+            "history": 1,
+        }},
+        {"$unwind": "$history"},
+        {"$sort": {"history.timestamp": -1}},
+        {"$limit": limit},
+        {"$project": {
+            "_id": 0,
+            "invoice_id": {"$toString": "$_id"},
+            "invoice_number": 1,
+            "vendor_name": 1,
+            "client_name": 1,
+            "direction": 1,
+            "action": "$history.action",
+            "status_from": "$history.status_from",
+            "status_to": "$history.status_to",
+            "user": "$history.user",
+            "timestamp": "$history.timestamp",
+        }},
+    ]
+    try:
+        return list(invoice_collection.aggregate(pipeline))
+    except Exception as e:
+        logger.exception("get_recent_activity failed: %s", e)
+        return []
