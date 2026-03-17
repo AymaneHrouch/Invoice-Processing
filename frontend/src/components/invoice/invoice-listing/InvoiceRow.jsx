@@ -37,6 +37,7 @@ import {
   ChevronUp,
   Download,
   MoreHorizontal,
+  Pencil,
   Send,
   SquarePen,
   Trash2,
@@ -65,6 +66,36 @@ const InvoiceRow = ({
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [togglingField, setTogglingField] = useState(null);
+  const [editingField, setEditingField] = useState(null);
+  const [editValue, setEditValue] = useState('');
+
+  const startEdit = (field, currentValue) => {
+    if (togglingField) return;
+    setEditingField(field);
+    setEditValue(currentValue || '');
+  };
+
+  const commitEdit = async () => {
+    if (!editingField) return;
+    const field = editingField;
+    const value = editValue;
+    setEditingField(null);
+    setEditValue('');
+    const current =
+      field === 'invoice_due_date'
+        ? (invoice.invoice_due_date || '').slice(0, 10)
+        : String(invoice.total_amount || '');
+    if (value === current || value === '') return;
+    await handleToggleField(
+      field,
+      field === 'total_amount' ? parseFloat(value) : value,
+    );
+  };
+
+  const cancelEdit = () => {
+    setEditingField(null);
+    setEditValue('');
+  };
 
   const handleToggleField = async (field, value) => {
     if (!onUpdateField || togglingField) return;
@@ -324,11 +355,47 @@ const InvoiceRow = ({
             <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
               {formatDate(invoice.invoice_date)}
             </span>
-            {isOverdue && invoice.invoice_due_date && (
-              <span
-                className="text-xs font-semibold text-red-600 dark:text-red-400"
-                title={`Échéance dépassée: ${formatDate(invoice.invoice_due_date)}`}
+            {editingField === 'invoice_due_date' ? (
+              <input
+                type="date"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={commitEdit}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitEdit();
+                  if (e.key === 'Escape') cancelEdit();
+                }}
+                autoFocus
+                className={`date-input text-xs h-6 w-28 rounded border px-1 [color-scheme:light] dark:[color-scheme:dark] ${isDarkMode ? 'bg-gray-700 border-gray-500 text-white' : 'bg-white border-gray-300 text-gray-700'}`}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() =>
+                  startEdit(
+                    'invoice_due_date',
+                    (invoice.invoice_due_date || '').slice(0, 10),
+                  )
+                }
+                className={`group flex items-center gap-1 text-xs text-left ${
+                  isOverdue
+                    ? 'text-red-600 dark:text-red-400 font-semibold'
+                    : isDarkMode
+                      ? 'text-gray-500 hover:text-gray-300'
+                      : 'text-gray-400 hover:text-gray-600'
+                }`}
+                title="Cliquer pour modifier l'échéance"
               >
+                {invoice.invoice_due_date ? (
+                  formatDate(invoice.invoice_due_date)
+                ) : (
+                  <span className="italic">Échéance…</span>
+                )}
+                <Pencil className="w-2.5 h-2.5 opacity-0 group-hover:opacity-60" />
+              </button>
+            )}
+            {isOverdue && (
+              <span className="text-xs font-semibold text-red-600 dark:text-red-400">
                 En retard
               </span>
             )}
@@ -347,17 +414,42 @@ const InvoiceRow = ({
         <td
           className={`px-3 py-4 border-b align-middle ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
-          <span className="inline-flex items-center gap-1.5 font-semibold text-green-600 text-base">
-            {formatCurrency(invoice.total_amount, invoice.currency)}
-            {hasAmountWarning && (
-              <span
-                className="text-amber-500 cursor-help"
-                title={amountWarnings.join('\n')}
-              >
-                <AlertTriangle className="w-4 h-4" />
-              </span>
-            )}
-          </span>
+          {editingField === 'total_amount' ? (
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitEdit();
+                if (e.key === 'Escape') cancelEdit();
+              }}
+              autoFocus
+              className={`text-sm h-7 w-28 rounded border px-2 font-semibold ${isDarkMode ? 'bg-gray-700 border-gray-500 text-green-400' : 'bg-white border-gray-300 text-green-700'}`}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                startEdit('total_amount', String(invoice.total_amount || ''))
+              }
+              className="group inline-flex items-center gap-1.5 font-semibold text-green-600 text-base hover:text-green-500"
+              title="Cliquer pour modifier le montant"
+            >
+              {formatCurrency(invoice.total_amount, invoice.currency)}
+              {hasAmountWarning && (
+                <span
+                  className="text-amber-500 cursor-help"
+                  title={amountWarnings.join('\n')}
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                </span>
+              )}
+              <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-50" />
+            </button>
+          )}
         </td>
         <td
           className={`px-3 py-4 border-b align-middle w-32 ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
