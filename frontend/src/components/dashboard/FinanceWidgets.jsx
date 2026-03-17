@@ -69,7 +69,7 @@ const FinanceTable = ({
           {items.map((item) => (
             <Link
               key={item.id}
-              to={`${linkBase}/${item.id}`}
+              to={`${linkBase}?edit=${item.id}`}
               className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors group"
             >
               <div className="min-w-0">
