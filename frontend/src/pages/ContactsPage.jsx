@@ -101,6 +101,11 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [invoiceSummaries, setInvoiceSummaries] = useState({});
+  const [typeCounts, setTypeCounts] = useState({
+    all: 0,
+    client: 0,
+    supplier: 0,
+  });
 
   const [typeFilter, setTypeFilter] = useState(
     () => searchParams.get('type') || '',
@@ -129,12 +134,19 @@ export default function ContactsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [data, summaries] = await Promise.all([
+      const [data, summaries, all] = await Promise.all([
         getContacts({ type: typeFilter || undefined, q: search || undefined }),
         getContactInvoiceSummaries().catch(() => ({})),
+        getContacts(),
       ]);
       setContacts(data);
       setInvoiceSummaries(summaries);
+      setTypeCounts({
+        all: all.length,
+        client: all.filter((c) => c.contact_type?.includes('client')).length,
+        supplier: all.filter((c) => c.contact_type?.includes('supplier'))
+          .length,
+      });
     } catch {
       setError('Impossible de charger les contacts.');
     } finally {
@@ -301,21 +313,38 @@ export default function ContactsPage() {
           />
         </div>
         <div className="flex gap-1">
-          {TYPE_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setTypeFilter(f.value)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                typeFilter === f.value
-                  ? 'bg-blue-600 text-white'
-                  : isDarkMode
-                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+          {TYPE_FILTERS.map((f) => {
+            const count = typeCounts[f.value || 'all'];
+            const active = typeFilter === f.value;
+            return (
+              <button
+                key={f.value}
+                onClick={() => setTypeFilter(f.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                  active
+                    ? 'bg-blue-600 text-white'
+                    : isDarkMode
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                {f.label}
+                {count > 0 && (
+                  <span
+                    className={`text-xs rounded-full px-1.5 py-0 leading-5 font-semibold ${
+                      active
+                        ? 'bg-white/25 text-white'
+                        : isDarkMode
+                          ? 'bg-gray-600 text-gray-200'
+                          : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
