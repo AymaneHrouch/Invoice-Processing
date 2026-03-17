@@ -18,6 +18,7 @@ const STATUS_OPTIONS = {
     { value: 'all', label: 'Tous' },
     { value: 'extracted', label: 'Extrait' },
     { value: 'validated', label: 'Validé' },
+    { value: 'paid', label: 'Payé' },
   ],
   outgoing: [
     { value: 'all', label: 'Tous' },

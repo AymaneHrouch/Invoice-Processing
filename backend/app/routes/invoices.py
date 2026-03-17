@@ -529,6 +529,48 @@ def update_invoice_status_by_id(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/{invoice_id}/mark-paid", response_model=InvoiceResponse)
+def mark_invoice_paid(
+    invoice_id: str = Path(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Transition validated → paid for an incoming invoice."""
+    try:
+        inv = InvoiceCRUD.get_invoice_by_id(invoice_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID invalide.") from None
+    if not inv or inv.direction != "incoming":
+        raise HTTPException(status_code=404, detail="Facture introuvable.")
+    if inv.status != "validated":
+        raise HTTPException(status_code=400, detail="La facture doit être validée pour être marquée payée.")
+    updated = InvoiceCRUD.update_invoice(
+        invoice_id,
+        InvoiceUpdate(status="paid", is_paid=True, paid_at=datetime.utcnow()),
+    )
+    return invoice_to_response(updated)
+
+
+@router.post("/{invoice_id}/unmark-paid", response_model=InvoiceResponse)
+def unmark_invoice_paid(
+    invoice_id: str = Path(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Revert paid → validated for an incoming invoice."""
+    try:
+        inv = InvoiceCRUD.get_invoice_by_id(invoice_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID invalide.") from None
+    if not inv or inv.direction != "incoming":
+        raise HTTPException(status_code=404, detail="Facture introuvable.")
+    if inv.status != "paid":
+        raise HTTPException(status_code=400, detail="La facture doit être payée pour annuler le paiement.")
+    updated = InvoiceCRUD.update_invoice(
+        invoice_id,
+        InvoiceUpdate(status="validated", is_paid=False),
+    )
+    return invoice_to_response(updated)
+
+
 # ============= DELETE ENDPOINTS =============
 
 @router.delete("/{invoice_id}", summary="Delete invoice by ID")

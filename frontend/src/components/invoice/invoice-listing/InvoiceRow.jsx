@@ -171,17 +171,18 @@ const InvoiceRow = ({
         color: 'text-gray-500',
       });
     }
-    if (!invoice.is_paid) {
+    if (status === 'validated') {
       actions.push({
-        key: 'achat-mark-paid',
+        key: 'mark-paid',
         label: 'Marquer payé',
         icon: Banknote,
         color: 'text-emerald-600 dark:text-emerald-400',
       });
-    } else {
+    }
+    if (status === 'paid') {
       actions.push({
-        key: 'achat-unmark-paid',
-        label: 'Annuler paiement',
+        key: 'unmark-paid',
+        label: 'Annuler paiement (→ validé)',
         icon: Undo2,
         color: 'text-gray-500',
       });
@@ -245,12 +246,6 @@ const InvoiceRow = ({
         break;
       case 'invalidate':
         onStatusTransition?.(invoice, 'invalidate');
-        break;
-      case 'achat-mark-paid':
-        handleToggleField('is_paid', true);
-        break;
-      case 'achat-unmark-paid':
-        handleToggleField('is_paid', false);
         break;
       default:
         onStatusTransition?.(invoice, key);

@@ -73,6 +73,28 @@ export const validateInvoice = async (id) => {
   }
 };
 
+export const markInvoicePaid = async (id) => {
+  try {
+    const response = await api.post(`/invoices/${id}/mark-paid`, {});
+    return response.data;
+  } catch (error) {
+    if (error.response?.data?.detail)
+      throw new Error(error.response.data.detail);
+    throw new Error(`Failed to mark invoice paid: ${error.message}`);
+  }
+};
+
+export const unmarkInvoicePaid = async (id) => {
+  try {
+    const response = await api.post(`/invoices/${id}/unmark-paid`, {});
+    return response.data;
+  } catch (error) {
+    if (error.response?.data?.detail)
+      throw new Error(error.response.data.detail);
+    throw new Error(`Failed to unmark invoice paid: ${error.message}`);
+  }
+};
+
 export const invalidateInvoice = async (id) => {
   try {
     const response = await api.patch(`/invoices/${id}/status`, {

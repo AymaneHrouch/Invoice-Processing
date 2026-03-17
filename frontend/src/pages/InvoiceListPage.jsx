@@ -14,6 +14,8 @@ import {
   updateInvoice,
   validateInvoice,
   invalidateInvoice,
+  markInvoicePaid,
+  unmarkInvoicePaid,
   batchUpdateInvoices,
   exportInvoices,
   exportAchats,
@@ -452,11 +454,15 @@ const InvoiceListPage = ({ direction = null }) => {
       } else if (action === 'mark-sent') {
         updated = await markVenteSent(id);
       } else if (action === 'mark-paid') {
-        updated = await markVentePaid(id);
+        updated = isOutgoing
+          ? await markVentePaid(id)
+          : await markInvoicePaid(id);
       } else if (action === 'unmark-sent') {
         updated = await unmarkVenteSent(id);
       } else if (action === 'unmark-paid') {
-        updated = await unmarkVentePaid(id);
+        updated = isOutgoing
+          ? await unmarkVentePaid(id)
+          : await unmarkInvoicePaid(id);
       }
       if (updated) handleUpdateInvoice(updated);
       toast.success(`Facture ${labels[action] || 'mise à jour'}.`);
