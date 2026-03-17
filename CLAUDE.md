@@ -16,8 +16,10 @@
 - **Invoice listing**: Filterable, sortable, paginated — separate `/achats` and `/ventes` pages
 - **PDF generation**: Server-side via weasyprint + Jinja2 (`app/templates/invoice.html`) — both directions
 - **Excel export**: Per-direction (`POST /ventes/export`, `POST /invoices/achats/export`) with post-download confirmation to mark as exported
-- **Dashboard**: Stats, charts, work queue
-- **Auth**: JWT-based, admin/user roles
+- **Dashboard**: PME KPI widgets, A encaisser / À payer finance widgets, TVA balance with period selector, Top 5 clients/fournisseurs, "Dernières actions" activity feed
+- **Auth**: JWT-based, admin/user roles — token carries `sub` (ObjectId), `role`, and `username` (email)
+- **Invoice audit trail**: Every status transition appends an `InvoiceHistoryEntry` to the invoice's `history` array (action, status_from, status_to, user email, timestamp). Legacy ObjectId user values are resolved to email via users collection lookup.
+- **History UI**: Collapsible timeline in the EditInvoice modal; inline history in the expanded row of the invoice listing (`InvoiceExpandedRow`)
 
 ### What does NOT exist yet:
 - UBL 2.1 XML generation (Phase 2.4)
@@ -66,18 +68,18 @@ backend/
 │   ├── crud/
 │   │   └── invoice.py       # InvoiceCRUD class (all MongoDB operations)
 │   ├── routes/
-│   │   ├── invoices.py      # Achats CRUD, upload, export, PDF, search
+│   │   ├── invoices.py      # Achats CRUD, upload, export, PDF, search, history
 │   │   ├── ventes.py        # Ventes CRUD, status transitions, export, PDF
 │   │   ├── company.py       # GET/PUT /company, GET /company/categories
 │   │   ├── contacts.py      # Contacts CRUD
-│   │   ├── dashboard.py     # Dashboard stats
-│   │   ├── auth.py          # Login/register
+│   │   ├── dashboard.py     # Dashboard stats + GET /recent-activity
+│   │   ├── auth.py          # Login/register (JWT includes username field)
 │   │   ├── users.py         # User management (admin)
 │   │   └── health.py        # Health check
 │   ├── services/
 │   │   ├── invoices.py      # OCR extraction, regex for TVA/ICE, amount checks
 │   │   ├── pdf.py           # generate_invoice_pdf() — weasyprint + Jinja2
-│   │   ├── dashboard.py     # Dashboard aggregation queries
+│   │   ├── dashboard.py     # Dashboard aggregation queries + get_recent_activity()
 │   │   └── ocr/             # OCR provider abstraction (Azure DI, AWS, GCP)
 │   ├── templates/
 │   │   └── invoice.html     # Jinja2 HTML/CSS invoice template (A4, both directions)
@@ -95,18 +97,18 @@ frontend/
 │   ├── App.jsx              # Routes, ProtectedRoute wrapper
 │   ├── api/
 │   │   ├── baseApi.js       # Axios instance with /api prefix
-│   │   ├── invoice.js       # Achats API (fetchInvoices, exportAchats, downloadInvoicePdf...)
+│   │   ├── invoice.js       # Achats API (fetchInvoices, exportAchats, downloadInvoicePdf, fetchInvoiceHistory...)
 │   │   ├── ventes.js        # Ventes API (createVente, validateVente, exportVentes...)
 │   │   ├── company.js       # Company profile API
 │   │   ├── contacts.js      # Contacts API
-│   │   ├── dashboard.js     # Dashboard API
+│   │   ├── dashboard.js     # Dashboard API (getPmeKpis, getTopVendors, getAEncaisser, getAPayer, getTvaBalance, getRecentActivity)
 │   │   └── auth.js          # Auth API
 │   ├── components/
 │   │   ├── shared/          # NavBar, SideBar
 │   │   ├── invoice/
 │   │   │   ├── invoice-add/     # UploadCard, AutoInvoice, ManualInvoice, InvoiceItems
-│   │   │   └── invoice-listing/ # InvoiceRow, EditInvoice, Filters, ExportConfirmDialog...
-│   │   ├── dashboard/       # Dashboard widgets
+│   │   │   └── invoice-listing/ # InvoiceRow, EditInvoice (collapsible history timeline), InvoiceExpandedRow (inline history), Filters, ExportConfirmDialog...
+│   │   ├── dashboard/       # RecentActivity, FinanceWidgets, TVABalanceWidget, TopVendorsWidget, WorkQueueWidgets, DashboardHeader, DashboardLoading, DashboardError
 │   │   └── ui/              # shadcn/ui primitives
 │   ├── pages/
 │   │   ├── InvoiceListPage.jsx   # Shared list page for Achats + Ventes (direction prop)
@@ -140,6 +142,12 @@ frontend/
 7. **OCR caching**: MD5 hash of file bytes → cache key in `cache` collection. Prevents duplicate Azure DI calls.
 
 8. **CORS `expose_headers`**: Custom headers returned by the API (`X-Total-Count`, `X-Exported-Ids`, etc.) must be listed in `expose_headers` in `main.py` — otherwise the browser silently blocks them.
+
+9. **Audit trail (`history` array)**: Each invoice document has a `history: list[dict]` field. `InvoiceCRUD.append_history(invoice_id, entry)` does a MongoDB `$push`. All 8 status-transition endpoints (ventes: validate/invalidate/sent/unsent/paid/unpaid; achats: validate/unvalidate/paid/unpaid) call `append_history` with the acting user's email from the JWT. `GET /invoices/{id}/history` returns the reversed list with ObjectId user values resolved to emails.
+
+10. **Recent activity feed**: `GET /dashboard/recent-activity` uses a MongoDB `$unwind` aggregation on the `history` array, sorted by `history.timestamp` desc, to produce a cross-invoice activity feed. ObjectId user values resolved post-aggregation. Consumed by the dashboard "Dernières actions" widget.
+
+11. **JWT payload**: Contains `sub` (MongoDB user ObjectId as string), `role`, and `username` (user email). `get_current_user` returns `{"user_id", "role", "username"}`. The `username` field is used when recording history entries so display is human-readable from the start.
 
 ## Local Development
 
@@ -196,4 +204,5 @@ AZURE_DOCUMENT_INTELLIGENCE_KEY=...
 JWT_SECRET=...
 ADMIN_USERNAME=...
 ADMIN_PASSWORD=...
+ADMIN_EMAIL=...          # used by reset.py --seed as the history user label
 ```
