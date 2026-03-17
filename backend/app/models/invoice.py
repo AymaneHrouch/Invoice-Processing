@@ -5,6 +5,17 @@ from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+class InvoiceHistoryEntry(BaseModel):
+    """A single audit-trail entry recorded on every status transition."""
+    action: str
+    status_from: str | None = None
+    status_to: str | None = None
+    user: str = "système"
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
+
+
 class InvoiceItem(BaseModel):
     """Invoice item model"""
     name: str | None = Field(default=None, description="Item name")
@@ -274,3 +285,5 @@ class InvoiceResponse(BaseModel):
     amount_warnings: list[str] | None = None
     # Computed: true when invoice_due_date < today AND is_paid is false
     is_overdue: bool | None = None
+    # Audit trail — only populated by the /history endpoint
+    history: list[dict] | None = None

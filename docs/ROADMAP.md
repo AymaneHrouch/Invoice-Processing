@@ -232,6 +232,22 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [x] **Frontend**: "Factures" column in contacts table showing invoice count + total amount (clickable to open modal)
 - [x] **Frontend**: "Historique" tab in contact edit modal — lists all invoices with number, date, direction badge, amount, status; rows clickable
 
+### Contact Enrichment
+- [ ] **Backend**: Add optional fields to `Contact` model: `email`, `phone`, `address`, `city`, `notes`
+- [ ] **Frontend**: Extend contact add/edit modal with the new fields
+- [ ] **Frontend**: Show email/phone in contacts table columns
+- [ ] **Frontend**: Pass email/phone into PDF template for outgoing invoices (client block)
+
+### Invoice Full-Text Search
+- [ ] **Backend**: Extend `GET /invoices/` to accept a `q` param — searches across `invoice_number`, `vendor_name`, `client_name`, `category`, `tags`
+- [ ] **Backend**: Use MongoDB `$regex` or text index depending on performance needs
+- [ ] **Frontend**: Replace the current vendor-name-only search input with a global search bar in `InvoiceFilters`
+- [ ] **Frontend**: Debounce + URL-persist the `q` param like other filters
+
+### Dashboard — Top Vendors Date Range
+- [ ] **Frontend**: Add period selector (ce mois / ce trimestre / cette année) to `TopVendorsWidget`
+- [ ] **Backend**: Add `start_date` / `end_date` params to `GET /dashboard/top_vendors`
+
 ### Batch PDF Download
 - [ ] **Frontend**: "Télécharger PDFs" button in batch actions bar — triggers sequential PDF downloads for all selected invoices
 - [ ] **Backend** *(optional)*: `POST /invoices/batch-pdf` — server-side ZIP of multiple PDFs, more reliable than sequential browser downloads for large selections

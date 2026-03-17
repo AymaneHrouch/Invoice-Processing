@@ -61,9 +61,11 @@ export const restoreInvoice = async (id) => {
 
 export const validateInvoice = async (id) => {
   try {
-    const response = await api.patch(`/invoices/${id}/status`, {
-      status: 'validated',
-    });
+    const response = await api.patch(
+      `/invoices/${id}/status`,
+      { status: 'validated' },
+      getAuthConfig(),
+    );
     return response.data;
   } catch (error) {
     if (error.response?.data?.detail) {
@@ -105,15 +107,28 @@ export const unmarkInvoicePaid = async (id) => {
 
 export const invalidateInvoice = async (id) => {
   try {
-    const response = await api.patch(`/invoices/${id}/status`, {
-      status: 'extracted',
-    });
+    const response = await api.patch(
+      `/invoices/${id}/status`,
+      { status: 'extracted' },
+      getAuthConfig(),
+    );
     return response.data;
   } catch (error) {
     if (error.response?.data?.detail) {
       throw new Error(error.response.data.detail);
     }
     throw new Error(`Failed to invalidate invoice: ${error.message}`);
+  }
+};
+
+export const fetchInvoiceHistory = async (id) => {
+  try {
+    const response = await api.get(`/invoices/${id}/history`, getAuthConfig());
+    return response.data;
+  } catch (error) {
+    if (error.response?.data?.detail)
+      throw new Error(error.response.data.detail);
+    throw new Error(`Failed to fetch invoice history: ${error.message}`);
   }
 };
 

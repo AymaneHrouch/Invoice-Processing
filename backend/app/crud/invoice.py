@@ -12,7 +12,12 @@ from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import DuplicateKeyError
 
 from app.database import get_invoices_collection
-from app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate
+from app.models.invoice import (
+    Invoice,
+    InvoiceCreate,
+    InvoiceHistoryEntry,
+    InvoiceUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -384,6 +389,35 @@ class InvoiceCRUD:
 
         except Exception as e:
             raise Exception(f"Failed to update invoice status: {e!s}")
+
+    @staticmethod
+    def append_history(invoice_id: str, entry: InvoiceHistoryEntry) -> None:
+        """Push a history entry to the invoice's history array."""
+        try:
+            collection = get_invoices_collection()
+            collection.update_one(
+                {"_id": ObjectId(invoice_id)},
+                {"$push": {"history": entry.model_dump()}},
+            )
+        except Exception as e:
+            logger.warning("Failed to append history to invoice %s: %s", invoice_id, e)
+
+    @staticmethod
+    def get_history(invoice_id: str) -> list:
+        """Return the history array for an invoice, newest first."""
+        try:
+            collection = get_invoices_collection()
+            doc = collection.find_one(
+                {"_id": ObjectId(invoice_id)},
+                {"history": 1},
+            )
+            if doc is None:
+                return []
+            entries = doc.get("history") or []
+            return list(reversed(entries))
+        except Exception as e:
+            logger.warning("Failed to get history for invoice %s: %s", invoice_id, e)
+            return []
 
     @staticmethod
     def delete_invoice(invoice_id: str) -> bool:

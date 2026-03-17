@@ -25,6 +25,7 @@ from app.models.invoice import (
     Invoice,
     InvoiceBatchUpdate,
     InvoiceCreate,
+    InvoiceHistoryEntry,
     InvoiceResponse,
     InvoiceUpdate,
 )
@@ -335,6 +336,20 @@ def get_invoice_by_id(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/{invoice_id}/history", summary="Get audit trail for an invoice")
+def get_invoice_history(
+        invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
+        current_user: dict = Depends(get_current_user),
+):
+    """Return the history (audit trail) for an invoice, newest first."""
+    try:
+        entries = InvoiceCRUD.get_history(invoice_id)
+        return entries
+    except Exception as e:
+        logger.exception("Failed to get history for invoice %s: %s", invoice_id, e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/by-number/{invoice_number}", response_model=InvoiceResponse, summary="Get invoice by invoice number")
 def get_invoice_by_number(
         invoice_number: str = Path(..., description="Unique invoice number")
@@ -441,7 +456,7 @@ def restore_invoice(invoice_id: str = Path(..., description="MongoDB ObjectId of
         raise HTTPException(status_code=500, detail=str(e))
 
 
-FINANCIAL_FIELDS = {'total_amount', 'subtotal_ht', 'tva', 'amount_tva', 'items'}
+FINANCIAL_FIELDS = {"total_amount", "subtotal_ht", "tva", "amount_tva", "items"}
 
 
 @router.put("/{invoice_id}", response_model=InvoiceResponse, summary="Update invoice by ID")
@@ -453,7 +468,7 @@ def update_invoice_by_id(
         logger.info("Updating invoice %s", invoice_id)
 
         existing = InvoiceCRUD.get_invoice_by_id(invoice_id)
-        if existing and existing.status in ('validated', 'paid'):
+        if existing and existing.status in ("validated", "paid"):
             changed = FINANCIAL_FIELDS & set(update_data.model_dump(exclude_unset=True).keys())
             if changed:
                 raise HTTPException(
@@ -524,7 +539,8 @@ def batch_update_invoices(body: InvoiceBatchUpdate = Body(...)):
 @router.patch("/{invoice_id}/status", response_model=InvoiceResponse, summary="Update invoice status by ID")
 def update_invoice_status_by_id(
         invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
-        status: str = Body(..., description="New status value", embed=True)
+        status: str = Body(..., description="New status value", embed=True),
+        current_user: dict = Depends(get_current_user),
 ):
     """
     Update only the status of an invoice by its ID
@@ -533,10 +549,26 @@ def update_invoice_status_by_id(
     - **status**: The new status (e.g., 'extracted', 'validated')
     """
     try:
+        existing = InvoiceCRUD.get_invoice_by_id(invoice_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
+        status_from = existing.status
         invoice = InvoiceCRUD.update_invoice_status(invoice_id, status)
         if not invoice:
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
+        # Map status transitions to action labels
+        _action_map = {
+            ("extracted", "validated"): "validated",
+            ("validated", "extracted"): "invalidated",
+        }
+        action = _action_map.get((status_from, status), f"status→{status}")
+        InvoiceCRUD.append_history(invoice_id, InvoiceHistoryEntry(
+            action=action, status_from=status_from, status_to=status,
+            user=current_user.get("username", "système"),
+        ))
         return invoice_to_response(invoice)
+    except HTTPException:
+        raise
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
     except Exception as e:
@@ -561,6 +593,10 @@ def mark_invoice_paid(
         invoice_id,
         InvoiceUpdate(status="paid", is_paid=True, paid_at=datetime.utcnow()),
     )
+    InvoiceCRUD.append_history(invoice_id, InvoiceHistoryEntry(
+        action="paid", status_from="validated", status_to="paid",
+        user=current_user.get("username", "système"),
+    ))
     return invoice_to_response(updated)
 
 
@@ -582,6 +618,10 @@ def unmark_invoice_paid(
         invoice_id,
         InvoiceUpdate(status="validated", is_paid=False),
     )
+    InvoiceCRUD.append_history(invoice_id, InvoiceHistoryEntry(
+        action="unmark_paid", status_from="paid", status_to="validated",
+        user=current_user.get("username", "système"),
+    ))
     return invoice_to_response(updated)
 
 

@@ -39,7 +39,7 @@ async def register(user: UserRegister):
     result = user_collection.insert_one(new_user)
     logger.info("User registered: %s", user.email)
 
-    token = create_access_token({"sub": str(result.inserted_id), "role": new_user["role"]})
+    token = create_access_token({"sub": str(result.inserted_id), "role": new_user["role"], "username": new_user["email"]})
 
     return {
         "message": "User registered successfully",
@@ -54,7 +54,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
         logger.warning("Failed login attempt for: %s", form_data.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_access_token({"sub": str(db_user["_id"]), "role": db_user["role"]})
+    token = create_access_token({"sub": str(db_user["_id"]), "role": db_user["role"], "username": db_user.get("email", "")})
     logger.info("User logged in: %s", form_data.username)
     return {"access_token": token, "token_type": "bearer"}
 

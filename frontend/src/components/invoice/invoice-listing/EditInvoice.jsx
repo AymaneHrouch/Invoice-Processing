@@ -1,6 +1,21 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Save, CheckCircle, Lock, Banknote, Send, Undo2 } from 'lucide-react';
+import {
+  Save,
+  CheckCircle,
+  Lock,
+  Banknote,
+  Send,
+  Undo2,
+  ChevronDown,
+  ChevronUp,
+  History,
+  ShieldCheck,
+  ShieldOff,
+  BadgeCheck,
+  RotateCcw,
+  CircleDollarSign,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -24,6 +39,7 @@ import {
   invalidateInvoice,
   markInvoicePaid,
   unmarkInvoicePaid,
+  fetchInvoiceHistory,
 } from '@/api/invoice';
 import {
   validateVente,
@@ -45,6 +61,57 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+
+const HISTORY_CONFIG = {
+  validated: {
+    label: 'Validée',
+    icon: ShieldCheck,
+    color: 'text-indigo-600',
+    bg: 'bg-indigo-50 dark:bg-indigo-900/30',
+  },
+  invalidated: {
+    label: 'Invalidée',
+    icon: ShieldOff,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+  sent: {
+    label: 'Marquée envoyée',
+    icon: Send,
+    color: 'text-blue-600',
+    bg: 'bg-blue-50 dark:bg-blue-900/30',
+  },
+  unmark_sent: {
+    label: 'Envoi annulé',
+    icon: RotateCcw,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+  paid: {
+    label: 'Marquée payée',
+    icon: CircleDollarSign,
+    color: 'text-emerald-600',
+    bg: 'bg-emerald-50 dark:bg-emerald-900/30',
+  },
+  unmark_paid: {
+    label: 'Paiement annulé',
+    icon: RotateCcw,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+  created: {
+    label: 'Créée',
+    icon: BadgeCheck,
+    color: 'text-violet-600',
+    bg: 'bg-violet-50 dark:bg-violet-900/30',
+  },
+  _default: {
+    label: 'Mis à jour',
+    icon: History,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+};
 
 // ✅ Fonction utilitaire pour formater les dates
 const formatDateForInput = (dateString) => {
@@ -90,6 +157,8 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   });
 
   const [errors, setErrors] = useState({});
+  const [history, setHistory] = useState([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // ✅ Effet pour charger les données de la facture
   useEffect(() => {
@@ -132,6 +201,16 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       console.log('✅ Invoice data loaded successfully');
     }
   }, [invoice, open]); // ✅ Dépend aussi de 'open' pour recharger à chaque ouverture
+
+  useEffect(() => {
+    if (!invoice || !open) return;
+    const id = invoice._id || invoice.id;
+    if (!id) return;
+    setHistory([]);
+    fetchInvoiceHistory(id)
+      .then(setHistory)
+      .catch(() => {});
+  }, [invoice, open]);
 
   // ✅ Fonction pour mettre à jour un champ
   const updateField = (field, value) => {
@@ -258,6 +337,11 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       if (updated) {
         toast.success('Statut mis à jour');
         if (onSuccess) onSuccess(updated);
+        const id = invoice?._id || invoice?.id;
+        if (id)
+          fetchInvoiceHistory(id)
+            .then(setHistory)
+            .catch(() => {});
         onClose();
       }
     } catch (e) {
@@ -748,6 +832,100 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                 <Separator />
 
                 <InvoiceTags tags={formData.tags} onTagsChange={updateTags} />
+
+                <Separator />
+
+                {/* Historique (audit trail) */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOpen((o) => !o)}
+                    className={`flex items-center gap-2 w-full text-left text-sm font-medium ${isDarkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}
+                  >
+                    <History className="w-4 h-4" />
+                    Historique
+                    {history.length > 0 && (
+                      <span
+                        className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${isDarkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-500'}`}
+                      >
+                        {history.length}
+                      </span>
+                    )}
+                    <span className="ml-auto">
+                      {historyOpen ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </span>
+                  </button>
+
+                  {historyOpen && (
+                    <div className="mt-3 space-y-0">
+                      {history.length === 0 ? (
+                        <p
+                          className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'} italic`}
+                        >
+                          Aucun historique disponible.
+                        </p>
+                      ) : (
+                        <div className="relative">
+                          {history.map((entry, i) => {
+                            const isLast = i === history.length - 1;
+                            const cfg =
+                              HISTORY_CONFIG[entry.action] ||
+                              HISTORY_CONFIG._default;
+                            const Icon = cfg.icon;
+                            return (
+                              <div key={i} className="flex gap-3">
+                                {/* Timeline line */}
+                                <div className="flex flex-col items-center">
+                                  <div
+                                    className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${cfg.bg}`}
+                                  >
+                                    <Icon
+                                      className={`w-3.5 h-3.5 ${cfg.color}`}
+                                    />
+                                  </div>
+                                  {!isLast && (
+                                    <div
+                                      className={`w-px flex-1 mt-1 mb-1 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}
+                                    />
+                                  )}
+                                </div>
+                                {/* Content */}
+                                <div className={`pb-4 ${isLast ? '' : ''}`}>
+                                  <p
+                                    className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
+                                  >
+                                    {cfg.label}
+                                  </p>
+                                  <p
+                                    className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                                  >
+                                    {entry.user}
+                                    {entry.timestamp && (
+                                      <>
+                                        {' '}
+                                        ·{' '}
+                                        {new Date(
+                                          entry.timestamp,
+                                        ).toLocaleString('fr-FR', {
+                                          dateStyle: 'short',
+                                          timeStyle: 'short',
+                                        })}
+                                      </>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 

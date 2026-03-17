@@ -14,6 +14,7 @@ from app.crud.invoice import InvoiceCRUD
 from app.database import get_company_collection
 from app.models.invoice import (
     InvoiceCreate,
+    InvoiceHistoryEntry,
     InvoiceItem,
     InvoiceResponse,
     InvoiceUpdate,
@@ -244,6 +245,10 @@ def validate_vente(
             detail="Seules les factures en brouillon peuvent être validées.",
         )
     updated = InvoiceCRUD.update_invoice(vente_id, InvoiceUpdate(status="validated"))
+    InvoiceCRUD.append_history(vente_id, InvoiceHistoryEntry(
+        action="validated", status_from="draft", status_to="validated",
+        user=current_user.get("username", "système"),
+    ))
     logger.info("Vente %s validated by %s", vente_id, current_user.get("user_id"))
     return _to_response(updated)
 
@@ -266,6 +271,10 @@ def mark_sent(
             detail="Seules les factures validées peuvent être marquées comme envoyées.",
         )
     updated = InvoiceCRUD.update_invoice(vente_id, InvoiceUpdate(status="sent"))
+    InvoiceCRUD.append_history(vente_id, InvoiceHistoryEntry(
+        action="sent", status_from="validated", status_to="sent",
+        user=current_user.get("username", "système"),
+    ))
     return _to_response(updated)
 
 
@@ -290,6 +299,10 @@ def mark_paid(
         vente_id,
         InvoiceUpdate(status="paid", is_paid=True, paid_at=datetime.now(UTC)),
     )
+    InvoiceCRUD.append_history(vente_id, InvoiceHistoryEntry(
+        action="paid", status_from=inv.status, status_to="paid",
+        user=current_user.get("username", "système"),
+    ))
     return _to_response(updated)
 
 
@@ -308,6 +321,10 @@ def invalidate_vente(
     if inv.status != "validated":
         raise HTTPException(status_code=400, detail="Seules les factures validées peuvent être invalidées.")
     updated = InvoiceCRUD.update_invoice(vente_id, InvoiceUpdate(status="draft"))
+    InvoiceCRUD.append_history(vente_id, InvoiceHistoryEntry(
+        action="invalidated", status_from="validated", status_to="draft",
+        user=current_user.get("username", "système"),
+    ))
     logger.info("Vente %s invalidated by %s", vente_id, current_user.get("user_id"))
     return _to_response(updated)
 
@@ -327,6 +344,10 @@ def unmark_sent(
     if inv.status != "sent":
         raise HTTPException(status_code=400, detail="La facture doit être envoyée pour annuler l'envoi.")
     updated = InvoiceCRUD.update_invoice(vente_id, InvoiceUpdate(status="validated"))
+    InvoiceCRUD.append_history(vente_id, InvoiceHistoryEntry(
+        action="unmark_sent", status_from="sent", status_to="validated",
+        user=current_user.get("username", "système"),
+    ))
     return _to_response(updated)
 
 
@@ -348,6 +369,10 @@ def unmark_paid(
         vente_id,
         InvoiceUpdate(status="sent", is_paid=False),
     )
+    InvoiceCRUD.append_history(vente_id, InvoiceHistoryEntry(
+        action="unmark_paid", status_from="paid", status_to="sent",
+        user=current_user.get("username", "système"),
+    ))
     return _to_response(updated)
 
 

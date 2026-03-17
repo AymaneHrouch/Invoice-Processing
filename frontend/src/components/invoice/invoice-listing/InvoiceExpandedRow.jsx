@@ -1,10 +1,81 @@
+import { useEffect, useState } from 'react';
+import {
+  ShieldCheck,
+  ShieldOff,
+  Send,
+  RotateCcw,
+  CircleDollarSign,
+  BadgeCheck,
+  History,
+} from 'lucide-react';
 import { useTheme } from '@/contexts';
 import { formatDate, formatCurrency } from '@/constants';
 import { AmountWarningBanner } from '@/components/invoice';
+import { fetchInvoiceHistory } from '@/api/invoice';
+
+const HISTORY_CFG = {
+  validated: {
+    label: 'Validée',
+    icon: ShieldCheck,
+    color: 'text-indigo-600',
+    bg: 'bg-indigo-50 dark:bg-indigo-900/30',
+  },
+  invalidated: {
+    label: 'Invalidée',
+    icon: ShieldOff,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+  sent: {
+    label: 'Marquée envoyée',
+    icon: Send,
+    color: 'text-blue-600',
+    bg: 'bg-blue-50 dark:bg-blue-900/30',
+  },
+  unmark_sent: {
+    label: 'Envoi annulé',
+    icon: RotateCcw,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+  paid: {
+    label: 'Marquée payée',
+    icon: CircleDollarSign,
+    color: 'text-emerald-600',
+    bg: 'bg-emerald-50 dark:bg-emerald-900/30',
+  },
+  unmark_paid: {
+    label: 'Paiement annulé',
+    icon: RotateCcw,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+  created: {
+    label: 'Créée',
+    icon: BadgeCheck,
+    color: 'text-violet-600',
+    bg: 'bg-violet-50 dark:bg-violet-900/30',
+  },
+  _default: {
+    label: 'Mis à jour',
+    icon: History,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+};
 
 const InvoiceExpandedRow = ({ invoice, colSpan = 13 }) => {
   const { isDarkMode } = useTheme();
   const isArchived = invoice?.is_archived === true;
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    const id = invoice?._id || invoice?.id;
+    if (!id) return;
+    fetchInvoiceHistory(id)
+      .then(setHistory)
+      .catch(() => {});
+  }, [invoice?._id, invoice?.id]);
   const amountWarnings =
     invoice?.status === 'extracted' ? (invoice?.amount_warnings ?? []) : [];
 
@@ -189,6 +260,80 @@ const InvoiceExpandedRow = ({ invoice, colSpan = 13 }) => {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Historique */}
+          <div>
+            <h4
+              className={`text-lg font-semibold mb-4 pb-2 border-b flex items-center gap-2 ${
+                isDarkMode
+                  ? 'text-gray-200 border-gray-600'
+                  : 'text-gray-800 border-gray-200'
+              }`}
+            >
+              <History className="w-4 h-4" />
+              Historique
+              {history.length > 0 && (
+                <span
+                  className={`text-xs px-1.5 py-0.5 rounded-full font-normal ${isDarkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-500'}`}
+                >
+                  {history.length}
+                </span>
+              )}
+            </h4>
+            {history.length === 0 ? (
+              <p
+                className={`text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
+              >
+                Aucun historique disponible.
+              </p>
+            ) : (
+              <div className="space-y-0 max-w-sm">
+                {history.map((entry, i) => {
+                  const isLast = i === history.length - 1;
+                  const cfg = HISTORY_CFG[entry.action] || HISTORY_CFG._default;
+                  const Icon = cfg.icon;
+                  return (
+                    <div key={i} className="flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${cfg.bg}`}
+                        >
+                          <Icon className={`w-3.5 h-3.5 ${cfg.color}`} />
+                        </div>
+                        {!isLast && (
+                          <div
+                            className={`w-px flex-1 mt-1 mb-1 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}
+                          />
+                        )}
+                      </div>
+                      <div className="pb-4">
+                        <p
+                          className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
+                        >
+                          {cfg.label}
+                        </p>
+                        <p
+                          className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                        >
+                          {entry.user}
+                          {entry.timestamp && (
+                            <>
+                              {' '}
+                              ·{' '}
+                              {new Date(entry.timestamp).toLocaleString(
+                                'fr-FR',
+                                { dateStyle: 'short', timeStyle: 'short' },
+                              )}
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </td>
