@@ -25,6 +25,7 @@ import { useAddInvoice } from '@/hooks/useAddInvoice';
 import { useCategories } from '@/hooks/useCategories';
 import { FormField } from '@/components/ui/form-field';
 import SupplierCombobox from '@/components/ui/SupplierCombobox';
+import TvaRateField from '@/components/ui/TvaRateField';
 import {
   InvoiceTags,
   InvoiceItems,
@@ -253,15 +254,11 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
                 )}
               </div>
             </div>
-            <FormField
-              id="tva"
-              type="number"
-              label="TVA (%)"
+            <TvaRateField
               value={formData.tva}
-              onChange={(e) => updateField('tva', e.target.value)}
-              placeholder="ex. 20"
-              step="0.01"
-              min="0"
+              onChange={(v) => updateField('tva', v)}
+              allowCustom={true}
+              isDarkMode={isDarkMode}
             />
             <div className="space-y-1">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">

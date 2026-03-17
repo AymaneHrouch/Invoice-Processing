@@ -17,14 +17,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { FormField } from '@/components/ui/form-field';
 import SupplierCombobox from '@/components/ui/SupplierCombobox';
+import TvaRateField from '@/components/ui/TvaRateField';
 import { InvoiceItems, InvoiceTags } from '@/components/invoice';
 import { useTheme } from '@/contexts';
 import { useCategories } from '@/hooks/useCategories';
 import { currencies } from '@/constants';
 import { getCompanyProfile } from '@/api/company';
 import { getNextVenteNumber, createVente, validateVente } from '@/api/ventes';
-
-const TVA_RATES = [0, 7, 10, 14, 20];
 
 const today = () => new Date().toISOString().split('T')[0];
 
@@ -337,30 +336,14 @@ export default function VenteCreatePage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* TVA rate selector */}
-            <div className="flex items-center gap-3">
-              <Label className="w-32 shrink-0">Taux TVA</Label>
-              <select
-                value={form.tva_rate}
-                onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    tva_rate: Number(e.target.value),
-                  }))
-                }
-                className={`flex h-9 w-32 rounded-md border px-3 py-1 text-sm shadow-sm ${
-                  isDarkMode
-                    ? 'bg-gray-700 border-gray-600 text-white'
-                    : 'bg-white border-input'
-                }`}
-              >
-                {TVA_RATES.map((r) => (
-                  <option key={r} value={r}>
-                    {r}%
-                  </option>
-                ))}
-              </select>
-            </div>
+            <TvaRateField
+              value={String(form.tva_rate)}
+              onChange={(v) =>
+                setForm((prev) => ({ ...prev, tva_rate: parseFloat(v) || 0 }))
+              }
+              allowCustom={false}
+              isDarkMode={isDarkMode}
+            />
 
             <Separator className={isDarkMode ? 'bg-gray-700' : 'bg-gray-200'} />
 

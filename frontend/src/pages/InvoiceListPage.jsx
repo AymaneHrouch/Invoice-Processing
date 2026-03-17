@@ -72,7 +72,9 @@ const InvoiceListPage = ({ direction = null }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(initialPage);
-  const [perPage] = useState(10);
+  const [perPage, setPerPage] = useState(
+    parseInt(searchParams.get('per_page'), 10) || 10,
+  );
   const [sortBy, setSortBy] = useState(initialSortBy);
   const [order, setOrder] = useState(initialOrder);
   const [expandedRows, setExpandedRows] = useState(new Set());
@@ -291,11 +293,12 @@ const InvoiceListPage = ({ direction = null }) => {
     if (sortBy && sortBy !== 'created_at') params.set('sort_by', sortBy);
     if (order && order !== 'desc') params.set('order', order);
     if (page && page !== 1) params.set('page', page);
+    if (perPage && perPage !== 10) params.set('per_page', perPage);
     // Only push if different
     if (params.toString() !== location.search.replace(/^\?/, '')) {
       navigate({ search: params.toString() }, { replace: false });
     }
-  }, [filters, sortBy, order, page]);
+  }, [filters, sortBy, order, page, perPage]);
 
   const toggleRowExpansion = (invoiceId) => {
     const newExpandedRows = new Set(expandedRows);
@@ -336,7 +339,7 @@ const InvoiceListPage = ({ direction = null }) => {
 
   useEffect(() => {
     handleFetchInvoices(page, sortBy, order, filters);
-  }, [page, sortBy, order, filters]);
+  }, [page, perPage, sortBy, order, filters]);
 
   // Open edit modal when navigating from dashboard with ?edit=invoice_id
   useEffect(() => {
@@ -888,6 +891,12 @@ const InvoiceListPage = ({ direction = null }) => {
         invoiceData={invoiceData}
         loading={loading}
         onPageChange={handlePageChange}
+        perPage={perPage}
+        onPerPageChange={(n) => {
+          setPerPage(n);
+          setPage(1);
+          setExpandedRows(new Set());
+        }}
       />
 
       {editModal}

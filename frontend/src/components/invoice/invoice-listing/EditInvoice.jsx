@@ -35,6 +35,7 @@ import {
 } from '@/api/ventes';
 import { Badge } from '@/components/ui/badge';
 import SupplierCombobox from '@/components/ui/SupplierCombobox';
+import TvaRateField from '@/components/ui/TvaRateField';
 import {
   Dialog,
   DialogContent,
@@ -387,7 +388,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                         ICE client
                       </label>
                       <div
-                        className={`flex items-center h-10 px-3 rounded-md border text-sm font-mono ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                        className={`block w-full h-10 px-3 leading-10 rounded-md border text-sm font-mono truncate ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
                       >
                         {formData.client_ice || (
                           <span className="text-gray-400 font-sans">—</span>
@@ -406,16 +407,12 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                       error={errors.invoice_number}
                       disabled={allFieldsLocked}
                     />
-                    <FormField
-                      id="tva"
-                      type="number"
-                      label="TVA (%)"
+                    <TvaRateField
                       value={formData.tva}
-                      onChange={(e) => updateField('tva', e.target.value)}
-                      placeholder="ex. 20"
-                      step="0.01"
-                      min="0"
+                      onChange={(v) => updateField('tva', v)}
+                      allowCustom={false}
                       disabled={financialLocked}
+                      isDarkMode={isDarkMode}
                     />
                   </div>
                 ) : (
@@ -449,23 +446,19 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                         ICE
                       </label>
                       <div
-                        className={`flex items-center h-10 px-3 rounded-md border text-sm font-mono ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                        className={`block w-full h-10 px-3 leading-10 rounded-md border text-sm font-mono truncate ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
                       >
                         {formData.ice || (
                           <span className="text-gray-400 font-sans">—</span>
                         )}
                       </div>
                     </div>
-                    <FormField
-                      id="tva"
-                      type="number"
-                      label="TVA (%)"
+                    <TvaRateField
                       value={formData.tva}
-                      onChange={(e) => updateField('tva', e.target.value)}
-                      placeholder="ex. 20"
-                      step="0.01"
-                      min="0"
+                      onChange={(v) => updateField('tva', v)}
+                      allowCustom={true}
                       disabled={financialLocked}
+                      isDarkMode={isDarkMode}
                     />
                   </div>
                 )}
