@@ -97,11 +97,11 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [x] **Frontend**: Per-row action buttons on Ventes list — Valider (✓), Marquer envoyé (→), Marquer payé (💵) — shown based on current status
 - [x] **Frontend**: `SupplierCombobox` extended with `contactType` prop to reuse for clients
 
-### 2.3 PDF Generation
-- [ ] **Backend**: `GET /ventes/{id}/pdf` — generate human-readable PDF invoice
-- [ ] **Backend**: Use `reportlab` or `weasyprint` to create a professional Moroccan-style invoice PDF
-- [ ] **Backend**: PDF includes: company logo, all legally required mentions (ICE, IF, RC, TVA, etc.)
-- [ ] **Frontend**: "Download PDF" button on invoice detail and list
+### 2.3 PDF Generation ✅
+- [x] **Backend**: `GET /ventes/{id}/pdf` — generate and stream PDF as file download
+- [x] **Backend**: `services/pdf.py` — professional Moroccan invoice PDF via reportlab: company header (name, legal form, ICE, IF, RC, CNSS, address), client block, blue-header line items table, subtotal HT / TVA / Total TTC summary, bank details, legal footer
+- [x] **Frontend**: `downloadVentePdf()` in `api/ventes.js` — blob download via axios
+- [x] **Frontend**: Download button on outgoing invoice rows calls backend PDF; incoming rows keep existing jsPDF (Achats PDF is out-of-scope for Phase 2)
 
 ### 2.4 UBL 2.1 XML Generation
 - [ ] **Backend**: New service `services/ubl.py` — generates UBL 2.1 Invoice XML from Invoice model
