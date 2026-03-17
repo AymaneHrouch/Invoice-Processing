@@ -43,6 +43,9 @@ class InvoiceCRUD:
             invoice_dict.setdefault("is_paid", False)
             invoice_dict.setdefault("is_archived", False)
             invoice_dict.setdefault("direction", "incoming")
+            # Backward compat: populate vendor_ice from ice if missing
+            if not invoice_dict.get("vendor_ice") and invoice_dict.get("ice"):
+                invoice_dict["vendor_ice"] = invoice_dict["ice"]
 
             if invoice_dict.get("invoice_date"):
                 if isinstance(invoice_dict["invoice_date"], date):

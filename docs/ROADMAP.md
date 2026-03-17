@@ -42,13 +42,19 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [x] **Frontend**: *(added)* Context-aware empty state — shows localized message with a direct link to import (Achats) or create (Ventes)
 - [x] **Frontend**: *(added)* Direction column hidden on Achats/Ventes lists — redundant when page is already direction-locked; still visible on generic invoice view
 - [x] **Frontend**: `InvoiceAddPage` + `ManualInvoice` + `AutoInvoice` + `UploadCard` accept `direction` prop — invoices created with correct direction from both manual and AI flows
-- [ ] **Frontend**: Improve AI parsing reliability — add image preprocessing hints in upload UI
-- [ ] **Frontend**: Add confidence indicators on extracted fields (if Azure DI returns confidence scores)
+- [~] **Frontend**: Improve AI parsing reliability — skipped, needs research into Azure DI preprocessing options
+- [~] **Frontend**: Add confidence indicators on extracted fields — skipped, depends on whether Azure DI returns per-field confidence scores (unverified)
 
-### 1.5 Invoice Model Evolution
-- [ ] **Backend**: Add new fields to Invoice model: `vendor_ice`, `client_name`, `client_ice`, `contact_id`, `subtotal_ht`
-- [ ] **Backend**: Migration script — set `direction="incoming"` on all existing invoices, rename `ice` → `vendor_ice`
-- [ ] **Backend**: Keep backward compatibility — old fields still accepted in API
+### 1.5 UI Language Consistency
+- [ ] **Frontend**: Audit all user-facing text (labels, buttons, placeholders, empty states, error messages, toasts) and unify to French
+- [ ] **Frontend**: Pages to cover: InvoiceListPage, InvoiceAddPage, ManualInvoice, AutoInvoice, EditInvoice, ContactsPage, CompanyProfilePage, DashboardPage, LoginPage, sidebar, NavBar
+- [ ] **Note**: Developer-facing text (code comments, console logs, git commits) stays in English
+- [ ] **Future**: i18n multi-language support (fr/ar/en) — deferred until platform is stable
+
+### 1.6 Invoice Model Evolution ✅
+- [x] **Backend**: Add new fields to all Invoice models: `vendor_ice`, `client_name`, `client_ice`, `contact_id`, `subtotal_ht`
+- [x] **Backend**: `migrations/001_vendor_ice.py` — copies `ice` → `vendor_ice`, backfills `direction="incoming"` on old docs
+- [x] **Backend**: Backward compatibility — `ice` still accepted in API; model validator auto-copies to `vendor_ice`; CRUD defaults `vendor_ice` from `ice` when reading old docs
 
 **Deliverable**: Demo at GITEX showing Achats (AI parsing + manual), company profile, contact directory, clean Ventes/Achats navigation.
 
