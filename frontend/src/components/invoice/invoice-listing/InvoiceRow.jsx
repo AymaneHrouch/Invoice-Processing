@@ -80,6 +80,7 @@ const InvoiceRow = ({
   };
 
   const isArchived = invoice.is_archived === true;
+  const isOverdue = invoice.is_overdue === true;
   const amountWarnings = invoice?.amount_warnings ?? [];
   const hasAmountWarning =
     invoice?.status === 'extracted' && amountWarnings.length > 0;
@@ -92,9 +93,13 @@ const InvoiceRow = ({
             ? isDarkMode
               ? 'bg-slate-900 border-l-4 border-slate-600 hover:bg-slate-800'
               : 'bg-slate-300 border-l-4 border-slate-500 hover:bg-slate-400'
-            : isDarkMode
-              ? 'hover:bg-gray-700'
-              : 'hover:bg-gray-50'
+            : isOverdue
+              ? isDarkMode
+                ? 'border-l-4 border-red-500 hover:bg-gray-700'
+                : 'border-l-4 border-red-500 hover:bg-gray-50'
+              : isDarkMode
+                ? 'hover:bg-gray-700'
+                : 'hover:bg-gray-50'
         }`}
       >
         {onSelect && (
@@ -165,9 +170,19 @@ const InvoiceRow = ({
             isDarkMode ? 'border-gray-600' : 'border-gray-100'
           }`}
         >
-          <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
-            {formatDate(invoice.invoice_date)}
-          </span>
+          <div className="flex flex-col gap-0.5">
+            <span className={isDarkMode ? 'text-gray-400' : 'text-gray-500'}>
+              {formatDate(invoice.invoice_date)}
+            </span>
+            {isOverdue && invoice.invoice_due_date && (
+              <span
+                className="text-xs font-semibold text-red-600 dark:text-red-400"
+                title={`Échéance dépassée: ${formatDate(invoice.invoice_due_date)}`}
+              >
+                En retard
+              </span>
+            )}
+          </div>
         </td>
         <td
           className={`px-3 py-4 border-b align-middle w-24 ${

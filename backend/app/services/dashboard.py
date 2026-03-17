@@ -99,19 +99,29 @@ def get_amount_growth(currency: Literal["MAD", "USD", "EUR"] = "MAD"):
         "growth_rate_percent": round(growth, 2),
         "currency": currency
     }
-def get_top_vendors(limit=5, currency: Literal["MAD", "USD", "EUR"] = "MAD"):
+def get_top_vendors(limit=5, currency: Literal["MAD", "USD", "EUR"] = "MAD", direction: str | None = None):
     if currency not in EXCHANGE_RATES:
         raise ValueError(f"Unsupported currency: {currency}")
 
-    invoices = invoice_collection.find({
+    query: dict = {
         "total_amount": {"$ne": None},
         "currency": {"$in": list(EXCHANGE_RATES.keys())}
-    })
+    }
+    if direction:
+        query["direction"] = direction
+
+    invoices = invoice_collection.find(query)
 
     vendor_data = {}
 
     for invoice in invoices:
-        vendor = invoice.get("vendor_name")
+        # For outgoing invoices (clients), prefer client_name; otherwise use vendor_name
+        if direction == "outgoing":
+            vendor = invoice.get("client_name") or invoice.get("vendor_name")
+        else:
+            vendor = invoice.get("vendor_name")
+        if not vendor:
+            continue
         amount = invoice.get("total_amount")
         invoice_currency = invoice.get("currency")
 
@@ -119,7 +129,6 @@ def get_top_vendors(limit=5, currency: Literal["MAD", "USD", "EUR"] = "MAD"):
 
         invoice_rate = EXCHANGE_RATES.get(invoice_currency)
         output_rate = EXCHANGE_RATES.get(currency)
-
 
         amount_in_output_currency = amount * invoice_rate / output_rate
 
@@ -140,7 +149,7 @@ def get_top_vendors(limit=5, currency: Literal["MAD", "USD", "EUR"] = "MAD"):
             "vendor": vendor,
             "total_amount": round(data["total_amount"], 2),
             "total_invoices": data["total_invoices"],
-            "currency":currency
+            "currency": currency
         }
         for vendor, data in sorted_vendors[:limit]
     ]
@@ -486,18 +495,89 @@ def get_a_payer(limit: int = 10):
     }
 
 
-def get_tva_balance():
-    """TVA collectée (Ventes) vs TVA déductible (Achats) for the current quarter."""
+def get_pme_kpis():
+    """PME KPIs: CA Ventes ce mois, Dépenses Achats ce mois, Ventes brouillons, Achats à valider."""
+    now = datetime.now()
+    this_month = datetime(now.year, now.month, 1)
+    next_month = datetime(now.year + (now.month == 12), (now.month % 12) + 1, 1)
+    base_filter: dict = {"is_archived": {"$ne": True}}
+
+    pipeline_ventes = [
+        {"$match": {
+            **base_filter,
+            "direction": "outgoing",
+            "status": {"$nin": ["draft"]},
+            "invoice_date": {"$gte": this_month, "$lt": next_month},
+            "total_amount": {"$ne": None},
+        }},
+        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+    ]
+    result = list(invoice_collection.aggregate(pipeline_ventes))
+    ca_ventes = round(float(result[0]["total"]) if result else 0.0, 2)
+
+    pipeline_achats = [
+        {"$match": {
+            **base_filter,
+            "direction": "incoming",
+            "invoice_date": {"$gte": this_month, "$lt": next_month},
+            "total_amount": {"$ne": None},
+        }},
+        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+    ]
+    result = list(invoice_collection.aggregate(pipeline_achats))
+    depenses_achats = round(float(result[0]["total"]) if result else 0.0, 2)
+
+    ventes_brouillons = invoice_collection.count_documents({
+        **base_filter,
+        "direction": "outgoing",
+        "status": "draft",
+    })
+
+    achats_a_valider = invoice_collection.count_documents({
+        **base_filter,
+        "direction": "incoming",
+        "status": "extracted",
+    })
+
+    return {
+        "ca_ventes_ce_mois": ca_ventes,
+        "depenses_achats_ce_mois": depenses_achats,
+        "ventes_brouillons": ventes_brouillons,
+        "achats_a_valider": achats_a_valider,
+    }
+
+
+def get_tva_balance(year: int | None = None, quarter: int | None = None):
+    """TVA collectée (Ventes) vs TVA déductible (Achats).
+
+    - year + quarter (0-based): single quarter
+    - year only: full year
+    - no params: current quarter
+    """
     today = datetime.now()
-    quarter = (today.month - 1) // 3
-    quarter_start = datetime(today.year, quarter * 3 + 1, 1)
+    if year is None:
+        year = today.year
+        if quarter is None:
+            quarter = (today.month - 1) // 3
+
+    if quarter is not None:
+        quarter_start = datetime(year, quarter * 3 + 1, 1)
+        # End of this quarter = start of next quarter
+        next_quarter_month = (quarter * 3 + 4) % 12 or 12
+        next_quarter_year = year + (1 if quarter == 3 else 0)
+        quarter_end = datetime(next_quarter_year, next_quarter_month, 1)
+        period_label = f"T{quarter + 1} {year}"
+    else:
+        quarter_start = datetime(year, 1, 1)
+        quarter_end = datetime(year + 1, 1, 1)
+        period_label = f"Année {year}"
 
     def sum_tva(direction, statuses):
         pipeline = [
             {"$match": {
                 "direction": direction,
                 "status": {"$in": statuses},
-                "invoice_date": {"$gte": quarter_start},
+                "invoice_date": {"$gte": quarter_start, "$lt": quarter_end},
                 "amount_tva": {"$ne": None},
             }},
             {"$group": {"_id": None, "total": {"$sum": "$amount_tva"}}},
@@ -513,7 +593,7 @@ def get_tva_balance():
         "collectee": collectee,
         "deductible": deductible,
         "net": net,
-        "quarter_label": f"T{quarter + 1} {today.year}",
+        "quarter_label": period_label,
     }
 
 

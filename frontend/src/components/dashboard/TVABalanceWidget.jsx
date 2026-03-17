@@ -8,13 +8,15 @@ const fmt = (amount) =>
     maximumFractionDigits: 2,
   }).format(amount) + ' MAD';
 
-const TVABalanceWidget = ({ data }) => {
+const TVABalanceWidget = ({ data, loading }) => {
   if (!data) return null;
 
   const isPositive = data.net >= 0;
 
   return (
-    <Card className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
+    <Card
+      className={`bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 transition-opacity ${loading ? 'opacity-60' : ''}`}
+    >
       <CardHeader className="pb-3">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <div className="p-1.5 rounded-md bg-blue-500">

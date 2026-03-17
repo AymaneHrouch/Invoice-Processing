@@ -1,10 +1,11 @@
-import logging
 from datetime import UTC, datetime
+import logging
+import re
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.database import get_contacts_collection
+from app.database import get_contacts_collection, get_invoices_collection
 from app.models.contact import ContactCreate, ContactUpdate
 from app.utils.auth import get_current_user
 
@@ -98,3 +99,92 @@ def delete_contact(
         raise HTTPException(status_code=404, detail="Contact not found")
 
     logger.info("Contact deleted: %s by user %s", contact_id, current_user.get("user_id"))
+
+
+@router.get("/invoice-summaries")
+def get_invoice_summaries(current_user: dict = Depends(get_current_user)):
+    """Return invoice count and total_amount for every contact (matched by contact_id or name)."""
+    contacts_col = get_contacts_collection()
+    invoices_col = get_invoices_collection()
+
+    contacts = list(contacts_col.find({}, {"_id": 1, "name": 1}))
+    all_invoices = list(invoices_col.find(
+        {"is_archived": {"$ne": True}},
+        {"contact_id": 1, "vendor_name": 1, "client_name": 1, "total_amount": 1},
+    ))
+
+    summaries: dict = {str(c["_id"]): {"count": 0, "total_amount": 0.0} for c in contacts}
+    name_to_id = {(c.get("name") or "").lower(): str(c["_id"]) for c in contacts if c.get("name")}
+
+    for inv in all_invoices:
+        amount = float(inv.get("total_amount") or 0)
+        matched: set = set()
+        cid = inv.get("contact_id")
+        if cid and cid in summaries:
+            matched.add(cid)
+        for field in ("vendor_name", "client_name"):
+            name_lower = (inv.get(field) or "").lower()
+            if name_lower and name_lower in name_to_id:
+                matched.add(name_to_id[name_lower])
+        for cid in matched:
+            summaries[cid]["count"] += 1
+            summaries[cid]["total_amount"] += amount
+
+    for cid in summaries:
+        summaries[cid]["total_amount"] = round(summaries[cid]["total_amount"], 2)
+
+    return summaries
+
+
+@router.get("/{contact_id}/invoices")
+def get_contact_invoices(
+    contact_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Return all invoices linked to a contact (by contact_id or matching vendor/client name)."""
+    contacts_col = get_contacts_collection()
+    invoices_col = get_invoices_collection()
+
+    try:
+        oid = ObjectId(contact_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid contact ID")
+
+    contact = contacts_col.find_one({"_id": oid})
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    contact_name = contact.get("name", "")
+    name_pattern = re.compile(f"^{re.escape(contact_name)}$", re.IGNORECASE)
+
+    query = {"$or": [
+        {"contact_id": contact_id},
+        {"vendor_name": name_pattern},
+        {"client_name": name_pattern},
+    ]}
+
+    docs = list(invoices_col.find(query).sort("invoice_date", -1))
+
+    total_amount = sum(float(d.get("total_amount") or 0) for d in docs)
+
+    invoices = []
+    for doc in docs:
+        invoices.append({
+            "id": str(doc["_id"]),
+            "invoice_number": doc.get("invoice_number"),
+            "invoice_date": doc.get("invoice_date"),
+            "direction": doc.get("direction"),
+            "total_amount": float(doc.get("total_amount") or 0),
+            "currency": doc.get("currency", "MAD"),
+            "status": doc.get("status"),
+            "vendor_name": doc.get("vendor_name"),
+            "client_name": doc.get("client_name"),
+        })
+
+    return {
+        "invoices": invoices,
+        "summary": {
+            "count": len(invoices),
+            "total_amount": round(total_amount, 2),
+        },
+    }

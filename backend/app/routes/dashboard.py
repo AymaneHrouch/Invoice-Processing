@@ -24,10 +24,16 @@ def get_stats(currency: Literal["MAD", "USD", "EUR"] = Query("MAD")):
         "extracted_invoices": extracted_invoices,
     }
 
+@router.get("/pme-kpis")
+def pme_kpis():
+    return dashboard.get_pme_kpis()
+
+
 @router.get("/top_vendors")
 def top_vendors(limit: int = Query(5, ge=1, le=10),
-                currency: Literal["MAD", "USD", "EUR"] = Query("MAD")):
-    return dashboard.get_top_vendors(limit, currency)
+                currency: Literal["MAD", "USD", "EUR"] = Query("MAD"),
+                direction: str | None = Query(None, description="incoming or outgoing")):
+    return dashboard.get_top_vendors(limit, currency, direction)
 
 @router.get("/latest_invoices")
 def latest_invoices(limit: int = Query(5, ge=1, le=10)):
@@ -71,5 +77,8 @@ def a_payer(limit: int = Query(10, ge=1, le=50)):
 
 
 @router.get("/tva-balance")
-def tva_balance():
-    return dashboard.get_tva_balance()
+def tva_balance(
+    year: int | None = Query(None, description="Year (default: current year)"),
+    quarter: int | None = Query(None, ge=0, le=3, description="Quarter 0-3 (0=Q1); omit for full year"),
+):
+    return dashboard.get_tva_balance(year=year, quarter=quarter)

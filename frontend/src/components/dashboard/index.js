@@ -14,3 +14,4 @@ export { default as InsightsPanel } from './InsightsPanel';
 export { DashboardLoading, DashboardError } from './DashboardStates';
 export { default as FinanceWidgets } from './FinanceWidgets';
 export { default as TVABalanceWidget } from './TVABalanceWidget';
+export { default as TopVendorsWidget } from './TopVendorsWidget';

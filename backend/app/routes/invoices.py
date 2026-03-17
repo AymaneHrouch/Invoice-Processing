@@ -38,11 +38,17 @@ router = APIRouter(prefix="/invoices", tags=["invoices"])
 
 
 def invoice_to_response(invoice: Invoice) -> InvoiceResponse:
-    """Build API response with computed amount_warnings for extracted invoices."""
+    """Build API response with computed fields for extracted invoices."""
     allowed = set(InvoiceResponse.model_fields)
     data = invoice.model_dump(mode="json", by_alias=False)
     payload = {k: data[k] for k in allowed if k in data}
     payload["amount_warnings"] = run_amount_checks(invoice)
+    # Compute is_overdue: due date in the past and not paid
+    today = datetime.utcnow()
+    if invoice.invoice_due_date and not invoice.is_paid:
+        payload["is_overdue"] = invoice.invoice_due_date < today
+    else:
+        payload["is_overdue"] = False
     return InvoiceResponse(**payload)
 
 
@@ -267,6 +273,9 @@ def get_invoices(
         is_paid: bool | None = Query(None, description="Filter by paid status"),
         include_archived: bool = Query(False, description="Include archived invoices"),
         direction: str | None = Query(None, description="Filter by direction (incoming/outgoing)"),
+        start_date: datetime | None = Query(None, description="Filter invoices on or after this date (YYYY-MM-DD)"),
+        end_date: datetime | None = Query(None, description="Filter invoices on or before this date (YYYY-MM-DD)"),
+        overdue: bool | None = Query(None, description="If true, return only overdue invoices (due_date < today and not paid)"),
 ):
     """
     Get all invoices with optional filtering and pagination
@@ -274,6 +283,8 @@ def get_invoices(
     - **status**: Filter by invoice status (e.g., 'extracted', 'validated')
     - **is_exported**: Filter by export status (for "ready to export" = false)
     - **include_archived**: Include archived invoices (excluded by default)
+    - **start_date** / **end_date**: Date range filter on invoice_date
+    - **overdue**: If true, only invoices past due date and unpaid
     """
     try:
         result = InvoiceCRUD.get_all_invoices(
@@ -288,6 +299,9 @@ def get_invoices(
             is_paid=is_paid,
             include_archived=include_archived,
             direction=direction,
+            start_date=start_date,
+            end_date=end_date,
+            overdue=overdue,
         )
         response.headers["X-Total-Count"] = str(result["total"])
         response.headers["X-Total-Pages"] = str(result["total_pages"])

@@ -54,6 +54,9 @@ const InvoiceListPage = ({ direction = null }) => {
   const initialVendorName = searchParams.get('vendor_name') || '';
   const initialCategory = searchParams.get('category') || 'all';
   const initialIsPaid = searchParams.get('is_paid') ?? 'all';
+  const initialStartDate = searchParams.get('start_date') || undefined;
+  const initialEndDate = searchParams.get('end_date') || undefined;
+  const initialOverdue = searchParams.get('overdue') === 'true';
   const editInvoiceId = searchParams.get('edit');
   const initialSortBy = searchParams.get('sort_by') || 'created_at';
   const initialOrder = searchParams.get('order') || 'desc';
@@ -75,6 +78,9 @@ const InvoiceListPage = ({ direction = null }) => {
     vendor_name: initialVendorName,
     category: initialCategory,
     is_paid: initialIsPaid,
+    start_date: initialStartDate,
+    end_date: initialEndDate,
+    overdue: initialOverdue,
     direction: direction ?? undefined,
   });
 
@@ -272,6 +278,9 @@ const InvoiceListPage = ({ direction = null }) => {
       params.set('category', filters.category);
     if (filters.is_paid && filters.is_paid !== 'all')
       params.set('is_paid', filters.is_paid);
+    if (filters.start_date) params.set('start_date', filters.start_date);
+    if (filters.end_date) params.set('end_date', filters.end_date);
+    if (filters.overdue) params.set('overdue', 'true');
     if (sortBy && sortBy !== 'created_at') params.set('sort_by', sortBy);
     if (order && order !== 'desc') params.set('order', order);
     if (page && page !== 1) params.set('page', page);
@@ -371,6 +380,9 @@ const InvoiceListPage = ({ direction = null }) => {
       vendor_name: '',
       category: 'all',
       is_paid: 'all',
+      start_date: undefined,
+      end_date: undefined,
+      overdue: false,
     });
     setVendorSearchInput('');
     setPage(1);

@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useTheme } from '@/contexts';
 import { useCategories } from '@/hooks/useCategories';
 
@@ -131,6 +132,43 @@ const InvoiceFilters = ({ filters, onFilterChange, onClearFilters }) => {
             </Select>
           </div>
 
+          {/* Date range */}
+          <div className="space-y-2 min-w-[130px] flex-1">
+            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+              Du
+            </Label>
+            <Input
+              type="date"
+              value={filters.start_date ?? ''}
+              onChange={(e) =>
+                onFilterChange('start_date', e.target.value || undefined)
+              }
+              className={`h-11 ${
+                isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-white'
+                  : 'bg-white'
+              }`}
+            />
+          </div>
+
+          <div className="space-y-2 min-w-[130px] flex-1">
+            <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
+              Au
+            </Label>
+            <Input
+              type="date"
+              value={filters.end_date ?? ''}
+              onChange={(e) =>
+                onFilterChange('end_date', e.target.value || undefined)
+              }
+              className={`h-11 ${
+                isDarkMode
+                  ? 'bg-gray-700 border-gray-600 text-white'
+                  : 'bg-white'
+              }`}
+            />
+          </div>
+
           <div className="space-y-2 flex-1 min-w-0">
             <Label className="invisible">Archives</Label>
             <Button
@@ -153,6 +191,27 @@ const InvoiceFilters = ({ filters, onFilterChange, onClearFilters }) => {
               {filters.include_archived
                 ? 'Masquer les archives'
                 : 'Afficher les archives'}
+            </Button>
+          </div>
+
+          {/* Overdue filter */}
+          <div className="space-y-2 flex-1 min-w-0">
+            <Label className="invisible">En retard</Label>
+            <Button
+              type="button"
+              variant="outline"
+              className={`h-11 min-h-0 py-2 w-auto shrink-0 px-3 justify-center text-sm font-normal ${
+                filters.overdue
+                  ? isDarkMode
+                    ? 'border-red-500 bg-red-900/20 text-red-300'
+                    : 'border-red-500 bg-red-50 text-red-700'
+                  : ''
+              }`}
+              onClick={() =>
+                onFilterChange('overdue', !(filters.overdue ?? false))
+              }
+            >
+              En retard
             </Button>
           </div>
 

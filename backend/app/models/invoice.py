@@ -272,3 +272,5 @@ class InvoiceResponse(BaseModel):
     updated_at: datetime | None = None
     # Computed by backend when status is 'extracted' (amount verification warnings)
     amount_warnings: list[str] | None = None
+    # Computed: true when invoice_due_date < today AND is_paid is false
+    is_overdue: bool | None = None

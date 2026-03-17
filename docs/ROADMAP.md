@@ -206,29 +206,31 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [ ] **Frontend** *(future)*: Render `TopVendors`, `TopCategories`, `MonthlyChart` components — backend and components exist, not yet wired
 - [ ] **Note**: Only add charts that answer real PME questions
 
-### Dashboard — Date Picker & Improvements
-- [ ] **Frontend**: Replace old WorkQueueWidgets (Toutes les factures / À valider / Prêt à exporter / Exporté ce mois) — these are residue from the single-direction OCR workflow and no longer meaningful. Replace with PME-relevant KPIs: CA Ventes ce mois, Dépenses Achats ce mois, Ventes brouillons en attente, Achats à valider (OCR queue)
-- [ ] **Backend**: New endpoint or extend `/dashboard/stats` to return direction-aware monthly totals (outgoing CA, incoming spend, draft ventes count, extracted achats count)
-- [ ] **Frontend**: Add a period selector (current quarter / last quarter / this year) to `DashboardPage` controlling which period TVA balance and top widgets reflect
-- [ ] **Backend**: Accept optional `year`/`quarter` params on `GET /dashboard/tva-balance` — defaults to current quarter
-- [ ] **Frontend**: Add a "Top clients par CA" widget — top 5 clients by total Ventes amount
-- [ ] **Frontend**: Add a "Top fournisseurs par dépense" widget — top 5 suppliers by total Achats spend
-- [ ] **Note**: Keep widgets actionable — every number should be clickable and lead somewhere useful
+### Dashboard — Date Picker & Improvements ✅
+- [x] **Frontend**: Replace old WorkQueueWidgets with PME KPIs: CA Ventes ce mois, Dépenses Achats ce mois, Ventes brouillons, Achats à valider — each card clickable
+- [x] **Backend**: `GET /dashboard/pme-kpis` — direction-aware monthly totals (outgoing CA, incoming spend, draft ventes count, extracted achats count)
+- [x] **Frontend**: Period selector (Ce trimestre / Trimestre dernier / Cette année) on DashboardPage controls TVA balance period
+- [x] **Backend**: `GET /dashboard/tva-balance` now accepts optional `year`/`quarter` params — defaults to current quarter; year-only returns full year
+- [x] **Backend**: `GET /dashboard/top_vendors` now accepts `direction` param — outgoing returns top clients by client_name, incoming returns top suppliers
+- [x] **Frontend**: `TopVendorsWidget.jsx` — "Top 5 clients (CA)" and "Top 5 fournisseurs (Achats)" widgets, both with clickable rows
 
-### Overdue Invoice Tracking
-- [ ] **Backend**: Add `is_overdue` computed flag to invoice response (invoice_due_date < today AND not paid)
-- [ ] **Frontend**: Highlight overdue rows in the invoice list (red badge or row tint)
-- [ ] **Frontend**: Add overdue stat card to dashboard (backend endpoint already exists)
-- [ ] **Frontend**: Add overdue filter option to `InvoiceFilters`
+### Overdue Invoice Tracking ✅
+- [x] **Backend**: `is_overdue` computed field on `InvoiceResponse` (invoice_due_date < today AND is_paid=false)
+- [x] **Frontend**: Overdue rows highlighted with red left border in invoice list
+- [x] **Frontend**: "En retard" label shown under date for overdue invoices
+- [x] **Backend**: `overdue=true` query param on `GET /invoices/` filters to only overdue invoices
+- [x] **Frontend**: "En retard" toggle button in `InvoiceFilters`, persisted in URL
 
-### Date Range Filter on Invoice List
-- [ ] **Frontend**: Add date picker (from/to) to `InvoiceFilters` — backend already supports `start_date`/`end_date` params
-- [ ] **Frontend**: Persist date range in URL params like other filters
+### Date Range Filter on Invoice List ✅
+- [x] **Frontend**: "Du" / "Au" date inputs added to `InvoiceFilters`
+- [x] **Backend**: `start_date` / `end_date` params wired through route → CRUD
+- [x] **Frontend**: Date range persisted in URL params alongside other filters
 
-### Contact → Invoice History
-- [ ] **Frontend**: Add invoice history tab/section inside contact detail modal on `ContactsPage`
-- [ ] **Backend**: `GET /contacts/{id}/invoices` — return all invoices linked to a contact via `contact_id` or matching `vendor_name`/`client_name`
-- [ ] **Frontend**: Show total amount + invoice count per contact in the contacts table
+### Contact → Invoice History ✅
+- [x] **Backend**: `GET /contacts/{id}/invoices` — invoices matched by contact_id OR vendor_name/client_name; returns list + summary
+- [x] **Backend**: `GET /contacts/invoice-summaries` — bulk count+total for all contacts in one call
+- [x] **Frontend**: "Factures" column in contacts table showing invoice count + total amount (clickable to open modal)
+- [x] **Frontend**: "Historique" tab in contact edit modal — lists all invoices with number, date, direction badge, amount, status; rows clickable
 
 ### Batch Actions Hardening
 - [ ] **Frontend**: Add confirmation dialog before batch "Valider" on Ventes — validated invoices are locked, batch-validating without confirmation is risky

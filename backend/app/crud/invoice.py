@@ -120,12 +120,15 @@ class InvoiceCRUD:
             is_paid: bool | None = None,
             include_archived: bool = False,
             direction: str | None = None,
+            start_date: datetime | None = None,
+            end_date: datetime | None = None,
+            overdue: bool | None = None,
     ):
         """Get all invoices with optional filtering. Excludes archived by default."""
         try:
             collection = get_invoices_collection()
             # Build filter query
-            filter_query = {}
+            filter_query: dict = {}
             if not include_archived:
                 filter_query["is_archived"] = {"$ne": True}
             if status:
@@ -140,6 +143,17 @@ class InvoiceCRUD:
                 filter_query["is_paid"] = is_paid
             if direction is not None:
                 filter_query["direction"] = direction
+            if start_date or end_date:
+                date_filter: dict = {}
+                if start_date:
+                    date_filter["$gte"] = start_date
+                if end_date:
+                    date_filter["$lte"] = end_date
+                filter_query["invoice_date"] = date_filter
+            if overdue:
+                today = datetime.utcnow()
+                filter_query["invoice_due_date"] = {"$lt": today}
+                filter_query["is_paid"] = {"$ne": True}
 
             total = collection.count_documents(filter_query)
             total_pages = (total + per_page - 1) // per_page

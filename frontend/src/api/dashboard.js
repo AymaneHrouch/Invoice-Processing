@@ -1,13 +1,19 @@
 import api from './baseApi';
 
-export const getTopVendors = async (limit = 5) => {
+export const getTopVendors = async (limit = 5, direction = null) => {
   try {
-    const response = await api.get(`/dashboard/top_vendors?limit=${limit}`);
-    // With axios, the data is already parsed JSON in response.data
+    const params = { limit };
+    if (direction) params.direction = direction;
+    const response = await api.get('/dashboard/top_vendors', { params });
     return response.data;
   } catch (error) {
     throw new Error(`Failed to fetch top vendors: ${error.message}`);
   }
+};
+
+export const getPmeKpis = async () => {
+  const response = await api.get('/dashboard/pme-kpis');
+  return response.data;
 };
 
 // Additional dashboard API functions
@@ -57,8 +63,11 @@ export const getAPayer = async (limit = 10) => {
   return response.data;
 };
 
-export const getTvaBalance = async () => {
-  const response = await api.get('/dashboard/tva-balance');
+export const getTvaBalance = async ({ year, quarter } = {}) => {
+  const params = {};
+  if (year !== undefined) params.year = year;
+  if (quarter !== undefined) params.quarter = quarter;
+  const response = await api.get('/dashboard/tva-balance', { params });
   return response.data;
 };
 

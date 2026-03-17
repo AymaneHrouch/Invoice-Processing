@@ -22,3 +22,16 @@ export const updateContact = async (id, data) => {
 export const deleteContact = async (id) => {
   await api.delete(`/contacts/${id}`, getAuthConfig());
 };
+
+export const getContactInvoices = async (id) => {
+  const response = await api.get(`/contacts/${id}/invoices`, getAuthConfig());
+  return response.data;
+};
+
+export const getContactInvoiceSummaries = async () => {
+  const response = await api.get(
+    '/contacts/invoice-summaries',
+    getAuthConfig(),
+  );
+  return response.data;
+};

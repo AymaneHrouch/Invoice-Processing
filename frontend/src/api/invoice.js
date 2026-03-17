@@ -197,6 +197,9 @@ export const fetchInvoices = async (
         }),
       ...(filters.include_archived && { include_archived: true }),
       ...(filters.direction && { direction: filters.direction }),
+      ...(filters.start_date && { start_date: filters.start_date }),
+      ...(filters.end_date && { end_date: filters.end_date }),
+      ...(filters.overdue === true && { overdue: true }),
     };
 
     const response = await api.get('/invoices/', { params });
