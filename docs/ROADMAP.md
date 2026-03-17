@@ -232,6 +232,10 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [x] **Frontend**: "Factures" column in contacts table showing invoice count + total amount (clickable to open modal)
 - [x] **Frontend**: "Historique" tab in contact edit modal — lists all invoices with number, date, direction badge, amount, status; rows clickable
 
+### Batch PDF Download
+- [ ] **Frontend**: "Télécharger PDFs" button in batch actions bar — triggers sequential PDF downloads for all selected invoices
+- [ ] **Backend** *(optional)*: `POST /invoices/batch-pdf` — server-side ZIP of multiple PDFs, more reliable than sequential browser downloads for large selections
+
 ### Batch Actions Hardening
 - [ ] **Frontend**: Add confirmation dialog before batch "Valider" on Ventes — validated invoices are locked, batch-validating without confirmation is risky
 - [ ] **Frontend**: Hide "Invalider" (sets status back to `extracted`) from non-admin users — it's a dev/admin tool, not a regular user action
