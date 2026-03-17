@@ -207,11 +207,12 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [ ] **Note**: Only add charts that answer real PME questions
 
 ### Dashboard — Date Picker & Improvements
-- [ ] **Frontend**: Add a quarter/month date picker to `DashboardPage` — lets the user select which period the TVA balance and finance widgets reflect
+- [ ] **Frontend**: Replace old WorkQueueWidgets (Toutes les factures / À valider / Prêt à exporter / Exporté ce mois) — these are residue from the single-direction OCR workflow and no longer meaningful. Replace with PME-relevant KPIs: CA Ventes ce mois, Dépenses Achats ce mois, Ventes brouillons en attente, Achats à valider (OCR queue)
+- [ ] **Backend**: New endpoint or extend `/dashboard/stats` to return direction-aware monthly totals (outgoing CA, incoming spend, draft ventes count, extracted achats count)
+- [ ] **Frontend**: Add a period selector (current quarter / last quarter / this year) to `DashboardPage` controlling which period TVA balance and top widgets reflect
 - [ ] **Backend**: Accept optional `year`/`quarter` params on `GET /dashboard/tva-balance` — defaults to current quarter
-- [ ] **Backend**: Accept optional `start_date`/`end_date` on `GET /dashboard/a-encaisser` and `GET /dashboard/a-payer` — defaults to all unpaid
-- [ ] **Frontend**: Add a "Top clients par CA" widget — top 5 clients by total invoiced amount (Ventes), using existing `/dashboard/top_vendors` data filtered to outgoing
-- [ ] **Frontend**: Add a "Top fournisseurs par dépense" widget — top 5 suppliers by total spend (Achats)
+- [ ] **Frontend**: Add a "Top clients par CA" widget — top 5 clients by total Ventes amount
+- [ ] **Frontend**: Add a "Top fournisseurs par dépense" widget — top 5 suppliers by total Achats spend
 - [ ] **Note**: Keep widgets actionable — every number should be clickable and lead somewhere useful
 
 ### Overdue Invoice Tracking
