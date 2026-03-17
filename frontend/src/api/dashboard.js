@@ -47,6 +47,21 @@ export const getInvoiceMetrics = async (period = '30') => {
   }
 };
 
+export const getAEncaisser = async (limit = 10) => {
+  const response = await api.get(`/dashboard/a-encaisser?limit=${limit}`);
+  return response.data;
+};
+
+export const getAPayer = async (limit = 10) => {
+  const response = await api.get(`/dashboard/a-payer?limit=${limit}`);
+  return response.data;
+};
+
+export const getTvaBalance = async () => {
+  const response = await api.get('/dashboard/tva-balance');
+  return response.data;
+};
+
 // Get dashboard overview with all stats
 export const getDashboardOverview = async (currency = 'MAD') => {
   try {

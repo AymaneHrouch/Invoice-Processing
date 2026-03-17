@@ -196,6 +196,39 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 
 ## Backlog — UX Improvements & Ideas
 
+### Dashboard — PME Finance Widgets ✅
+- [x] **Backend**: `GET /dashboard/a-encaisser` — unpaid outgoing Ventes sorted by due date; returns items list + total + overdue count
+- [x] **Backend**: `GET /dashboard/a-payer` — unpaid incoming Achats sorted by due date; same shape
+- [x] **Backend**: `GET /dashboard/tva-balance` — TVA collectée (validated/sent/paid Ventes) vs TVA déductible (validated/paid Achats) for current quarter; returns net à reverser
+- [x] **Frontend**: `FinanceWidgets.jsx` — side-by-side À encaisser / À payer tables with overdue badges and clickable rows
+- [x] **Frontend**: `TVABalanceWidget.jsx` — collectée / déductible / net à reverser for the quarter
+- [x] **Frontend**: `DashboardPage.jsx` — fetches all 4 endpoints in parallel, renders finance widgets above RecentActivity
+- [ ] **Frontend** *(future)*: Render `TopVendors`, `TopCategories`, `MonthlyChart` components — backend and components exist, not yet wired
+- [ ] **Note**: Only add charts that answer real PME questions
+
+### Dashboard — Date Picker & Improvements
+- [ ] **Frontend**: Add a quarter/month date picker to `DashboardPage` — lets the user select which period the TVA balance and finance widgets reflect
+- [ ] **Backend**: Accept optional `year`/`quarter` params on `GET /dashboard/tva-balance` — defaults to current quarter
+- [ ] **Backend**: Accept optional `start_date`/`end_date` on `GET /dashboard/a-encaisser` and `GET /dashboard/a-payer` — defaults to all unpaid
+- [ ] **Frontend**: Add a "Top clients par CA" widget — top 5 clients by total invoiced amount (Ventes), using existing `/dashboard/top_vendors` data filtered to outgoing
+- [ ] **Frontend**: Add a "Top fournisseurs par dépense" widget — top 5 suppliers by total spend (Achats)
+- [ ] **Note**: Keep widgets actionable — every number should be clickable and lead somewhere useful
+
+### Overdue Invoice Tracking
+- [ ] **Backend**: Add `is_overdue` computed flag to invoice response (invoice_due_date < today AND not paid)
+- [ ] **Frontend**: Highlight overdue rows in the invoice list (red badge or row tint)
+- [ ] **Frontend**: Add overdue stat card to dashboard (backend endpoint already exists)
+- [ ] **Frontend**: Add overdue filter option to `InvoiceFilters`
+
+### Date Range Filter on Invoice List
+- [ ] **Frontend**: Add date picker (from/to) to `InvoiceFilters` — backend already supports `start_date`/`end_date` params
+- [ ] **Frontend**: Persist date range in URL params like other filters
+
+### Contact → Invoice History
+- [ ] **Frontend**: Add invoice history tab/section inside contact detail modal on `ContactsPage`
+- [ ] **Backend**: `GET /contacts/{id}/invoices` — return all invoices linked to a contact via `contact_id` or matching `vendor_name`/`client_name`
+- [ ] **Frontend**: Show total amount + invoice count per contact in the contacts table
+
 ### Batch Actions Hardening
 - [ ] **Frontend**: Add confirmation dialog before batch "Valider" on Ventes — validated invoices are locked, batch-validating without confirmation is risky
 - [ ] **Frontend**: Hide "Invalider" (sets status back to `extracted`) from non-admin users — it's a dev/admin tool, not a regular user action

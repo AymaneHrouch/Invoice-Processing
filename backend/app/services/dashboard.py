@@ -401,6 +401,122 @@ def get_monthly_chart_data(currency: Literal["MAD", "USD", "EUR"] = "MAD", perio
 
     return months_data
 
+def get_a_encaisser(limit: int = 10):
+    """Unpaid outgoing invoices (Ventes) — what clients owe us."""
+    today = datetime.now()
+    cursor = invoice_collection.find({
+        "direction": "outgoing",
+        "is_paid": {"$ne": True},
+        "status": {"$nin": ["draft"]},
+        "is_archived": {"$ne": True},
+    }).sort("invoice_due_date", 1).limit(limit)
+
+    items = []
+    total_amount = 0.0
+    overdue_count = 0
+
+    for doc in cursor:
+        due_date = doc.get("invoice_due_date")
+        days_overdue = None
+        if due_date:
+            delta = (today - due_date).days
+            if delta > 0:
+                days_overdue = delta
+                overdue_count += 1
+        amount = float(doc.get("total_amount") or 0)
+        total_amount += amount
+        items.append({
+            "id": str(doc["_id"]),
+            "invoice_number": doc.get("invoice_number", "—"),
+            "client_name": doc.get("client_name", "—"),
+            "total_amount": amount,
+            "currency": doc.get("currency", "MAD"),
+            "due_date": due_date,
+            "days_overdue": days_overdue,
+            "status": doc.get("status"),
+        })
+
+    return {
+        "items": items,
+        "total_amount": round(total_amount, 2),
+        "count": len(items),
+        "overdue_count": overdue_count,
+    }
+
+
+def get_a_payer(limit: int = 10):
+    """Unpaid incoming invoices (Achats) — what we owe suppliers."""
+    today = datetime.now()
+    cursor = invoice_collection.find({
+        "direction": "incoming",
+        "is_paid": {"$ne": True},
+        "status": {"$in": ["validated", "sent", "extracted"]},
+        "is_archived": {"$ne": True},
+    }).sort("invoice_due_date", 1).limit(limit)
+
+    items = []
+    total_amount = 0.0
+    overdue_count = 0
+
+    for doc in cursor:
+        due_date = doc.get("invoice_due_date")
+        days_overdue = None
+        if due_date:
+            delta = (today - due_date).days
+            if delta > 0:
+                days_overdue = delta
+                overdue_count += 1
+        amount = float(doc.get("total_amount") or 0)
+        total_amount += amount
+        items.append({
+            "id": str(doc["_id"]),
+            "invoice_number": doc.get("invoice_number", "—"),
+            "vendor_name": doc.get("vendor_name", "—"),
+            "total_amount": amount,
+            "currency": doc.get("currency", "MAD"),
+            "due_date": due_date,
+            "days_overdue": days_overdue,
+        })
+
+    return {
+        "items": items,
+        "total_amount": round(total_amount, 2),
+        "count": len(items),
+        "overdue_count": overdue_count,
+    }
+
+
+def get_tva_balance():
+    """TVA collectée (Ventes) vs TVA déductible (Achats) for the current quarter."""
+    today = datetime.now()
+    quarter = (today.month - 1) // 3
+    quarter_start = datetime(today.year, quarter * 3 + 1, 1)
+
+    def sum_tva(direction, statuses):
+        pipeline = [
+            {"$match": {
+                "direction": direction,
+                "status": {"$in": statuses},
+                "invoice_date": {"$gte": quarter_start},
+                "amount_tva": {"$ne": None},
+            }},
+            {"$group": {"_id": None, "total": {"$sum": "$amount_tva"}}},
+        ]
+        result = list(invoice_collection.aggregate(pipeline))
+        return round(float(result[0]["total"]) if result else 0.0, 2)
+
+    collectee = sum_tva("outgoing", ["validated", "sent", "paid"])
+    deductible = sum_tva("incoming", ["validated", "paid"])
+    net = round(collectee - deductible, 2)
+
+    return {
+        "collectee": collectee,
+        "deductible": deductible,
+        "net": net,
+        "quarter_label": f"T{quarter + 1} {today.year}",
+    }
+
+
 def get_weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: str = "8weeks", start_date: datetime = None, end_date: datetime = None):
     """
     Get weekly activity pattern showing average invoices and amounts per day of week

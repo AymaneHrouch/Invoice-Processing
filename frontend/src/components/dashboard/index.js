@@ -12,3 +12,5 @@ export { default as MonthlyChart } from './MonthlyChart';
 export { default as CategoryDistribution } from './CategoryDistribution';
 export { default as InsightsPanel } from './InsightsPanel';
 export { DashboardLoading, DashboardError } from './DashboardStates';
+export { default as FinanceWidgets } from './FinanceWidgets';
+export { default as TVABalanceWidget } from './TVABalanceWidget';

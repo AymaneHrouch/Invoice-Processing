@@ -58,3 +58,18 @@ def weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = Query("MAD"),
                    start_date: datetime | None = Query(None, description="Start date (YYYY-MM-DD format)"),
                    end_date: datetime | None = Query(None, description="End date (YYYY-MM-DD format)")):
     return dashboard.get_weekly_pattern(currency, period, start_date, end_date)
+
+
+@router.get("/a-encaisser")
+def a_encaisser(limit: int = Query(10, ge=1, le=50)):
+    return dashboard.get_a_encaisser(limit)
+
+
+@router.get("/a-payer")
+def a_payer(limit: int = Query(10, ge=1, le=50)):
+    return dashboard.get_a_payer(limit)
+
+
+@router.get("/tva-balance")
+def tva_balance():
+    return dashboard.get_tva_balance()
