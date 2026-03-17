@@ -769,7 +769,10 @@ const InvoiceListPage = ({ direction = null }) => {
                     className="justify-start font-normal"
                     onClick={() => {
                       setMoreDropdownOpen(false);
-                      handleBatchUpdate({ status: 'extracted' });
+                      handleBatchUpdate({
+                        status:
+                          direction === 'outgoing' ? 'draft' : 'extracted',
+                      });
                     }}
                     disabled={batchLoading}
                   >

@@ -238,6 +238,16 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [ ] **Frontend**: "Définir comme achat / vente" batch actions are a workaround for legacy invoices with no direction — revisit once all invoices are created with correct direction by default, may be removable
 - [ ] **Frontend**: Consider adding batch delete (currently only batch archive is possible) — decide if this is intentional
 
+### Invoice UX Overhaul — Status & Actions Consistency
+- [ ] **Frontend**: Replace per-row icon buttons with a single contextual "⋯" dropdown menu — show only valid actions for that invoice's current state and direction, with text labels (no icon-only guessing)
+- [ ] **Frontend**: Direction-aware status filter — Achats page shows Extrait/Validé, Ventes page shows Brouillon/Validé/Envoyé/Payé; shared "all invoices" view shows all options
+- [ ] **Frontend**: Full revert transitions for Ventes — add Envoyé → Validé and Payé → Envoyé/Validé endpoints and row actions (all transitions reversible; admin-only lock deferred to Phase 3)
+- [ ] **Backend**: Revert endpoints — `POST /ventes/{id}/unmark-sent`, `POST /ventes/{id}/unmark-paid`
+- [ ] **Frontend**: Smart batch actions — show only actions applicable to the current selection context (e.g. "Valider" only when all selected are drafts/extraits)
+- [ ] **Frontend**: Inline quick-edit on invoice rows — due date and amount editable directly in the row without opening the modal (extends existing `is_paid`/`is_exported` inline pattern)
+- [ ] **Backend + Frontend**: Audit trail on invoices — `history` array on invoice document recording each status change with timestamp and user; displayed as a collapsible timeline in the edit modal or expanded row
+- [ ] **Future (Phase 3)**: Lock irreversible transitions (Envoyé, Payé) behind admin role once auth roles are enforced
+
 ---
 
 ## Implementation Order Within Each Phase
