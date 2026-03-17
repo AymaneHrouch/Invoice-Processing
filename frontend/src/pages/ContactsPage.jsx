@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Users, Plus, Pencil, Trash2, Search } from 'lucide-react';
 import { useTheme } from '@/contexts';
 import {
@@ -66,12 +67,15 @@ const typeBadge = (types) =>
 
 export default function ContactsPage() {
   const { isDarkMode } = useTheme();
+  const [searchParams] = useSearchParams();
 
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const [typeFilter, setTypeFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState(
+    () => searchParams.get('type') || '',
+  );
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
 
@@ -105,6 +109,11 @@ export default function ContactsPage() {
   useEffect(() => {
     fetchContacts();
   }, [fetchContacts]);
+
+  // Sync type filter when URL param changes (e.g. sidebar Fournisseurs → Clients)
+  useEffect(() => {
+    setTypeFilter(searchParams.get('type') || '');
+  }, [searchParams]);
 
   // Debounce search
   useEffect(() => {

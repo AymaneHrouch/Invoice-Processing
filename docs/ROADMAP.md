@@ -26,10 +26,13 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [x] **Frontend**: *(added)* Contact count badge on sidebar "Contacts" item — updates on every navigation
 - [x] **Frontend**: *(added)* "Save as supplier" quick-add button on the invoice edit form — pre-fills contact modal with vendor name + ICE
 
-### 1.3 Navigation Restructure
-- [ ] **Frontend**: Update `constants/index.jsx` sidebar items to Ventes/Achats structure
-- [ ] **Frontend**: Update `App.jsx` routes to new paths (`/ventes`, `/achats`, `/company`, `/contacts`)
-- [ ] **Frontend**: Keep old `/invoices/*` routes as redirects temporarily
+### 1.3 Navigation Restructure ✅
+- [x] **Frontend**: Update `constants/index.jsx` sidebar items to Ventes/Achats structure — Achats (Liste, Importer, Fournisseurs) + Ventes (Liste, Nouvelle, Clients)
+- [x] **Frontend**: Update `App.jsx` routes to new paths (`/ventes`, `/achats`, `/achats/import`, `/ventes/new`)
+- [x] **Frontend**: Keep old `/invoices/*` routes as redirects
+- [x] **Frontend**: `SideBar.jsx` — replace single `invoicesExpanded` with `expandedSections` map (independent expand per section)
+- [x] **Frontend**: `ContactsPage.jsx` — reads initial `?type=` from URL so sidebar Fournisseurs/Clients links auto-filter the page
+- [x] **Frontend**: *(added)* Active section highlighting — parent sidebar item (Achats/Ventes) gets a blue accent when any of its children is the current route, even when collapsed
 
 ### 1.4 Achats Improvements
 - [ ] **Backend**: New routes `GET /achats`, `POST /achats/upload`, `GET /achats/{id}` (wrappers that filter `direction=incoming`)

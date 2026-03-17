@@ -18,7 +18,10 @@ const SIDEBAR_STATE_COOKIE = 'sidebar_collapsed';
 const Sidebar = ({ profileComplete = true }) => {
   const { isDarkMode } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [invoicesExpanded, setInvoicesExpanded] = useState(true);
+  const [expandedSections, setExpandedSections] = useState({
+    achats: true,
+    ventes: true,
+  });
   const [contactsCount, setContactsCount] = useState(null);
   const { logout, user } = useAuth();
   const navigate = useNavigate();
@@ -54,19 +57,30 @@ const Sidebar = ({ profileComplete = true }) => {
 
   const handleItemClick = (item) => {
     if (item.hasChildren) {
-      setInvoicesExpanded(!invoicesExpanded);
+      setExpandedSections((prev) => ({ ...prev, [item.id]: !prev[item.id] }));
     } else if (item.path) {
       navigate(item.path);
     }
   };
 
   const isPathActive = (path) => {
-    return location.pathname === path;
+    if (!path) return false;
+    const [pathname, search] = path.split('?');
+    if (search) {
+      return location.pathname === pathname && location.search === `?${search}`;
+    }
+    return location.pathname === pathname;
+  };
+
+  const isSectionActive = (item) => {
+    if (!item.children) return false;
+    return item.children.some((child) => isPathActive(child.path));
   };
 
   const renderSidebarItem = (item) => {
     const Icon = item.icon;
     const isActive = isPathActive(item.path);
+    const sectionActive = isSectionActive(item);
 
     return (
       <div key={item.id} className="mb-1">
@@ -75,7 +89,11 @@ const Sidebar = ({ profileComplete = true }) => {
           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
             isActive
               ? 'bg-blue-600 text-white shadow-lg'
-              : `${isDarkMode ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`
+              : sectionActive
+                ? isDarkMode
+                  ? 'bg-blue-900/30 text-blue-300 border-l-2 border-blue-500'
+                  : 'bg-blue-50 text-blue-700 border-l-2 border-blue-500'
+                : `${isDarkMode ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`
           }`}
           title={isCollapsed ? item.label : ''}
         >
@@ -103,15 +121,15 @@ const Sidebar = ({ profileComplete = true }) => {
               {item.hasChildren && (
                 <ChevronDown
                   className={`w-4 h-4 transition-transform duration-200 ${
-                    invoicesExpanded ? 'transform rotate-180' : ''
-                  }`}
+                    expandedSections[item.id] ? 'transform rotate-180' : ''
+                  } ${sectionActive && !isActive ? 'text-blue-500' : ''}`}
                 />
               )}
             </>
           )}
         </button>
 
-        {item.children && !isCollapsed && invoicesExpanded && (
+        {item.children && !isCollapsed && expandedSections[item.id] && (
           <div className="ml-4 mt-2 space-y-1 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
             {item.children.map((child) => {
               const ChildIcon = child.icon;

@@ -90,19 +90,48 @@ function App() {
               }
             />
 
+            {/* Legacy redirects */}
             <Route
               path="/invoices/add"
+              element={<Navigate to="/achats/import" replace />}
+            />
+            <Route
+              path="/invoices/list"
+              element={<Navigate to="/achats" replace />}
+            />
+
+            {/* Achats */}
+            <Route
+              path="/achats"
+              element={
+                <ProtectedRoute>
+                  <InvoiceListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/achats/import"
               element={
                 <ProtectedRoute>
                   <InvoiceAddPage />
                 </ProtectedRoute>
               }
             />
+
+            {/* Ventes */}
             <Route
-              path="/invoices/list"
+              path="/ventes"
               element={
                 <ProtectedRoute>
                   <InvoiceListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ventes/new"
+              element={
+                <ProtectedRoute>
+                  <InvoiceAddPage />
                 </ProtectedRoute>
               }
             />
