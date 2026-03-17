@@ -176,57 +176,57 @@ def _make_items(templates, amount_ht):
 COMPANY_NAME = "Voynich Tech SARL"
 COMPANY_ICE  = "001234567000089"
 
-# 25 clients
+# 25 clients — (name, ice, phone, city, address)
 CLIENTS = [
-    ("Maroc Telecom SA",           "001000001000001"),   # 0
-    ("OCP Group",                  "001000002000002"),   # 1
-    ("Banque Populaire du Maroc",  "002610000000001"),   # 2
-    ("Attijariwafa Bank",          "002600000000002"),   # 3
-    ("BMCE Bank of Africa",        "002800000000003"),   # 4
-    ("Royal Air Maroc",            "001100001000004"),   # 5
-    ("ONCF",                       "001300001000005"),   # 6
-    ("Lydec",                      "001500001000006"),   # 7
-    ("LafargeHolcim Maroc",        "001700001000007"),   # 8
-    ("Centrale Danone Maroc",      "001800001000008"),   # 9
-    ("Managem Group",              "001900001000009"),   # 10
-    ("Wafa Assurance",             "002100001000010"),   # 11
-    ("BMCI",                       "002200001000011"),   # 12
-    ("Société Générale Maroc",     "002300001000012"),   # 13
-    ("Auto Nejma",                 "001200001000013"),   # 14
-    ("Renault Maroc",              "001400001000014"),   # 15
-    ("inwi",                       "001600001000015"),   # 16
-    ("Orange Maroc",               "001600002000016"),   # 17
-    ("M2M Group",                  "001700001000017"),   # 18
-    ("Ernst & Young Maroc",        "001800001000018"),   # 19
-    ("Deloitte Maroc",             "001900001000019"),   # 20
-    ("Cabinet Fiduciaire Alami",   "002000001000020"),   # 21
-    ("Agence Nationale des Ports", "002100001000021"),   # 22
-    ("MASEN",                      "002200001000022"),   # 23
-    ("Marsa Maroc",                "002300001000023"),   # 24
+    ("Maroc Telecom SA",           "001000001000001", "+212 537 71 41 00", "Rabat",         "Avenue Annakhil, Hay Riad"),
+    ("OCP Group",                  "001000002000002", "+212 523 00 28 28", "Casablanca",    "2 Rue Al Abtal, Hay Erraha"),
+    ("Banque Populaire du Maroc",  "002610000000001", "+212 522 20 25 00", "Casablanca",    "101 Boulevard Zerktouni"),
+    ("Attijariwafa Bank",          "002600000000002", "+212 522 29 88 88", "Casablanca",    "2 Boulevard Moulay Youssef"),
+    ("BMCE Bank of Africa",        "002800000000003", "+212 522 49 80 00", "Casablanca",    "140 Avenue Hassan II"),
+    ("Royal Air Maroc",            "001100001000004", "+212 522 48 97 97", "Casablanca",    "Aéroport Mohammed V"),
+    ("ONCF",                       "001300001000005", "+212 537 77 47 47", "Rabat",         "8 bis Rue Abderrahmane El Ghafiki"),
+    ("Lydec",                      "001500001000006", "+212 522 54 90 00", "Casablanca",    "48 Rue Mohamed Diouri"),
+    ("LafargeHolcim Maroc",        "001700001000007", "+212 522 23 28 00", "Casablanca",    "Route de Rabat, Km 12"),
+    ("Centrale Danone Maroc",      "001800001000008", "+212 522 67 10 00", "Casablanca",    "Bouskoura, Zone Industrielle"),
+    ("Managem Group",              "001900001000009", "+212 522 23 26 00", "Casablanca",    "Twin Center, Tour Ouest"),
+    ("Wafa Assurance",             "002100001000010", "+212 522 54 55 55", "Casablanca",    "1 Boulevard Abdelmoumen"),
+    ("BMCI",                       "002200001000011", "+212 522 66 52 00", "Casablanca",    "26 Place des Nations Unies"),
+    ("Société Générale Maroc",     "002300001000012", "+212 522 43 88 00", "Casablanca",    "55 Boulevard Abdelmoumen"),
+    ("Auto Nejma",                 "001200001000013", "+212 522 54 10 00", "Casablanca",    "Route de l'Aéroport"),
+    ("Renault Maroc",              "001400001000014", "+212 522 30 50 00", "Casablanca",    "Route de Rabat, Ain Sebaa"),
+    ("inwi",                       "001600001000015", "+212 522 80 00 00", "Casablanca",    "82 Boulevard d'Anfa"),
+    ("Orange Maroc",               "001600002000016", "+212 522 97 00 00", "Casablanca",    "Avenue Annakhil, Hay Riad"),
+    ("M2M Group",                  "001700001000017", "+212 522 77 60 00", "Casablanca",    "Technopark Casablanca"),
+    ("Ernst & Young Maroc",        "001800001000018", "+212 522 95 79 00", "Casablanca",    "37 Boulevard Abdellatif Ben Kaddour"),
+    ("Deloitte Maroc",             "001900001000019", "+212 522 22 40 00", "Casablanca",    "288 Boulevard Zerktouni"),
+    ("Cabinet Fiduciaire Alami",   "002000001000020", "+212 537 72 11 00", "Rabat",         "14 Rue Jaâfar Assadik, Agdal"),
+    ("Agence Nationale des Ports", "002100001000021", "+212 522 23 16 10", "Casablanca",    "Boulevard de la Résistance"),
+    ("MASEN",                      "002200001000022", "+212 537 71 85 00", "Rabat",         "Immeuble Le Mirador, Hay Riad"),
+    ("Marsa Maroc",                "002300001000023", "+212 522 23 24 24", "Casablanca",    "175 Boulevard Zerktouni"),
 ]
 
-# 20 suppliers
+# 20 suppliers — (name, ice, phone, city, address)
 SUPPLIERS = [
-    ("Microsoft Maroc",            "001000003000001"),   # 0
-    ("Amazon Web Services",        None),                # 1
-    ("Google Cloud EMEA",          None),                # 2
-    ("Oracle Maroc",               "001000004000002"),   # 3
-    ("SAP Maroc",                  "001000005000003"),   # 4
-    ("IBM Maroc",                  "001000006000004"),   # 5
-    ("Cisco Systems Maroc",        "001000007000005"),   # 6
-    ("Huawei Technologies Maroc",  "001000008000006"),   # 7
-    ("Dell Technologies Maroc",    "001000009000007"),   # 8
-    ("HP Maroc",                   "001000010000008"),   # 9
-    ("Dataprotect",                "001000011000009"),   # 10
-    ("HighTech Payment Systems",   "001000012000010"),   # 11
-    ("Intelcia Group",             "001000013000011"),   # 12
-    ("Manpower Maroc",             "001000014000012"),   # 13
-    ("Bureau Veritas Maroc",       "001000015000013"),   # 14
-    ("ONEE",                       "001300002000014"),   # 15
-    ("Marjane Holding",            "001400002000015"),   # 16
-    ("CIH Bank",                   "002500001000016"),   # 17
-    ("Wafabail",                   "002600001000017"),   # 18
-    ("Riad Bureautique",           "001500002000018"),   # 19
+    ("Microsoft Maroc",            "001000003000001", "+212 522 97 09 00", "Casablanca",    "Technopark, Route de Nouaceur"),
+    ("Amazon Web Services",        None,              "+1 206 266 1000",   "Seattle",        "410 Terry Ave N"),
+    ("Google Cloud EMEA",          None,              "+353 1 543 1000",   "Dublin",         "Gordon House, Barrow Street"),
+    ("Oracle Maroc",               "001000004000002", "+212 522 36 87 00", "Casablanca",    "Boulevard Sidi Abderrahmane"),
+    ("SAP Maroc",                  "001000005000003", "+212 522 97 24 00", "Casablanca",    "Technopark, Route de Nouaceur"),
+    ("IBM Maroc",                  "001000006000004", "+212 522 97 30 00", "Casablanca",    "Lotissement Attaoufik, Sidi Maârouf"),
+    ("Cisco Systems Maroc",        "001000007000005", "+212 522 97 50 00", "Casablanca",    "Technopark, Route de Nouaceur"),
+    ("Huawei Technologies Maroc",  "001000008000006", "+212 522 97 60 00", "Casablanca",    "Avenue Moulay Hassan II"),
+    ("Dell Technologies Maroc",    "001000009000007", "+212 522 97 70 00", "Casablanca",    "Technopark, Route de Nouaceur"),
+    ("HP Maroc",                   "001000010000008", "+212 522 97 80 00", "Casablanca",    "Lotissement Attaoufik, Sidi Maârouf"),
+    ("Dataprotect",                "001000011000009", "+212 522 52 00 52", "Casablanca",    "16 Rue Socrate, Racine"),
+    ("HighTech Payment Systems",   "001000012000010", "+212 522 90 30 00", "Casablanca",    "37 Rue Ibnou Majid El Bahar"),
+    ("Intelcia Group",             "001000013000011", "+212 522 78 30 00", "Casablanca",    "Route de Nouaceur, Sidi Maârouf"),
+    ("Manpower Maroc",             "001000014000012", "+212 522 94 06 00", "Casablanca",    "Immeuble Mimouna, Boulevard Zerktouni"),
+    ("Bureau Veritas Maroc",       "001000015000013", "+212 522 36 60 00", "Casablanca",    "Lotissement Attaoufik, Sidi Maârouf"),
+    ("ONEE",                       "001300002000014", "+212 537 66 80 00", "Rabat",         "65 Rue Othman Ben Affane"),
+    ("Marjane Holding",            "001400002000015", "+212 522 86 00 00", "Casablanca",    "Route de Kénitra, Ain Sebaa"),
+    ("CIH Bank",                   "002500001000016", "+212 522 46 44 00", "Casablanca",    "187 Avenue Hassan II"),
+    ("Wafabail",                   "002600001000017", "+212 522 54 80 00", "Casablanca",    "Avenue Hassan II, Immeuble Wafa"),
+    ("Riad Bureautique",           "001500002000018", "+212 522 30 11 00", "Casablanca",    "68 Boulevard d'Anfa"),
 ]
 
 SUPPLIER_PREFIXES = [
@@ -354,24 +354,29 @@ def seed(db):
 
     # ── Contacts ──────────────────────────────────────────────────────────────
     contacts = []
-    for name, ice in CLIENTS:
+    for name, ice, phone, city, address in CLIENTS:
         slug = name.lower().replace(" ", "").replace("'", "")[:14]
         contacts.append({
             "name": name,
             "ice": ice,
             "contact_type": ["client"],
             "email": f"facturation@{slug}.ma",
-            "phone": None,
+            "phone": phone,
+            "city": city,
+            "address": address,
             "created_at": _now(),
         })
-    for name, ice in SUPPLIERS:
+    for name, ice, phone, city, address in SUPPLIERS:
         slug = name.lower().replace(" ", "").replace("'", "")[:14]
+        tld = "com" if city not in ("Casablanca", "Rabat") else "ma"
         contacts.append({
             "name": name,
             "ice": ice,
             "contact_type": ["supplier"],
-            "email": f"billing@{slug}.com",
-            "phone": None,
+            "email": f"billing@{slug}.{tld}",
+            "phone": phone,
+            "city": city,
+            "address": address,
             "created_at": _now(),
         })
     db["contacts"].insert_many(contacts)
@@ -459,7 +464,7 @@ def seed(db):
     ventes = []
     year = _now().year
     for i, (ci, cat, status, days_ago, ht, tva_pct, due_off) in enumerate(VENTES_SPEC, 1):
-        c_name, c_ice = CLIENTS[ci]
+        c_name, c_ice, *_ = CLIENTS[ci]
         inv_date = _date(days_ago)
         due_date = _date(days_ago - due_off) if status != "draft" else None
         items = _make_items(VENTE_ITEMS[cat], ht)
@@ -540,7 +545,7 @@ def seed(db):
     achat_counters = {}
     achats = []
     for sup_idx, cat, status, days_ago, ht, tva_pct, due_off in ACHATS_SPEC:
-        s_name, s_ice = SUPPLIERS[sup_idx]
+        s_name, s_ice, *_ = SUPPLIERS[sup_idx]
         prefix = SUPPLIER_PREFIXES[sup_idx]
         achat_counters[sup_idx] = achat_counters.get(sup_idx, 0) + 1
         inv_num = f"{prefix}-{year}-{achat_counters[sup_idx]:04d}"
