@@ -11,10 +11,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/company", tags=["Company"])
 
+DEFAULT_CATEGORIES = [
+    "Services", "Equipment", "Software",
+    "Travel", "Marketing", "Utilities", "Others",
+]
+
 
 def _serialize(doc: dict) -> dict:
     doc["_id"] = str(doc["_id"])
     return doc
+
+
+@router.get("/categories")
+def get_company_categories(current_user: dict = Depends(get_current_user)):
+    collection = get_company_collection()
+    doc = collection.find_one({}, {"categories": 1})
+    if not doc or not doc.get("categories"):
+        return DEFAULT_CATEGORIES
+    return doc["categories"]
 
 
 @router.get("")
@@ -34,7 +48,7 @@ def upsert_company_profile(
     collection = get_company_collection()
     existing = collection.find_one({})
 
-    update_data = {k: v for k, v in data.model_dump().items() if v is not None}
+    update_data = {k: v for k, v in data.model_dump().items() if v is not None or isinstance(v, list)}
     update_data["updated_at"] = datetime.now(UTC)
 
     if existing:

@@ -1,12 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Building2, Save } from 'lucide-react';
+import { Building2, Save, X, Plus } from 'lucide-react';
 import { useTheme } from '@/contexts';
 import { getCompanyProfile, upsertCompanyProfile } from '@/api/company';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+const DEFAULT_CATEGORIES = [
+  'Services',
+  'Equipment',
+  'Software',
+  'Travel',
+  'Marketing',
+  'Utilities',
+  'Others',
+];
 
 const LEGAL_FORMS = [
   'SARL',
@@ -51,6 +61,8 @@ export default function CompanyProfilePage() {
     default_currency: 'MAD',
   });
 
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [newCategory, setNewCategory] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -60,6 +72,9 @@ export default function CompanyProfilePage() {
     getCompanyProfile()
       .then((data) => {
         setForm((prev) => ({ ...prev, ...data }));
+        if (Array.isArray(data.categories) && data.categories.length > 0) {
+          setCategories(data.categories);
+        }
       })
       .catch((err) => {
         if (err.response?.status !== 404) {
@@ -78,7 +93,7 @@ export default function CompanyProfilePage() {
     setError(null);
     setSuccess(false);
     try {
-      const saved = await upsertCompanyProfile(form);
+      const saved = await upsertCompanyProfile({ ...form, categories });
       setForm((prev) => ({ ...prev, ...saved }));
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -348,6 +363,71 @@ export default function CompanyProfilePage() {
                 className={inputClass}
               />
             </Field>
+          </CardContent>
+        </Card>
+
+        {/* Categories */}
+        <Card className={cardClass}>
+          <CardHeader>
+            <CardTitle className="text-base">Catégories de factures</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {categories.map((cat) => (
+                <span
+                  key={cat}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${
+                    isDarkMode
+                      ? 'bg-gray-700 text-gray-200'
+                      : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {cat}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCategories((prev) => prev.filter((c) => c !== cat))
+                    }
+                    className="text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const trimmed = newCategory.trim();
+                    if (trimmed && !categories.includes(trimmed)) {
+                      setCategories((prev) => [...prev, trimmed]);
+                      setNewCategory('');
+                    }
+                  }
+                }}
+                placeholder="Nouvelle catégorie…"
+                className={`max-w-xs ${inputClass}`}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const trimmed = newCategory.trim();
+                  if (trimmed && !categories.includes(trimmed)) {
+                    setCategories((prev) => [...prev, trimmed]);
+                    setNewCategory('');
+                  }
+                }}
+              >
+                <Plus className="w-4 h-4" />
+                Ajouter
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

@@ -9,9 +9,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useTheme } from '@/contexts';
+import { useCategories } from '@/hooks/useCategories';
 
 const InvoiceFilters = ({ filters, onFilterChange, onClearFilters }) => {
   const { isDarkMode } = useTheme();
+  const { categories } = useCategories();
 
   return (
     <Card
@@ -70,13 +72,11 @@ const InvoiceFilters = ({ filters, onFilterChange, onClearFilters }) => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="Services">Services</SelectItem>
-                <SelectItem value="Equipment">Equipment</SelectItem>
-                <SelectItem value="Software">Software</SelectItem>
-                <SelectItem value="Travel">Travel</SelectItem>
-                <SelectItem value="Marketing">Marketing</SelectItem>
-                <SelectItem value="Utilities">Utilities</SelectItem>
-                <SelectItem value="Others">Others</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

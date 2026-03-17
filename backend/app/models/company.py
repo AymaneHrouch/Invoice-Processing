@@ -26,6 +26,12 @@ class CompanyProfile(BaseModel):
     default_currency: str = "MAD"
     invoice_prefix: str = "FAC"
     next_invoice_number: int = 1
+    categories: list[str] = Field(
+        default_factory=lambda: [
+            "Services", "Equipment", "Software",
+            "Travel", "Marketing", "Utilities", "Others",
+        ]
+    )
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime | None = None
 
@@ -53,3 +59,4 @@ class CompanyProfileUpdate(BaseModel):
     default_tva_rate: float | None = None
     default_currency: str | None = None
     invoice_prefix: str | None = None
+    categories: list[str] | None = None

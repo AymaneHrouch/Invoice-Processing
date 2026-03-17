@@ -4,3 +4,4 @@ export { useEditInvoice } from './useEditInvoice';
 export { useInvoiceData } from './useInvoiceData';
 export { useInvoiceSubmission } from './useInvoiceSubmission';
 export { useFileUpload } from './useFileUpload';
+export { useCategories } from './useCategories';

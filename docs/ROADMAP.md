@@ -52,6 +52,15 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [ ] **Future**: i18n multi-language support (fr/ar/en) — deferred until platform is stable
 
 ### 1.6 Invoice Model Evolution ✅
+
+### 1.7 Per-Account Category Management ✅
+- [x] **Backend**: Add `categories` field to `CompanyProfile` and `CompanyProfileUpdate` models (`list[str]` with default factory)
+- [x] **Backend**: `GET /company/categories` endpoint — returns account's categories or built-in defaults if no profile yet (registered before `GET /company` to avoid routing conflict)
+- [x] **Backend**: Fixed upsert to allow saving empty categories list (`v is not None or isinstance(v, list)`)
+- [x] **Frontend**: `api/company.js` — added `getCategories()` function
+- [x] **Frontend**: `hooks/useCategories.js` — new hook fetching categories from API with fallback to hardcoded defaults
+- [x] **Frontend**: `ManualInvoice`, `EditInvoice`, `InvoiceFilters` — replaced hardcoded `categories` constant with `useCategories()` hook
+- [x] **Frontend**: `CompanyProfilePage` — tag-style categories management card (add via input+Enter or button, remove via X), saved as part of profile
 - [x] **Backend**: Add new fields to all Invoice models: `vendor_ice`, `client_name`, `client_ice`, `contact_id`, `subtotal_ht`
 - [x] **Backend**: `migrations/001_vendor_ice.py` — copies `ice` → `vendor_ice`, backfills `direction="incoming"` on old docs
 - [x] **Backend**: Backward compatibility — `ice` still accepted in API; model validator auto-copies to `vendor_ice`; CRUD defaults `vendor_ice` from `ice` when reading old docs

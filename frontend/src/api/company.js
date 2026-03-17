@@ -10,3 +10,8 @@ export const upsertCompanyProfile = async (data) => {
   const response = await api.put('/company', data, getAuthConfig());
   return response.data;
 };
+
+export const getCategories = async () => {
+  const response = await api.get('/company/categories', getAuthConfig());
+  return response.data;
+};

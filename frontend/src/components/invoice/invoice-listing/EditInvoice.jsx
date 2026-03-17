@@ -9,9 +9,10 @@ import {
   CardTitle as CardTitleUI,
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { categories, currencies } from '@/constants';
+import { currencies } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useEditInvoice } from '@/hooks/useEditInvoice';
+import { useCategories } from '@/hooks/useCategories';
 import { FormField } from '@/components/ui/form-field';
 import {
   InvoiceTags,
@@ -52,6 +53,7 @@ const formatDateForInput = (dateString) => {
 const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   const { isDarkMode } = useTheme();
   const { editInvoice, loading, error, message, reset } = useEditInvoice();
+  const { categories } = useCategories();
   const [validating, setValidating] = useState(false);
 
   // ✅ État local direct - plus simple et plus fiable

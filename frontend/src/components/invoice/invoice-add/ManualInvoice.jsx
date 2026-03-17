@@ -19,9 +19,10 @@ import {
 } from '@/components/ui/card';
 import { TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { categories, currencies } from '@/constants';
+import { currencies } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useAddInvoice } from '@/hooks/useAddInvoice';
+import { useCategories } from '@/hooks/useCategories';
 import { FormField } from '@/components/ui/form-field';
 import SupplierCombobox from '@/components/ui/SupplierCombobox';
 import {
@@ -48,6 +49,7 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
   const { isDarkMode } = useTheme();
   const { addInvoice, loading, error, success, message, reset } =
     useAddInvoice();
+  const { categories } = useCategories();
 
   // ✅ État local direct
   const [formData, setFormData] = useState({
