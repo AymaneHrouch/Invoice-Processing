@@ -75,7 +75,11 @@ export const validateInvoice = async (id) => {
 
 export const markInvoicePaid = async (id) => {
   try {
-    const response = await api.post(`/invoices/${id}/mark-paid`, {});
+    const response = await api.post(
+      `/invoices/${id}/mark-paid`,
+      {},
+      getAuthConfig(),
+    );
     return response.data;
   } catch (error) {
     if (error.response?.data?.detail)
@@ -86,7 +90,11 @@ export const markInvoicePaid = async (id) => {
 
 export const unmarkInvoicePaid = async (id) => {
   try {
-    const response = await api.post(`/invoices/${id}/unmark-paid`, {});
+    const response = await api.post(
+      `/invoices/${id}/unmark-paid`,
+      {},
+      getAuthConfig(),
+    );
     return response.data;
   } catch (error) {
     if (error.response?.data?.detail)
