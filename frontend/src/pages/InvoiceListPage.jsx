@@ -294,6 +294,9 @@ const InvoiceListPage = ({ direction = null }) => {
     if (order && order !== 'desc') params.set('order', order);
     if (page && page !== 1) params.set('page', page);
     if (perPage && perPage !== 10) params.set('per_page', perPage);
+    // Preserve ?edit=<id> while the modal is open so we don't trigger an
+    // extra navigation that causes the modal to flash on arrival.
+    if (editInvoiceId) params.set('edit', editInvoiceId);
     // Only push if different
     if (params.toString() !== location.search.replace(/^\?/, '')) {
       navigate({ search: params.toString() }, { replace: false });
