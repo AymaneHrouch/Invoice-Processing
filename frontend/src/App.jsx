@@ -54,7 +54,8 @@ function App() {
       .catch((err) => {
         if (err.response?.status === 404) {
           setProfileComplete(false);
-          if (location.pathname !== '/company') {
+          const exempt = ['/company', '/users'];
+          if (!exempt.includes(location.pathname)) {
             navigate('/company', { state: { onboarding: true } });
           }
         }
