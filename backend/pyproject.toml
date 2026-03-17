@@ -24,9 +24,13 @@ dependencies = [
     "azure-ai-documentintelligence>=1.0.2",
     "ruff>=0.15.4",
     "openpyxl>=3.1.0",
+    "httpx>=0.28.1",
 ]
 [project.optional-dependencies]
 dev = [
     "pre-commit>=3.0.0",
     "faker"
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

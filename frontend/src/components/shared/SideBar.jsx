@@ -14,7 +14,7 @@ import Cookies from 'js-cookie';
 
 const SIDEBAR_STATE_COOKIE = 'sidebar_collapsed';
 
-const Sidebar = () => {
+const Sidebar = ({ profileComplete = true }) => {
   const { isDarkMode } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [invoicesExpanded, setInvoicesExpanded] = useState(true);
@@ -71,10 +71,20 @@ const Sidebar = () => {
           }`}
           title={isCollapsed ? item.label : ''}
         >
-          <Icon className="w-5 h-5 flex-shrink-0" />
+          <div className="relative flex-shrink-0">
+            <Icon className="w-5 h-5" />
+            {item.id === 'company' && !profileComplete && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full border-2 border-white dark:border-gray-800" />
+            )}
+          </div>
           {!isCollapsed && (
             <>
               <span className="font-medium flex-1 text-left">{item.label}</span>
+              {item.id === 'company' && !profileComplete && (
+                <span className="text-xs font-semibold text-orange-500">
+                  Setup
+                </span>
+              )}
               {item.hasChildren && (
                 <ChevronDown
                   className={`w-4 h-4 transition-transform duration-200 ${

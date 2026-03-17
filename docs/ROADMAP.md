@@ -9,12 +9,13 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 **Goal**: Make the current parsing app rock-solid, add company profile, rebrand navigation.
 
 ### 1.1 Company Profile
-- [ ] **Backend**: Create `CompanyProfile` model in `models/company.py`
-- [ ] **Backend**: Create `company_profile` collection in `database.py`
-- [ ] **Backend**: CRUD routes in `routes/company.py`: `GET /company`, `PUT /company` (upsert)
-- [ ] **Frontend**: `CompanyProfilePage.jsx` — form with all fields (company name, ICE, IF, RC, address, bank, logo, invoice prefix)
-- [ ] **Frontend**: Add "Mon Entreprise" to sidebar
-- [ ] **Frontend**: Onboarding check — if no profile exists, redirect to profile page with a prompt
+- [x] **Backend**: Create `CompanyProfile` model in `models/company.py`
+- [x] **Backend**: Create `company_profile` collection in `database.py`
+- [x] **Backend**: CRUD routes in `routes/company.py`: `GET /company`, `PUT /company` (upsert)
+- [x] **Frontend**: `CompanyProfilePage.jsx` — form with all fields (company name, ICE, IF, RC, address, bank, logo, invoice prefix)
+- [x] **Frontend**: Add "Mon Entreprise" to sidebar
+- [x] **Frontend**: Onboarding check — if no profile exists, redirect to profile page with a prompt
+- [x] **Frontend**: *(added)* Persistent incomplete-profile indicator — orange dot + "Setup" label on "Mon Entreprise" sidebar item, visible on every page until profile is saved
 
 ### 1.2 Contact Directory
 - [ ] **Backend**: Create `Contact` model in `models/contact.py`

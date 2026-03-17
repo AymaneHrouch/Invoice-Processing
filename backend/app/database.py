@@ -84,3 +84,8 @@ def get_invoices_collection():
 def get_cache_collection():
     """Get extraction cache collection (file_hash -> result)"""
     return get_database()["cache"]
+
+
+def get_company_collection():
+    """Get company_profile collection (single document)"""
+    return get_database()["company_profile"]

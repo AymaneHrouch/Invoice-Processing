@@ -1,7 +1,20 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useLocation,
+} from 'react-router-dom';
 import { NavBar, Sidebar, AdminOnly } from '@/components';
-import { InvoiceAddPage, InvoiceListPage, DashboardPage } from '@/pages';
+import {
+  InvoiceAddPage,
+  InvoiceListPage,
+  DashboardPage,
+  CompanyProfilePage,
+} from '@/pages';
 import { useTheme, useAuth } from '@/contexts';
+import { getCompanyProfile } from '@/api/company';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import UserManagement from './components/admin/UserManagement';
@@ -27,12 +40,30 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   const { isDarkMode } = useTheme();
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [profileComplete, setProfileComplete] = useState(true);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    getCompanyProfile()
+      .then(() => setProfileComplete(true))
+      .catch((err) => {
+        if (err.response?.status === 404) {
+          setProfileComplete(false);
+          if (location.pathname !== '/company') {
+            navigate('/company', { state: { onboarding: true } });
+          }
+        }
+      });
+  }, [isAuthenticated, location.pathname]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {isAuthenticated && <NavBar />}
       <div className="flex flex-row flex-1 overflow-hidden">
-        {isAuthenticated && <Sidebar />}
+        {isAuthenticated && <Sidebar profileComplete={profileComplete} />}
         <main
           className={`flex-1 overflow-auto ${isDarkMode ? 'dark bg-gray-900' : 'bg-gray-100'} ${!isAuthenticated ? 'p-0' : 'p-6'}`}
         >
@@ -79,6 +110,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/company"
+              element={
+                <ProtectedRoute>
+                  <CompanyProfilePage />
                 </ProtectedRoute>
               }
             />

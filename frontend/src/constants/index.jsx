@@ -1,4 +1,5 @@
 import {
+  Building2,
   File,
   FileText,
   Image,
@@ -37,8 +38,18 @@ export const InvoiceStatus = {
 };
 
 export const statusConfig = {
-  extracted: { label: 'Extracted', variant: 'outline', className: 'border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
-  validated: { label: 'Validated', variant: 'default', className: 'border-green-500 text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
+  extracted: {
+    label: 'Extracted',
+    variant: 'outline',
+    className:
+      'border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400',
+  },
+  validated: {
+    label: 'Validated',
+    variant: 'default',
+    className:
+      'border-green-500 text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
+  },
 };
 
 export const calculateItemTotal = (quantity, unitPrice) => {
@@ -71,6 +82,12 @@ export const sidebarItems = [
         path: '/invoices/add',
       },
     ],
+  },
+  {
+    id: 'company',
+    label: 'Mon Entreprise',
+    icon: Building2,
+    path: '/company',
   },
   {
     id: 'users',

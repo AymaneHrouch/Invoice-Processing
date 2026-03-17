@@ -1,0 +1,367 @@
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { Building2, Save } from 'lucide-react';
+import { useTheme } from '@/contexts';
+import { getCompanyProfile, upsertCompanyProfile } from '@/api/company';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+const LEGAL_FORMS = [
+  'SARL',
+  'SA',
+  'SAS',
+  'SARLAU',
+  'Auto-entrepreneur',
+  'Autre',
+];
+const TVA_RATES = [0, 7, 10, 14, 20];
+
+const Field = ({ label, id, children }) => (
+  <div className="flex flex-col gap-1.5">
+    <Label htmlFor={id}>{label}</Label>
+    {children}
+  </div>
+);
+
+export default function CompanyProfilePage() {
+  const { isDarkMode } = useTheme();
+  const { state } = useLocation();
+  const isOnboarding = state?.onboarding === true;
+
+  const [form, setForm] = useState({
+    company_name: '',
+    legal_form: '',
+    capital: '',
+    ice: '',
+    identifiant_fiscal: '',
+    rc: '',
+    patente: '',
+    cnss: '',
+    address: '',
+    city: '',
+    postal_code: '',
+    phone: '',
+    email: '',
+    bank_name: '',
+    bank_account: '',
+    invoice_prefix: 'FAC',
+    default_tva_rate: 20,
+    default_currency: 'MAD',
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    getCompanyProfile()
+      .then((data) => {
+        setForm((prev) => ({ ...prev, ...data }));
+      })
+      .catch((err) => {
+        if (err.response?.status !== 404) {
+          setError('Failed to load company profile.');
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const set = (field) => (e) =>
+    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    setSuccess(false);
+    try {
+      const saved = await upsertCompanyProfile(form);
+      setForm((prev) => ({ ...prev, ...saved }));
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to save company profile.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cardClass = isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white';
+  const inputClass = isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : '';
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-500">
+        Loading…
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Building2 className="w-7 h-7 text-blue-600" />
+        <div>
+          <h1
+            className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+          >
+            Mon Entreprise
+          </h1>
+          <p
+            className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+          >
+            Informations légales et paramètres de facturation
+          </p>
+        </div>
+      </div>
+
+      {isOnboarding && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded-lg px-4 py-3 text-sm dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400">
+          Bienvenue ! Veuillez configurer votre profil d'entreprise avant de
+          continuer.
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm dark:bg-green-900/20 dark:border-green-800 dark:text-green-400">
+          Profil enregistré avec succès.
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Identity */}
+        <Card className={cardClass}>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Identité de l'entreprise
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Raison sociale *" id="company_name">
+              <Input
+                id="company_name"
+                value={form.company_name}
+                onChange={set('company_name')}
+                required
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Forme juridique" id="legal_form">
+              <select
+                id="legal_form"
+                value={form.legal_form}
+                onChange={set('legal_form')}
+                className={`flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-input'}`}
+              >
+                <option value="">— Sélectionner —</option>
+                {LEGAL_FORMS.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Capital social" id="capital">
+              <Input
+                id="capital"
+                value={form.capital}
+                onChange={set('capital')}
+                placeholder="ex: 100 000 DHS"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="ICE *" id="ice">
+              <Input
+                id="ice"
+                value={form.ice}
+                onChange={set('ice')}
+                placeholder="15 chiffres"
+                required
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Identifiant Fiscal (IF)" id="identifiant_fiscal">
+              <Input
+                id="identifiant_fiscal"
+                value={form.identifiant_fiscal}
+                onChange={set('identifiant_fiscal')}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Registre de Commerce (RC)" id="rc">
+              <Input
+                id="rc"
+                value={form.rc}
+                onChange={set('rc')}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Patente" id="patente">
+              <Input
+                id="patente"
+                value={form.patente}
+                onChange={set('patente')}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="CNSS" id="cnss">
+              <Input
+                id="cnss"
+                value={form.cnss}
+                onChange={set('cnss')}
+                className={inputClass}
+              />
+            </Field>
+          </CardContent>
+        </Card>
+
+        {/* Address & Contact */}
+        <Card className={cardClass}>
+          <CardHeader>
+            <CardTitle className="text-base">Adresse & Contact</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <Field label="Adresse *" id="address">
+                <Input
+                  id="address"
+                  value={form.address}
+                  onChange={set('address')}
+                  required
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+            <Field label="Ville *" id="city">
+              <Input
+                id="city"
+                value={form.city}
+                onChange={set('city')}
+                required
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Code postal" id="postal_code">
+              <Input
+                id="postal_code"
+                value={form.postal_code}
+                onChange={set('postal_code')}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Téléphone" id="phone">
+              <Input
+                id="phone"
+                value={form.phone}
+                onChange={set('phone')}
+                type="tel"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Email" id="email">
+              <Input
+                id="email"
+                value={form.email}
+                onChange={set('email')}
+                type="email"
+                className={inputClass}
+              />
+            </Field>
+          </CardContent>
+        </Card>
+
+        {/* Bank */}
+        <Card className={cardClass}>
+          <CardHeader>
+            <CardTitle className="text-base">Coordonnées bancaires</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Banque" id="bank_name">
+              <Input
+                id="bank_name"
+                value={form.bank_name}
+                onChange={set('bank_name')}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="RIB" id="bank_account">
+              <Input
+                id="bank_account"
+                value={form.bank_account}
+                onChange={set('bank_account')}
+                className={inputClass}
+              />
+            </Field>
+          </CardContent>
+        </Card>
+
+        {/* Invoice Settings */}
+        <Card className={cardClass}>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Paramètres de facturation
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Field label="Préfixe facture" id="invoice_prefix">
+              <Input
+                id="invoice_prefix"
+                value={form.invoice_prefix}
+                onChange={set('invoice_prefix')}
+                placeholder="FAC"
+                className={inputClass}
+              />
+            </Field>
+            <Field label="TVA par défaut" id="default_tva_rate">
+              <select
+                id="default_tva_rate"
+                value={form.default_tva_rate}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    default_tva_rate: Number(e.target.value),
+                  }))
+                }
+                className={`flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-input'}`}
+              >
+                {TVA_RATES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}%
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Devise par défaut" id="default_currency">
+              <Input
+                id="default_currency"
+                value={form.default_currency}
+                onChange={set('default_currency')}
+                className={inputClass}
+              />
+            </Field>
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            disabled={saving}
+            className="flex items-center gap-2"
+          >
+            <Save className="w-4 h-4" />
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
