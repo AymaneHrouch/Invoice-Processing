@@ -12,11 +12,11 @@
 - **Ventes workflow**: Create → auto-number (FAC-YYYY-NNN) → validate → mark sent → mark paid
 - **Achats workflow**: Upload/manual → extract → validate
 - **Company profile**: Single-document store (`company_profile` collection) — name, ICE, IF, RC, CNSS, address, bank, invoice prefix, categories
-- **Contact directory**: Clients + suppliers with type filtering
-- **Invoice listing**: Filterable, sortable, paginated — separate `/achats` and `/ventes` pages
-- **PDF generation**: Server-side via weasyprint + Jinja2 (`app/templates/invoice.html`) — both directions
+- **Contact directory**: Clients + suppliers with full details (name, ICE, IF, RC, address, city, phone, email, notes, contact_type)
+- **Invoice listing**: Filterable, sortable, paginated — separate `/achats` and `/ventes` pages. `vendor_name` filter searches both `vendor_name` and `client_name` fields.
+- **PDF generation**: Server-side via weasyprint + Jinja2 (`app/templates/invoice.html`) — both directions. Outgoing PDFs look up contact by `contact_id` to include client address/phone/email in the client block.
 - **Excel export**: Per-direction (`POST /ventes/export`, `POST /invoices/achats/export`) with post-download confirmation to mark as exported
-- **Dashboard**: PME KPI widgets, A encaisser / À payer finance widgets, TVA balance with period selector, Top 5 clients/fournisseurs, "Dernières actions" activity feed
+- **Dashboard**: PME KPI widgets, À encaisser / À payer finance widgets (clickable rows open invoice edit modal via location state), TVA balance with period selector, Top 5 clients/fournisseurs, "Dernières actions" activity feed
 - **Auth**: JWT-based, admin/user roles — token carries `sub` (ObjectId), `role`, and `username` (email)
 - **Invoice audit trail**: Every status transition appends an `InvoiceHistoryEntry` to the invoice's `history` array (action, status_from, status_to, user email, timestamp). Legacy ObjectId user values are resolved to email via users collection lookup.
 - **History UI**: Collapsible timeline in the EditInvoice modal; inline history in the expanded row of the invoice listing (`InvoiceExpandedRow`)
@@ -148,6 +148,10 @@ frontend/
 10. **Recent activity feed**: `GET /dashboard/recent-activity` uses a MongoDB `$unwind` aggregation on the `history` array, sorted by `history.timestamp` desc, to produce a cross-invoice activity feed. ObjectId user values resolved post-aggregation. Consumed by the dashboard "Dernières actions" widget.
 
 11. **JWT payload**: Contains `sub` (MongoDB user ObjectId as string), `role`, and `username` (user email). `get_current_user` returns `{"user_id", "role", "username"}`. The `username` field is used when recording history entries so display is human-readable from the start.
+
+12. **Dashboard invoice navigation**: Clicking a row in À encaisser / À payer navigates using React Router `location.state` (`{ editId }`) instead of URL params — the listing page reads `location.state?.editId` on mount, opens the edit modal, then clears the state. URL stays clean.
+
+13. **Contact enrichment in PDFs**: `GET /ventes/{id}/pdf` looks up the contact by `contact_id` and injects `client_address`, `client_city`, `client_phone`, `client_email` onto the invoice before rendering. Template renders these in the destinataire block.
 
 ## Local Development
 
