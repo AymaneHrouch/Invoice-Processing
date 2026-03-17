@@ -1,10 +1,12 @@
 """Ventes (outgoing invoices) routes — Phase 2."""
 from datetime import UTC, datetime
 from decimal import Decimal
+from io import BytesIO
 import logging
 from typing import Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.crud.invoice import InvoiceCRUD
@@ -16,6 +18,7 @@ from app.models.invoice import (
     InvoiceUpdate,
 )
 from app.services.invoices import run_amount_checks
+from app.services.pdf import generate_invoice_pdf
 from app.utils.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -287,3 +290,33 @@ def mark_paid(
         InvoiceUpdate(status="paid", is_paid=True, paid_at=datetime.now(UTC)),
     )
     return _to_response(updated)
+
+
+@router.get("/{vente_id}/pdf")
+def download_vente_pdf(
+    vente_id: str = Path(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Generate and return a PDF for the given outgoing invoice."""
+    try:
+        inv = InvoiceCRUD.get_invoice_by_id(vente_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID invalide.") from None
+    if not inv or inv.direction != "outgoing":
+        raise HTTPException(status_code=404, detail="Facture introuvable.")
+
+    col = get_company_collection()
+    company = col.find_one({}) or {}
+
+    try:
+        pdf_bytes = generate_invoice_pdf(inv, company)
+    except Exception as e:
+        logger.exception("PDF generation failed for vente %s: %s", vente_id, e)
+        raise HTTPException(status_code=500, detail="Erreur lors de la génération du PDF.") from e
+
+    filename = f"facture_{inv.invoice_number}.pdf"
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

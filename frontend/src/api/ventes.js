@@ -57,3 +57,18 @@ export const markVentePaid = async (id) => {
   );
   return response.data;
 };
+
+export const downloadVentePdf = async (id, invoiceNumber) => {
+  const response = await api.get(`/ventes/${id}/pdf`, {
+    ...getAuthConfig(),
+    responseType: 'blob',
+  });
+  const url = URL.createObjectURL(
+    new Blob([response.data], { type: 'application/pdf' }),
+  );
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `facture_${invoiceNumber}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+};

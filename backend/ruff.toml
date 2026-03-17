@@ -73,6 +73,9 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "app/schemas/*" = [
     "N815",     # Variable in class scope should not be mixedCase (Pydantic schemas)
 ]
+"app/services/pdf.py" = [
+    "PLR0915",  # PDF layout function legitimately requires many statements
+]
 
 [lint.isort]
 # Configure import sorting

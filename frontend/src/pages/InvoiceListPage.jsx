@@ -18,7 +18,12 @@ import {
   archiveInvoice,
   restoreInvoice,
 } from '@/api/invoice';
-import { validateVente, markVenteSent, markVentePaid } from '@/api/ventes';
+import {
+  validateVente,
+  markVenteSent,
+  markVentePaid,
+  downloadVentePdf,
+} from '@/api/ventes';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import {
@@ -752,7 +757,11 @@ const InvoiceListPage = ({ direction = null }) => {
                 invoice={invoice}
                 isExpanded={expandedRows.has(invoice.id || invoice._id)}
                 onToggleExpand={toggleRowExpansion}
-                onExportPDF={exportToPDF}
+                onExportPDF={(inv) =>
+                  inv.direction === 'outgoing'
+                    ? downloadVentePdf(inv.id || inv._id, inv.invoice_number)
+                    : exportToPDF(inv)
+                }
                 onDelete={handleDeleteInvoice}
                 onArchive={handleArchive}
                 onRestore={handleRestore}
