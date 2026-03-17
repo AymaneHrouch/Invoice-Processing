@@ -418,15 +418,6 @@ const InvoiceRow = ({
         <td
           className={`px-3 py-4 border-b align-middle text-center ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
-          <span
-            className={`text-xs ${invoice.is_paid ? 'text-emerald-600 dark:text-emerald-400 font-medium' : isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
-          >
-            {invoice.is_paid ? 'Oui' : '—'}
-          </span>
-        </td>
-        <td
-          className={`px-3 py-4 border-b align-middle text-center ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
-        >
           <input
             type="checkbox"
             checked={Boolean(invoice.is_exported)}

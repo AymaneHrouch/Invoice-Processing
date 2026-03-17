@@ -116,15 +116,6 @@ const InvoiceTableHeader = ({
               : 'text-gray-600 border-gray-200'
           }`}
         >
-          Payé
-        </th>
-        <th
-          className={`px-3 py-4 text-center font-semibold border-b whitespace-nowrap ${
-            isDarkMode
-              ? 'text-gray-300 border-gray-600'
-              : 'text-gray-600 border-gray-200'
-          }`}
-        >
           Exporté
         </th>
         <th

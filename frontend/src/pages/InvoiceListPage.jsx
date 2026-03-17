@@ -875,7 +875,7 @@ const InvoiceListPage = ({ direction = null }) => {
                     <InvoiceExpandedRow
                       key={`${invoice.id || invoice._id}-expanded`}
                       invoice={invoice}
-                      colSpan={13}
+                      colSpan={12}
                     />,
                   ]
                 : []),
