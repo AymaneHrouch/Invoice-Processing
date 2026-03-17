@@ -59,6 +59,8 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   // ✅ État local direct - plus simple et plus fiable
   const [formData, setFormData] = useState({
     vendor_name: '',
+    client_name: '',
+    client_ice: '',
     invoice_number: '',
     ice: '',
     tva: '',
@@ -84,6 +86,8 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
 
       setFormData({
         vendor_name: invoice.vendor_name || '',
+        client_name: invoice.client_name || '',
+        client_ice: invoice.client_ice || '',
         invoice_number: invoice.invoice_number || '',
         ice: invoice.ice ?? '',
         tva:
@@ -168,8 +172,12 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.vendor_name?.trim()) {
-      newErrors.vendor_name = 'Le nom du fournisseur est requis !';
+    if (invoice?.direction === 'outgoing') {
+      if (!formData.client_name?.trim())
+        newErrors.client_name = 'Le nom du client est requis !';
+    } else {
+      if (!formData.vendor_name?.trim())
+        newErrors.vendor_name = 'Le nom du fournisseur est requis !';
     }
     if (!formData.invoice_number?.trim()) {
       newErrors.invoice_number = 'Le numéro de facture est requis !';
@@ -300,54 +308,106 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                 </CardTitleUI>
               </CardHeaderUI>
               <CardContent className="px-0 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <SupplierCombobox
-                    value={formData.vendor_name}
-                    iceValue={formData.ice}
-                    onChange={(val) => updateField('vendor_name', val)}
-                    onIceChange={(ice) => updateField('ice', ice)}
-                    error={errors.vendor_name}
-                    required
-                  />
-                  <FormField
-                    id="invoice_number"
-                    label="Numéro"
-                    value={formData.invoice_number}
-                    onChange={(e) =>
-                      updateField('invoice_number', e.target.value)
-                    }
-                    placeholder="INV-2024-001"
-                    required
-                    error={errors.invoice_number}
-                  />
-                  <FormField
-                    id="ice"
-                    label="ICE"
-                    value={formData.ice}
-                    onChange={(e) => updateField('ice', e.target.value)}
-                    placeholder="ICE à 15 chiffres (optionnel)"
-                  />
-                  <FormField
-                    id="tva"
-                    type="number"
-                    label="TVA (%)"
-                    value={formData.tva}
-                    onChange={(e) => updateField('tva', e.target.value)}
-                    placeholder="ex. 20"
-                    step="0.01"
-                    min="0"
-                  />
-                  <FormField
-                    id="amount_tva"
-                    type="number"
-                    label="Montant TVA"
-                    value={formData.amount_tva}
-                    onChange={(e) => updateField('amount_tva', e.target.value)}
-                    placeholder="Montant TVA (optionnel)"
-                    step="0.01"
-                    min="0"
-                  />
-                </div>
+                {invoice?.direction === 'outgoing' ? (
+                  /* Vente: client fields only, no vendor/ICE/TVA% */
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <SupplierCombobox
+                      value={formData.client_name}
+                      iceValue={formData.client_ice}
+                      onChange={(val) => updateField('client_name', val)}
+                      onIceChange={(ice) => updateField('client_ice', ice)}
+                      contactType="client"
+                      label="Nom du client"
+                      placeholder="Saisir ou sélectionner un client"
+                      error={errors.client_name}
+                      required
+                    />
+                    <FormField
+                      id="client_ice"
+                      label="ICE client"
+                      value={formData.client_ice}
+                      onChange={(e) =>
+                        updateField('client_ice', e.target.value)
+                      }
+                      placeholder="ICE à 15 chiffres (optionnel)"
+                    />
+                    <FormField
+                      id="invoice_number"
+                      label="Numéro"
+                      value={formData.invoice_number}
+                      onChange={(e) =>
+                        updateField('invoice_number', e.target.value)
+                      }
+                      placeholder="FAC-2025-001"
+                      required
+                      error={errors.invoice_number}
+                    />
+                    <FormField
+                      id="amount_tva"
+                      type="number"
+                      label="Montant TVA"
+                      value={formData.amount_tva}
+                      onChange={(e) =>
+                        updateField('amount_tva', e.target.value)
+                      }
+                      placeholder="Montant TVA (optionnel)"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+                ) : (
+                  /* Achat: vendor/supplier fields */
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <SupplierCombobox
+                      value={formData.vendor_name}
+                      iceValue={formData.ice}
+                      onChange={(val) => updateField('vendor_name', val)}
+                      onIceChange={(ice) => updateField('ice', ice)}
+                      error={errors.vendor_name}
+                      required
+                    />
+                    <FormField
+                      id="invoice_number"
+                      label="Numéro"
+                      value={formData.invoice_number}
+                      onChange={(e) =>
+                        updateField('invoice_number', e.target.value)
+                      }
+                      placeholder="INV-2024-001"
+                      required
+                      error={errors.invoice_number}
+                    />
+                    <FormField
+                      id="ice"
+                      label="ICE"
+                      value={formData.ice}
+                      onChange={(e) => updateField('ice', e.target.value)}
+                      placeholder="ICE à 15 chiffres (optionnel)"
+                    />
+                    <FormField
+                      id="tva"
+                      type="number"
+                      label="TVA (%)"
+                      value={formData.tva}
+                      onChange={(e) => updateField('tva', e.target.value)}
+                      placeholder="ex. 20"
+                      step="0.01"
+                      min="0"
+                    />
+                    <FormField
+                      id="amount_tva"
+                      type="number"
+                      label="Montant TVA"
+                      value={formData.amount_tva}
+                      onChange={(e) =>
+                        updateField('amount_tva', e.target.value)
+                      }
+                      placeholder="Montant TVA (optionnel)"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+                )}
 
                 {/* Première ligne: Amount, Currency, Category */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

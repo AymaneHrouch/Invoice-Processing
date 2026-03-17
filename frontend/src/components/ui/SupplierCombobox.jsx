@@ -21,8 +21,8 @@ const SupplierCombobox = ({
   onContactSelect, // (contact: object) => void — optional, called when a contact is selected
   error,
   required = false,
-  label = 'Supplier',
-  placeholder = 'Enter supplier name',
+  label = 'Fournisseur',
+  placeholder = 'Nom du fournisseur',
   icon: Icon = Building,
   contactType = 'supplier', // 'supplier' | 'client'
 }) => {

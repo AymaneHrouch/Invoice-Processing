@@ -295,7 +295,7 @@
   <div class="parties">
     <!-- Emetteur -->
     <div class="party-box emetteur">
-      <div class="party-label">Émetteur</div>
+      <div class="party-label">{% if direction == 'outgoing' %}Émetteur{% else %}Fournisseur{% endif %}</div>
       <div class="party-name">{{ emetteur.name }}</div>
       {% if emetteur.legal_form %}
         <div class="party-detail text-grey">{{ emetteur.legal_form }}</div>
@@ -321,7 +321,7 @@
 
     <!-- Client / Fournisseur -->
     <div class="party-box client">
-      <div class="party-label">{% if direction == 'outgoing' %}Client{% else %}Fournisseur{% endif %}</div>
+      <div class="party-label">{% if direction == 'outgoing' %}Client{% else %}Destinataire{% endif %}</div>
       <div class="party-name">{{ destinataire.name }}</div>
       {% if destinataire.ice %}
         <div class="party-ids">
