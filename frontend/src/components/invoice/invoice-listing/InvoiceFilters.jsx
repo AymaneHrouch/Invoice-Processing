@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { CalendarIcon } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -9,7 +10,6 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { useTheme } from '@/contexts';
 import { useCategories } from '@/hooks/useCategories';
 
@@ -168,44 +168,50 @@ const InvoiceFilters = ({ filters, onFilterChange, onClearFilters }) => {
           </div>
 
           {/* Date range */}
-          <div className="space-y-2 min-w-[130px] flex-1">
+          <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
               Du
             </Label>
-            <Input
-              type="date"
-              value={startDateInput}
-              onChange={(e) => setStartDateInput(e.target.value)}
-              className={`h-11 ${
-                isDarkMode
-                  ? 'bg-gray-700 border-gray-600 text-white'
-                  : 'bg-white'
-              }`}
-            />
+            <div className="relative w-full">
+              <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
+              <input
+                type="date"
+                value={startDateInput}
+                onChange={(e) => setStartDateInput(e.target.value)}
+                className={`date-input flex h-11 w-full rounded-md border pl-9 pr-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [color-scheme:light] dark:[color-scheme:dark] ${
+                  isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white border-input'
+                }`}
+              />
+            </div>
           </div>
 
-          <div className="space-y-2 min-w-[130px] flex-1">
+          <div className="space-y-2 min-w-[140px] flex-1">
             <Label className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>
               Au
             </Label>
-            <Input
-              type="date"
-              value={endDateInput}
-              onChange={(e) => setEndDateInput(e.target.value)}
-              className={`h-11 ${
-                isDarkMode
-                  ? 'bg-gray-700 border-gray-600 text-white'
-                  : 'bg-white'
-              }`}
-            />
+            <div className="relative w-full">
+              <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
+              <input
+                type="date"
+                value={endDateInput}
+                onChange={(e) => setEndDateInput(e.target.value)}
+                className={`date-input flex h-11 w-full rounded-md border pl-9 pr-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 [color-scheme:light] dark:[color-scheme:dark] ${
+                  isDarkMode
+                    ? 'bg-gray-700 border-gray-600 text-white'
+                    : 'bg-white border-input'
+                }`}
+              />
+            </div>
           </div>
 
-          <div className="space-y-2 flex-1 min-w-0">
+          <div className="space-y-2 flex-none">
             <Label className="invisible">Archives</Label>
             <Button
               type="button"
               variant="outline"
-              className={`h-11 min-h-0 py-2 w-auto shrink-0 px-3 justify-center text-sm font-normal ${
+              className={`h-11 min-h-0 py-2 px-3 text-sm font-normal whitespace-nowrap ${
                 filters.include_archived
                   ? isDarkMode
                     ? 'border-blue-500 bg-blue-900/20 text-blue-300'
@@ -226,12 +232,12 @@ const InvoiceFilters = ({ filters, onFilterChange, onClearFilters }) => {
           </div>
 
           {/* Overdue filter */}
-          <div className="space-y-2 flex-1 min-w-0">
+          <div className="space-y-2 flex-none">
             <Label className="invisible">En retard</Label>
             <Button
               type="button"
               variant="outline"
-              className={`h-11 min-h-0 py-2 w-auto shrink-0 px-3 justify-center text-sm font-normal ${
+              className={`h-11 min-h-0 py-2 px-3 text-sm font-normal whitespace-nowrap ${
                 filters.overdue
                   ? isDarkMode
                     ? 'border-red-500 bg-red-900/20 text-red-300'

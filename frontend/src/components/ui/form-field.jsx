@@ -7,12 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from './select';
-import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { CalendarIcon } from 'lucide-react';
-import { Button } from './button';
-import { Calendar } from './calendar';
-import { useState } from 'react';
-import { format } from 'date-fns';
 
 export const FormField = ({
   type = 'text',
@@ -30,8 +25,6 @@ export const FormField = ({
   icon: Icon,
   ...props
 }) => {
-  const [date, setDate] = useState(value ? new Date(value) : null);
-
   const renderInput = () => {
     switch (type) {
       case 'select':
@@ -77,33 +70,16 @@ export const FormField = ({
 
       case 'date':
         return (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={`w-full justify-start text-left font-normal ${!date ? 'text-muted-foreground' : ''} ${Icon ? 'pl-10' : ''}`}
-              >
-                <CalendarIcon className={`h-4 w-4 ${Icon ? 'ml-2' : 'mr-2'}`} />
-                {date ? format(date, 'PPP') : placeholder || 'Pick a date'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-auto p-0 overflow-hidden"
-              align="start"
-              side="bottom"
-              sideOffset={4}
-            >
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={(selectedDate) => {
-                  setDate(selectedDate);
-                  onChange?.(selectedDate);
-                }}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
+          <div className="relative w-full">
+            <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <input
+              type="date"
+              value={value || ''}
+              onChange={onChange}
+              className="date-input flex h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [color-scheme:light] dark:[color-scheme:dark]"
+              {...props}
+            />
+          </div>
         );
 
       default:

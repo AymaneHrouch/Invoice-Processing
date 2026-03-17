@@ -242,13 +242,8 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       toast.success(message || 'Facture modifiée avec succès !');
       reset();
 
-      // ✅ SOLUTION: Passer les données mises à jour au parent
       if (onSuccess) {
-        // Appeler onSuccess avec les nouvelles données
-        onSuccess({
-          ...invoice, // Garder l'ID et autres données non modifiées
-          ...invoiceData, // Nouvelles données
-        });
+        onSuccess(result);
       }
       onClose();
     } else if (error) {
