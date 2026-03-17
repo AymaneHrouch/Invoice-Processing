@@ -323,6 +323,14 @@
     <div class="party-box client">
       <div class="party-label">{% if direction == 'outgoing' %}Client{% else %}Destinataire{% endif %}</div>
       <div class="party-name">{{ destinataire.name }}</div>
+      {% if destinataire.address %}
+        <div class="party-detail">{{ destinataire.address }}</div>
+      {% endif %}
+      {% if destinataire.city %}
+        <div class="party-detail">{{ destinataire.city }}</div>
+      {% endif %}
+      {% if destinataire.phone %}<div class="party-detail">Tél : {{ destinataire.phone }}</div>{% endif %}
+      {% if destinataire.email %}<div class="party-detail">{{ destinataire.email }}</div>{% endif %}
       {% if destinataire.ice %}
         <div class="party-ids">
           <div>ICE : <span class="mono">{{ destinataire.ice }}</span></div>

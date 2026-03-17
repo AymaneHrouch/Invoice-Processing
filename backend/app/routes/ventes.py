@@ -5,13 +5,14 @@ from io import BytesIO
 import logging
 from typing import Literal
 
+from bson import ObjectId
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Response
 from fastapi.responses import StreamingResponse
 from openpyxl import Workbook
 from pydantic import BaseModel
 
 from app.crud.invoice import InvoiceCRUD
-from app.database import get_company_collection
+from app.database import get_company_collection, get_database
 from app.models.invoice import (
     InvoiceCreate,
     InvoiceHistoryEntry,
@@ -391,6 +392,18 @@ def download_vente_pdf(
 
     col = get_company_collection()
     company = col.find_one({}) or {}
+
+    # Enrich invoice with contact details (address, phone, email) for the PDF
+    if inv.contact_id:
+        try:
+            contact = get_database()["contacts"].find_one({"_id": ObjectId(inv.contact_id)})
+            if contact:
+                inv.client_address = contact.get("address")
+                inv.client_city = contact.get("city")
+                inv.client_phone = contact.get("phone")
+                inv.client_email = contact.get("email")
+        except Exception:
+            pass
 
     try:
         pdf_bytes = generate_invoice_pdf(inv, company)

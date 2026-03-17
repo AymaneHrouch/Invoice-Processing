@@ -71,6 +71,10 @@ def generate_invoice_pdf(invoice, company: dict) -> bytes:
         destinataire = {
             "name": invoice.client_name or "—",
             "ice": invoice.client_ice,
+            "address": getattr(invoice, "client_address", None),
+            "city": getattr(invoice, "client_city", None),
+            "phone": getattr(invoice, "client_phone", None),
+            "email": getattr(invoice, "client_email", None),
         }
         bank_name = company.get("bank_name")
         bank_account = company.get("bank_account")
