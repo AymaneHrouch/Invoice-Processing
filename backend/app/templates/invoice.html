@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    /* ── Reset & base ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Liberation Sans", "Helvetica Neue", Arial, sans-serif;
+      font-size: 9pt;
+      color: #111827;
+      background: #fff;
+    }
+
+    /* ── Page ──────────────────────────────────────────────────── */
+    @page {
+      size: A4;
+      margin: 16mm 18mm 20mm 18mm;
+    }
+
+    .page { width: 100%; }
+
+    /* ── Utilities ─────────────────────────────────────────────── */
+    .text-right  { text-align: right; }
+    .text-center { text-align: center; }
+    .text-grey   { color: #6B7280; }
+    .text-blue   { color: {{ primary }}; }
+    .bold        { font-weight: 700; }
+    .small       { font-size: 7.5pt; }
+    .mono        { font-family: "Liberation Mono", "Courier New", monospace; }
+
+    /* ── Header: logo + title + invoice meta ───────────────────── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6mm;
+    }
+
+    .header-left .doc-title {
+      font-size: 26pt;
+      font-weight: 700;
+      color: {{ primary }};
+      line-height: 1;
+      letter-spacing: -0.5pt;
+    }
+
+    .header-left .doc-subtitle {
+      font-size: 8pt;
+      color: #6B7280;
+      margin-top: 2pt;
+    }
+
+    .header-right {
+      text-align: right;
+      min-width: 60mm;
+    }
+
+    .invoice-number {
+      font-size: 13pt;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 4mm;
+      margin-top: 2pt;
+    }
+
+    .meta-label { color: #6B7280; }
+    .meta-value { font-weight: 600; }
+
+    /* ── Divider ───────────────────────────────────────────────── */
+    .divider {
+      border: none;
+      border-top: 2pt solid {{ primary }};
+      margin: 0 0 5mm 0;
+    }
+
+    .divider-light {
+      border: none;
+      border-top: 0.5pt solid #E5E7EB;
+      margin: 4mm 0;
+    }
+
+    /* ── Parties: emetteur + client ────────────────────────────── */
+    .parties {
+      display: flex;
+      gap: 6mm;
+      margin-bottom: 6mm;
+    }
+
+    .party-box {
+      flex: 1;
+      padding: 4mm 5mm;
+      border-radius: 4pt;
+    }
+
+    .party-box.emetteur { background: #EFF6FF; border: 0.5pt solid #BFDBFE; }
+    .party-box.client   { background: #F9FAFB; border: 0.5pt solid #E5E7EB; }
+
+    .party-label {
+      font-size: 6.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6pt;
+      color: #6B7280;
+      margin-bottom: 2mm;
+    }
+
+    .party-name {
+      font-size: 12pt;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 1mm;
+    }
+
+    .party-detail {
+      font-size: 8pt;
+      color: #374151;
+      line-height: 1.5;
+    }
+
+    .party-ids {
+      margin-top: 2mm;
+      font-size: 7.5pt;
+      color: #6B7280;
+      line-height: 1.6;
+    }
+
+    /* ── Status badge ──────────────────────────────────────────── */
+    .status-badge {
+      display: inline-block;
+      padding: 1pt 6pt;
+      border-radius: 10pt;
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4pt;
+      margin-bottom: 3mm;
+    }
+
+    .status-draft     { background: #F3F4F6; color: #6B7280; border: 0.5pt solid #D1D5DB; }
+    .status-validated { background: #ECFDF5; color: #065F46; border: 0.5pt solid #6EE7B7; }
+    .status-sent      { background: #EEF2FF; color: #3730A3; border: 0.5pt solid #A5B4FC; }
+    .status-paid      { background: #ECFDF5; color: #065F46; border: 0.5pt solid #6EE7B7; }
+    .status-extracted { background: #EFF6FF; color: #1E40AF; border: 0.5pt solid #93C5FD; }
+
+    /* ── Items table ───────────────────────────────────────────── */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 4mm;
+      font-size: 8.5pt;
+    }
+
+    .items-table thead tr {
+      background: {{ primary }};
+      color: #fff;
+    }
+
+    .items-table thead th {
+      padding: 3mm 3mm;
+      font-weight: 700;
+      font-size: 7.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.4pt;
+    }
+
+    .items-table thead th:first-child { border-radius: 3pt 0 0 0; }
+    .items-table thead th:last-child  { border-radius: 0 3pt 0 0; }
+
+    .items-table tbody tr:nth-child(odd)  { background: #fff; }
+    .items-table tbody tr:nth-child(even) { background: #F9FAFB; }
+
+    .items-table tbody td {
+      padding: 2.5mm 3mm;
+      border-bottom: 0.3pt solid #E5E7EB;
+      vertical-align: top;
+    }
+
+    .items-table .col-num   { width: 8mm;  text-align: center; }
+    .items-table .col-name  { width: 42mm; }
+    .items-table .col-desc  { }
+    .items-table .col-qty   { width: 12mm; text-align: center; }
+    .items-table .col-pu    { width: 28mm; text-align: right; }
+    .items-table .col-total { width: 28mm; text-align: right; font-weight: 600; }
+
+    .item-name { font-weight: 600; color: #111827; }
+    .item-desc { color: #6B7280; font-size: 8pt; margin-top: 1pt; }
+
+    /* ── Totals ────────────────────────────────────────────────── */
+    .totals-wrapper {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 6mm;
+    }
+
+    .totals-box {
+      min-width: 72mm;
+    }
+
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 1.5mm 0;
+      font-size: 8.5pt;
+      gap: 8mm;
+    }
+
+    .totals-row.grand {
+      border-top: 1.5pt solid {{ primary }};
+      margin-top: 2mm;
+      padding-top: 2.5mm;
+      font-size: 11pt;
+      font-weight: 700;
+      color: {{ primary }};
+    }
+
+    .totals-label { color: #6B7280; }
+    .totals-value { font-weight: 600; text-align: right; white-space: nowrap; }
+
+    /* ── Footer: bank + legal ──────────────────────────────────── */
+    .footer {
+      margin-top: 4mm;
+      border-top: 0.5pt solid #E5E7EB;
+      padding-top: 3mm;
+    }
+
+    .footer-grid {
+      display: flex;
+      gap: 6mm;
+    }
+
+    .footer-section { flex: 1; }
+
+    .footer-label {
+      font-size: 6.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5pt;
+      color: #6B7280;
+      margin-bottom: 1.5mm;
+    }
+
+    .footer-content {
+      font-size: 7.5pt;
+      color: #374151;
+      line-height: 1.6;
+    }
+
+    .generated {
+      margin-top: 4mm;
+      font-size: 7pt;
+      color: #9CA3AF;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Header ─────────────────────────────────────────────────── -->
+  <div class="header">
+    <div class="header-left">
+      <div class="doc-title">FACTURE</div>
+      <div class="doc-subtitle">
+        {% if direction == 'outgoing' %}Facture de vente{% else %}Facture d'achat{% endif %}
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="invoice-number mono">{{ invoice_number }}</div>
+      <div class="meta-row">
+        <span class="meta-label">Date :</span>
+        <span class="meta-value">{{ invoice_date }}</span>
+      </div>
+      {% if invoice_due_date %}
+      <div class="meta-row">
+        <span class="meta-label">Échéance :</span>
+        <span class="meta-value">{{ invoice_due_date }}</span>
+      </div>
+      {% endif %}
+      <div style="margin-top: 3pt;">
+        <span class="status-badge status-{{ status }}">{{ status_label }}</span>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- ── Parties ────────────────────────────────────────────────── -->
+  <div class="parties">
+    <!-- Emetteur -->
+    <div class="party-box emetteur">
+      <div class="party-label">Émetteur</div>
+      <div class="party-name">{{ emetteur.name }}</div>
+      {% if emetteur.legal_form %}
+        <div class="party-detail text-grey">{{ emetteur.legal_form }}</div>
+      {% endif %}
+      {% if emetteur.address %}
+        <div class="party-detail">{{ emetteur.address }}</div>
+      {% endif %}
+      {% if emetteur.city %}
+        <div class="party-detail">
+          {% if emetteur.postal_code %}{{ emetteur.postal_code }} {% endif %}{{ emetteur.city }}
+        </div>
+      {% endif %}
+      {% if emetteur.phone %}<div class="party-detail">Tél : {{ emetteur.phone }}</div>{% endif %}
+      {% if emetteur.email %}<div class="party-detail">{{ emetteur.email }}</div>{% endif %}
+      <div class="party-ids">
+        {% if emetteur.ice %}<div>ICE : <span class="mono">{{ emetteur.ice }}</span></div>{% endif %}
+        {% if emetteur.identifiant_fiscal %}<div>IF : {{ emetteur.identifiant_fiscal }}</div>{% endif %}
+        {% if emetteur.rc %}<div>RC : {{ emetteur.rc }}</div>{% endif %}
+        {% if emetteur.patente %}<div>Patente : {{ emetteur.patente }}</div>{% endif %}
+        {% if emetteur.cnss %}<div>CNSS : {{ emetteur.cnss }}</div>{% endif %}
+      </div>
+    </div>
+
+    <!-- Client / Fournisseur -->
+    <div class="party-box client">
+      <div class="party-label">{% if direction == 'outgoing' %}Client{% else %}Fournisseur{% endif %}</div>
+      <div class="party-name">{{ destinataire.name }}</div>
+      {% if destinataire.ice %}
+        <div class="party-ids">
+          <div>ICE : <span class="mono">{{ destinataire.ice }}</span></div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Line items ─────────────────────────────────────────────── -->
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th class="col-num text-center">N°</th>
+        <th class="col-name">Désignation</th>
+        <th class="col-desc">Description</th>
+        <th class="col-qty text-center">Qté</th>
+        <th class="col-pu text-right">PU HT ({{ currency }})</th>
+        <th class="col-total text-right">Total HT ({{ currency }})</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if items %}
+        {% for item in items %}
+        <tr>
+          <td class="col-num text-center text-grey">{{ loop.index }}</td>
+          <td class="col-name">
+            <div class="item-name">{{ item.name or '—' }}</div>
+          </td>
+          <td>
+            {% if item.description %}
+              <div class="item-desc">{{ item.description }}</div>
+            {% endif %}
+          </td>
+          <td class="col-qty text-center">{{ item.quantity }}</td>
+          <td class="col-pu text-right mono">{{ item.unit_price | fmt_amount }}</td>
+          <td class="col-total text-right mono">{{ item.total | fmt_amount }}</td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="6" class="text-center text-grey" style="padding: 4mm;">
+            Aucun article renseigné
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  <!-- ── Totals ─────────────────────────────────────────────────── -->
+  <div class="totals-wrapper">
+    <div class="totals-box">
+      {% if subtotal_ht is not none %}
+      <div class="totals-row">
+        <span class="totals-label">Sous-total HT</span>
+        <span class="totals-value mono">{{ subtotal_ht | fmt_amount }} {{ currency }}</span>
+      </div>
+      {% endif %}
+      {% if tva_rate %}
+      <div class="totals-row">
+        <span class="totals-label">TVA ({{ tva_rate | int }}%)</span>
+        <span class="totals-value mono">{{ tva_amount | fmt_amount }} {{ currency }}</span>
+      </div>
+      {% endif %}
+      <div class="totals-row grand">
+        <span>TOTAL TTC</span>
+        <span class="mono">{{ total_amount | fmt_amount }} {{ currency }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Footer ─────────────────────────────────────────────────── -->
+  {% if bank_name or bank_account or legal_line %}
+  <div class="footer">
+    <div class="footer-grid">
+      {% if bank_name or bank_account %}
+      <div class="footer-section">
+        <div class="footer-label">Coordonnées bancaires</div>
+        <div class="footer-content">
+          {% if bank_name %}<div>Banque : {{ bank_name }}</div>{% endif %}
+          {% if bank_account %}<div>RIB : <span class="mono">{{ bank_account }}</span></div>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+      {% if legal_line %}
+      <div class="footer-section">
+        <div class="footer-label">Mentions légales</div>
+        <div class="footer-content">{{ legal_line }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="generated">Document généré le {{ generated_at }}</div>
+
+</div>
+</body>
+</html>

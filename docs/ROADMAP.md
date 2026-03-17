@@ -98,10 +98,21 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [x] **Frontend**: `SupplierCombobox` extended with `contactType` prop to reuse for clients
 
 ### 2.3 PDF Generation ✅
-- [x] **Backend**: `GET /ventes/{id}/pdf` — generate and stream PDF as file download
-- [x] **Backend**: `services/pdf.py` — professional Moroccan invoice PDF via reportlab: company header (name, legal form, ICE, IF, RC, CNSS, address), client block, blue-header line items table, subtotal HT / TVA / Total TTC summary, bank details, legal footer
-- [x] **Frontend**: `downloadVentePdf()` in `api/ventes.js` — blob download via axios
-- [x] **Frontend**: Download button on outgoing invoice rows calls backend PDF; incoming rows keep existing jsPDF (Achats PDF is out-of-scope for Phase 2)
+- [x] **Backend**: `GET /ventes/{id}/pdf` — generate and stream PDF for outgoing invoices
+- [x] **Backend**: `GET /invoices/{id}/pdf` — generate and stream PDF for incoming invoices (Achats)
+- [x] **Backend**: `services/pdf.py` — weasyprint + Jinja2 HTML template renderer; single `generate_invoice_pdf()` function handles both directions
+- [x] **Backend**: `app/templates/invoice.html` — professional Moroccan invoice HTML/CSS template; direction-aware (shows Fournisseur for incoming, Client for outgoing); status badges; A4 page layout
+- [x] **Frontend**: `downloadVentePdf()` in `api/ventes.js` — blob download for outgoing
+- [x] **Frontend**: `downloadInvoicePdf()` in `api/invoice.js` — blob download for incoming
+- [x] **Frontend**: Both Achats and Ventes rows call backend PDF endpoint (jsPDF removed)
+
+### 2.3.1 PDF Template Personalization
+- [ ] **Backend**: Add `primary_color` and `logo_url` fields to `CompanyProfile` model
+- [ ] **Backend**: Pass `primary_color` (fallback `#2563EB`) and `logo_url` into `generate_invoice_pdf()` template context
+- [ ] **Backend**: `invoice.html` — render logo in header if provided; use `primary_color` variable instead of hardcoded value
+- [ ] **Frontend**: Color picker input on `CompanyProfilePage` for brand color
+- [ ] **Frontend**: Logo upload on `CompanyProfilePage` (store URL or base64)
+- [ ] **Frontend**: Custom footer note field on `CompanyProfilePage` (e.g. "Merci pour votre confiance") — passed as `custom_footer` in template context
 
 ### 2.4 UBL 2.1 XML Generation
 - [ ] **Backend**: New service `services/ubl.py` — generates UBL 2.1 Invoice XML from Invoice model
@@ -110,10 +121,15 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [ ] **Backend**: Validate generated XML against UBL 2.1 XSD schema
 - [ ] **Frontend**: "Export UBL" button on validated outgoing invoices
 
-### 2.5 Excel Export per Direction
-- [ ] **Backend**: `POST /achats/export` — export incoming invoices only
-- [ ] **Backend**: `POST /ventes/export` — export outgoing invoices only
-- [ ] **Frontend**: Export buttons on both list pages
+### 2.5 Excel Export per Direction ✅
+- [x] **Backend**: `POST /invoices/achats/export` — export incoming invoices only (direction=incoming locked)
+- [x] **Backend**: `POST /ventes/export` — export outgoing invoices only (direction=outgoing locked)
+- [x] **Backend**: `get_invoices_for_export()` in CRUD extended with `direction` filter
+- [x] **Backend**: Export endpoints no longer auto-mark invoices as exported — returns exported IDs in `X-Exported-Ids` response header instead
+- [x] **Frontend**: `exportAchats()` in `api/invoice.js`, `exportVentes()` in `api/ventes.js`
+- [x] **Frontend**: `handleExport` in `InvoiceListPage` routes to the correct endpoint based on `direction` prop
+- [x] **Frontend**: After export download, `ExportConfirmDialog` asks "Marquer comme exportées ?" — user chooses explicitly (idea by Aymane)
+- [x] **Frontend**: Batch actions bar now includes "Marquer exporté" alongside existing "Marquer non exporté" for manual control
 
 **Deliverable**: Full emission workflow — create invoice, auto-number, validate, download PDF, export UBL XML. Ready to demonstrate DGI compliance preparation.
 
@@ -175,6 +191,16 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 ### 4.5 Avoir (Credit Notes)
 - [ ] Create credit notes linked to original invoices
 - [ ] UBL CreditNote generation
+
+---
+
+## Backlog — UX Improvements & Ideas
+
+### Batch Actions Hardening
+- [ ] **Frontend**: Add confirmation dialog before batch "Valider" on Ventes — validated invoices are locked, batch-validating without confirmation is risky
+- [ ] **Frontend**: Hide "Invalider" (sets status back to `extracted`) from non-admin users — it's a dev/admin tool, not a regular user action
+- [ ] **Frontend**: "Définir comme achat / vente" batch actions are a workaround for legacy invoices with no direction — revisit once all invoices are created with correct direction by default, may be removable
+- [ ] **Frontend**: Consider adding batch delete (currently only batch archive is possible) — decide if this is intentional
 
 ---
 

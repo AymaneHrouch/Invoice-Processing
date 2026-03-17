@@ -284,11 +284,10 @@ const InvoiceRow = ({
           <input
             type="checkbox"
             checked={Boolean(invoice.is_exported)}
-            readOnly
-            tabIndex={-1}
-            onClick={(e) => e.preventDefault()}
+            onChange={(e) => handleToggleField('is_exported', e.target.checked)}
+            disabled={togglingField === 'is_exported'}
             className="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4 cursor-pointer"
-            title="Défini automatiquement à l'export"
+            title="Basculer exporté"
           />
         </td>
         <td

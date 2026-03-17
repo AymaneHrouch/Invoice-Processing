@@ -7,6 +7,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Response
 from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
 from pydantic import BaseModel
 
 from app.crud.invoice import InvoiceCRUD
@@ -320,3 +321,69 @@ def download_vente_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post("/export", summary="Export outgoing invoices (Ventes) to Excel")
+def export_ventes(
+    status: str | None = Query(None),
+    vendor_name: str | None = Query(None),
+    category: str | None = Query(None),
+    is_exported: bool | None = Query(None),
+    include_archived: bool = Query(False),
+    current_user: dict = Depends(get_current_user),
+):
+    """Export outgoing invoices to Excel. Locks direction=outgoing."""
+    try:
+        invoices = InvoiceCRUD.get_invoices_for_export(
+            status=status,
+            vendor_name=vendor_name,
+            category=category,
+            is_exported=is_exported,
+            include_archived=include_archived,
+            direction="outgoing",
+        )
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Ventes"
+
+        headers = [
+            "N° Facture", "Client", "Date", "ICE Client",
+            "TVA (%)", "Montant TVA", "Total TTC", "Échéance",
+            "Statut", "Payé", "Catégorie",
+        ]
+        ws.append(headers)
+
+        exported_ids = []
+        for inv in invoices:
+            ws.append([
+                inv.invoice_number or "",
+                inv.client_name or inv.vendor_name or "",
+                inv.invoice_date.strftime("%d/%m/%Y") if inv.invoice_date else "",
+                inv.client_ice or "",
+                float(inv.tva) if inv.tva is not None else "",
+                float(inv.amount_tva) if inv.amount_tva is not None else "",
+                float(inv.total_amount) if inv.total_amount else "",
+                inv.invoice_due_date.strftime("%d/%m/%Y") if inv.invoice_due_date else "",
+                inv.status or "",
+                "Oui" if inv.is_paid else "Non",
+                inv.category or "",
+            ])
+            exported_ids.append(str(inv.id))
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        filename = f"ventes_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}.xlsx"
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "X-Exported-Ids": ",".join(exported_ids),
+                "Access-Control-Expose-Headers": "X-Exported-Ids",
+            },
+        )
+    except Exception as e:
+        logger.exception("Ventes export failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e

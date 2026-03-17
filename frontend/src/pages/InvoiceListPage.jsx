@@ -8,21 +8,23 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useTheme } from '@/contexts';
-import { exportToPDF } from '@/constants/exportToPDF';
 import {
   fetchInvoices,
   getInvoiceById,
   updateInvoice,
   batchUpdateInvoices,
   exportInvoices,
+  exportAchats,
   archiveInvoice,
   restoreInvoice,
+  downloadInvoicePdf,
 } from '@/api/invoice';
 import {
   validateVente,
   markVenteSent,
   markVentePaid,
   downloadVentePdf,
+  exportVentes,
 } from '@/api/ventes';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, MoreHorizontal } from 'lucide-react';
@@ -35,6 +37,7 @@ import {
   InvoiceRow,
   InvoiceExpandedRow,
 } from '@/components';
+import ExportConfirmDialog from '@/components/invoice/invoice-listing/ExportConfirmDialog';
 import { useDeleteInvoice } from '@/hooks/useDeleteInvoice';
 import { toast } from 'sonner';
 
@@ -90,6 +93,7 @@ const InvoiceListPage = ({ direction = null }) => {
   const [batchLoading, setBatchLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
+  const [exportConfirm, setExportConfirm] = useState({ open: false, ids: [] });
 
   const handleEdit = (invoice) => {
     setSelectedInvoice(invoice);
@@ -431,15 +435,43 @@ const InvoiceListPage = ({ direction = null }) => {
   const handleExport = async () => {
     setExportLoading(true);
     try {
-      await exportInvoices(filters);
+      let ids;
+      if (direction === 'outgoing') ids = await exportVentes(filters);
+      else if (direction === 'incoming') ids = await exportAchats(filters);
+      else ids = await exportInvoices(filters);
       toast.success('Factures exportées avec succès');
-      handleFetchInvoices(page, sortBy, order, filters);
+      if (ids && ids.length > 0) {
+        setExportConfirm({ open: true, ids });
+      }
     } catch (err) {
       toast.error(err.message || 'Exportation échouée');
     } finally {
       setExportLoading(false);
     }
   };
+
+  const handleExportConfirm = async () => {
+    try {
+      await batchUpdateInvoices(exportConfirm.ids, { is_exported: true });
+      toast.success(
+        `${exportConfirm.ids.length} facture(s) marquée(s) comme exportées.`,
+      );
+      handleFetchInvoices(page, sortBy, order, filters);
+    } catch (err) {
+      toast.error(err.message || 'Marquage échoué');
+    } finally {
+      setExportConfirm({ open: false, ids: [] });
+    }
+  };
+
+  const exportConfirmDialog = (
+    <ExportConfirmDialog
+      open={exportConfirm.open}
+      count={exportConfirm.ids.length}
+      onConfirm={handleExportConfirm}
+      onCancel={() => setExportConfirm({ open: false, ids: [] })}
+    />
+  );
 
   const editModal = editModalOpen && selectedInvoice && (
     <EditInvoice
@@ -468,6 +500,7 @@ const InvoiceListPage = ({ direction = null }) => {
           </Card>
         </div>
         {editModal}
+        {exportConfirmDialog}
       </>
     );
   }
@@ -485,6 +518,7 @@ const InvoiceListPage = ({ direction = null }) => {
           </Button>
         </div>
         {editModal}
+        {exportConfirmDialog}
       </>
     );
   }
@@ -559,6 +593,7 @@ const InvoiceListPage = ({ direction = null }) => {
           </Alert>
         </div>
         {editModal}
+        {exportConfirmDialog}
       </>
     );
   }
@@ -674,6 +709,18 @@ const InvoiceListPage = ({ direction = null }) => {
                     className="justify-start font-normal"
                     onClick={() => {
                       setMoreDropdownOpen(false);
+                      handleBatchUpdate({ is_exported: true });
+                    }}
+                    disabled={batchLoading}
+                  >
+                    Marquer exporté
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="justify-start font-normal"
+                    onClick={() => {
+                      setMoreDropdownOpen(false);
                       handleBatchUpdate({ is_exported: false });
                     }}
                     disabled={batchLoading}
@@ -760,7 +807,7 @@ const InvoiceListPage = ({ direction = null }) => {
                 onExportPDF={(inv) =>
                   inv.direction === 'outgoing'
                     ? downloadVentePdf(inv.id || inv._id, inv.invoice_number)
-                    : exportToPDF(inv)
+                    : downloadInvoicePdf(inv.id || inv._id, inv.invoice_number)
                 }
                 onDelete={handleDeleteInvoice}
                 onArchive={handleArchive}
@@ -794,6 +841,7 @@ const InvoiceListPage = ({ direction = null }) => {
       />
 
       {editModal}
+      {exportConfirmDialog}
     </div>
   );
 };

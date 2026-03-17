@@ -100,21 +100,61 @@ export const exportInvoices = async (filters = {}) => {
       responseType: 'blob',
     });
 
+    const now = new Date();
+    const stamp = now.toISOString().replace(/[-:T]/g, '').slice(0, 15);
     const blob = new Blob([response.data], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    const disposition = response.headers['content-disposition'];
-    const filename = disposition
-      ? disposition.split('filename=')[1]?.replace(/"/g, '') || 'invoices.xlsx'
-      : 'invoices.xlsx';
-    link.setAttribute('download', filename);
+    link.setAttribute('download', `factures_${stamp}.xlsx`);
     document.body.appendChild(link);
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
+
+    const idsHeader = response.headers['x-exported-ids'];
+    return idsHeader ? idsHeader.split(',').filter(Boolean) : [];
+  } catch (error) {
+    throw new Error(`Export failed: ${error.message}`);
+  }
+};
+
+export const exportAchats = async (filters = {}) => {
+  try {
+    const params = {};
+    if (filters.status && filters.status !== 'all')
+      params.status = filters.status;
+    if (filters.vendor_name) params.vendor_name = filters.vendor_name;
+    if (filters.category && filters.category !== 'all')
+      params.category = filters.category;
+    if (filters.is_exported !== undefined && filters.is_exported !== 'all')
+      params.is_exported = filters.is_exported === 'true';
+    if (filters.include_archived) params.include_archived = true;
+
+    const response = await api.post('/invoices/achats/export', null, {
+      ...getAuthConfig(),
+      params,
+      responseType: 'blob',
+    });
+
+    const now = new Date();
+    const stamp = now.toISOString().replace(/[-:T]/g, '').slice(0, 15);
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `achats_${stamp}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    const idsHeader = response.headers['x-exported-ids'];
+    return idsHeader ? idsHeader.split(',').filter(Boolean) : [];
   } catch (error) {
     throw new Error(`Export failed: ${error.message}`);
   }
@@ -204,6 +244,21 @@ export const deleteInvoice = async (id) => {
     }
     throw new Error('Error while deleting the invoice.');
   }
+};
+
+export const downloadInvoicePdf = async (id, invoiceNumber) => {
+  const response = await api.get(`/invoices/${id}/pdf`, {
+    ...getAuthConfig(),
+    responseType: 'blob',
+  });
+  const url = URL.createObjectURL(
+    new Blob([response.data], { type: 'application/pdf' }),
+  );
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `facture_${invoiceNumber || id}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
 };
 
 // Get top invoices for a specific category

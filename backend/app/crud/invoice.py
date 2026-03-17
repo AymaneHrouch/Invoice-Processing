@@ -174,6 +174,7 @@ class InvoiceCRUD:
             category: str | None = None,
             is_exported: bool | None = None,
             include_archived: bool = False,
+            direction: str | None = None,
             sort_by: str = "created_at",
             order: Literal["asc", "desc"] = "desc",
     ) -> list[Invoice]:
@@ -191,6 +192,8 @@ class InvoiceCRUD:
                 filter_query["category"] = category
             if is_exported is not None:
                 filter_query["is_exported"] = is_exported
+            if direction:
+                filter_query["direction"] = direction
 
             order_by = ASCENDING if order == "asc" else DESCENDING
             cursor = collection.find(filter_query).sort(sort_by, order_by)

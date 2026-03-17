@@ -66,7 +66,8 @@ app.add_middleware(
         "X-Per-Page",
         "X-Page",
         "X-Has-Next",
-        "X-Has-Prev"
+        "X-Has-Prev",
+        "X-Exported-Ids",
     ]
 )
 

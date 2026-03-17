@@ -3,7 +3,6 @@ Invoice REST API routes using PyMongo
 """
 from datetime import datetime
 from io import BytesIO
-from time import sleep
 import logging
 from typing import Literal
 
@@ -17,14 +16,22 @@ from fastapi import (
     Response,
     UploadFile,
 )
-from fastapi.responses import StreamingResponse
 from fastapi.params import Depends
+from fastapi.responses import StreamingResponse
 
 from app.crud.invoice import InvoiceCRUD
-from app.models.invoice import Invoice, InvoiceBatchUpdate, InvoiceCreate, InvoiceResponse, InvoiceUpdate
-from app.services.invoices import extract_invoice_data, run_amount_checks
+from app.database import get_company_collection
+from app.models.invoice import (
+    Invoice,
+    InvoiceBatchUpdate,
+    InvoiceCreate,
+    InvoiceResponse,
+    InvoiceUpdate,
+)
 from app.services import dashboard
-from app.utils.auth import require_admin
+from app.services.invoices import extract_invoice_data, run_amount_checks
+from app.services.pdf import generate_invoice_pdf
+from app.utils.auth import get_current_user, require_admin
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/invoices", tags=["invoices"])
@@ -129,6 +136,27 @@ async def handle_upload_files(
 # ============= READ ENDPOINTS =============
 
 
+@router.post("/achats/export", summary="Export incoming invoices (Achats) to Excel")
+def export_achats(
+        status: str | None = Query(None),
+        vendor_name: str | None = Query(None),
+        category: str | None = Query(None),
+        is_exported: bool | None = Query(None),
+        include_archived: bool = Query(False),
+        current_user: dict = Depends(get_current_user),
+):
+    """Export incoming invoices to Excel. Locks direction=incoming."""
+    return _do_export(
+        direction="incoming",
+        status=status,
+        vendor_name=vendor_name,
+        category=category,
+        is_exported=is_exported,
+        include_archived=include_archived,
+        filename_prefix="achats",
+    )
+
+
 @router.post("/export", summary="Export filtered invoices to Excel")
 def export_invoices(
         status: str | None = Query(None, description="Filter by status"),
@@ -138,6 +166,27 @@ def export_invoices(
         include_archived: bool = Query(False, description="Include archived invoices"),
 ):
     """Export filtered invoices to Excel. Auto-sets is_exported=True on all exported invoices."""
+    return _do_export(
+        direction=None,
+        status=status,
+        vendor_name=vendor_name,
+        category=category,
+        is_exported=is_exported,
+        include_archived=include_archived,
+        filename_prefix="invoices",
+    )
+
+
+def _do_export(
+    *,
+    direction: str | None,
+    status: str | None,
+    vendor_name: str | None,
+    category: str | None,
+    is_exported: bool | None,
+    include_archived: bool,
+    filename_prefix: str,
+):
     try:
         from openpyxl import Workbook
 
@@ -147,6 +196,7 @@ def export_invoices(
             category=category,
             is_exported=is_exported,
             include_archived=include_archived,
+            direction=direction,
         )
 
         wb = Workbook()
@@ -178,16 +228,18 @@ def export_invoices(
             ])
             exported_ids.append(str(inv.id))
 
-        InvoiceCRUD.bulk_mark_exported(exported_ids)
-
         output = BytesIO()
         wb.save(output)
         output.seek(0)
-        filename = f"invoices_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        filename = f"{filename_prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         return StreamingResponse(
             output,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename={filename}"},
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "X-Exported-Ids": ",".join(exported_ids),
+                "Access-Control-Expose-Headers": "X-Exported-Ids",
+            },
         )
     except Exception as e:
         logger.exception("Export failed: %s", e)
@@ -579,3 +631,35 @@ def get_invoices_count_by_status():
         return InvoiceCRUD.get_invoices_by_status_count()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============= PDF ENDPOINT =============
+
+@router.get("/{invoice_id}/pdf", summary="Download invoice as PDF")
+def download_invoice_pdf(
+    invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
+    current_user: dict = Depends(get_current_user),
+):
+    """Generate and return a PDF for the given invoice (incoming or outgoing)."""
+    try:
+        inv = InvoiceCRUD.get_invoice_by_id(invoice_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID invalide.") from None
+    if not inv:
+        raise HTTPException(status_code=404, detail="Facture introuvable.")
+
+    col = get_company_collection()
+    company = col.find_one({}) or {}
+
+    try:
+        pdf_bytes = generate_invoice_pdf(inv, company)
+    except Exception as e:
+        logger.exception("PDF generation failed for invoice %s: %s", invoice_id, e)
+        raise HTTPException(status_code=500, detail="Erreur lors de la génération du PDF.") from e
+
+    filename = f"facture_{inv.invoice_number or invoice_id}.pdf"
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
