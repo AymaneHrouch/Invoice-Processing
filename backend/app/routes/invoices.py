@@ -507,7 +507,7 @@ def batch_update_invoices(body: InvoiceBatchUpdate = Body(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.patch("/{invoice_id}/status", summary="Update invoice status by ID")
+@router.patch("/{invoice_id}/status", response_model=InvoiceResponse, summary="Update invoice status by ID")
 def update_invoice_status_by_id(
         invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
         status: str = Body(..., description="New status value", embed=True)
@@ -522,11 +522,7 @@ def update_invoice_status_by_id(
         invoice = InvoiceCRUD.update_invoice_status(invoice_id, status)
         if not invoice:
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
-        return {
-            "message": "Status updated successfully",
-            "invoice_id": invoice_id,
-            "new_status": status
-        }
+        return invoice_to_response(invoice)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
     except Exception as e:
