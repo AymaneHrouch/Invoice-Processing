@@ -139,7 +139,8 @@ class InvoiceCRUD:
             if status:
                 filter_query["status"] = status
             if vendor_name:
-                filter_query["vendor_name"] = {"$regex": vendor_name, "$options": "i"}
+                name_regex = {"$regex": vendor_name, "$options": "i"}
+                filter_query["$or"] = [{"vendor_name": name_regex}, {"client_name": name_regex}]
             if category:
                 filter_query["category"] = category
             if is_exported is not None:
@@ -206,7 +207,8 @@ class InvoiceCRUD:
             if status:
                 filter_query["status"] = status
             if vendor_name:
-                filter_query["vendor_name"] = {"$regex": vendor_name, "$options": "i"}
+                name_regex = {"$regex": vendor_name, "$options": "i"}
+                filter_query["$or"] = [{"vendor_name": name_regex}, {"client_name": name_regex}]
             if category:
                 filter_query["category"] = category
             if is_exported is not None:
