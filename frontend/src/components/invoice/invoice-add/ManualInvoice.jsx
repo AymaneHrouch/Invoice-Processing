@@ -23,7 +23,12 @@ import { categories, currencies } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useAddInvoice } from '@/hooks/useAddInvoice';
 import { FormField } from '@/components/ui/form-field';
-import { InvoiceTags, InvoiceItems, AmountWarningBanner } from '@/components/invoice';
+import SupplierCombobox from '@/components/ui/SupplierCombobox';
+import {
+  InvoiceTags,
+  InvoiceItems,
+  AmountWarningBanner,
+} from '@/components/invoice';
 import { runAmountChecks } from '@/utils/invoiceCalculations';
 
 // ✅ Fonction utilitaire pour formater les dates
@@ -163,8 +168,14 @@ const ManualInvoice = () => {
       invoice_date: formData.invoice_date?.trim() || null,
       invoice_due_date: formData.invoice_due_date?.trim() || null,
       ice: formData.ice?.trim() || null,
-      tva: formData.tva !== '' && formData.tva != null ? parseFloat(formData.tva) : null,
-      amount_tva: formData.amount_tva !== '' && formData.amount_tva != null ? parseFloat(formData.amount_tva) : null,
+      tva:
+        formData.tva !== '' && formData.tva != null
+          ? parseFloat(formData.tva)
+          : null,
+      amount_tva:
+        formData.amount_tva !== '' && formData.amount_tva != null
+          ? parseFloat(formData.amount_tva)
+          : null,
     };
 
     const result = await addInvoice(invoiceData);
@@ -201,7 +212,7 @@ const ManualInvoice = () => {
           {(() => {
             const warnings = runAmountChecks(
               { total_amount: formData.total_amount, items: formData.items },
-              formData.currency
+              formData.currency,
             );
             return warnings.length > 0 ? (
               <AmountWarningBanner warnings={warnings} />
@@ -209,14 +220,13 @@ const ManualInvoice = () => {
           })()}
           {/* Form fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <FormField
-              id="vendor_name"
-              label="Supplier"
+            <SupplierCombobox
               value={formData.vendor_name}
-              onChange={(e) => updateField('vendor_name', e.target.value)}
-              placeholder="Enter supplier name"
+              iceValue={formData.ice}
+              onChange={(val) => updateField('vendor_name', val)}
+              onIceChange={(ice) => updateField('ice', ice)}
               error={errors.vendor_name}
-              icon={Building}
+              placeholder="Enter supplier name"
               required
             />
             <FormField

@@ -11,6 +11,7 @@ from app.database import close_database, init_database
 from app.logging_config import setup_logging
 from app.routes.auth import router as auth_router
 from app.routes.company import router as company_router
+from app.routes.contacts import router as contacts_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.health import router as health_router
 from app.routes.invoices import router as invoices_router
@@ -75,6 +76,7 @@ app.include_router(dashboard_router)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(company_router)
+app.include_router(contacts_router)
 
 
 @app.get("/")

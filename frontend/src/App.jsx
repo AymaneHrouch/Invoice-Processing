@@ -12,6 +12,7 @@ import {
   InvoiceListPage,
   DashboardPage,
   CompanyProfilePage,
+  ContactsPage,
 } from '@/pages';
 import { useTheme, useAuth } from '@/contexts';
 import { getCompanyProfile } from '@/api/company';
@@ -118,6 +119,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <CompanyProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/contacts"
+              element={
+                <ProtectedRoute>
+                  <ContactsPage />
                 </ProtectedRoute>
               }
             />

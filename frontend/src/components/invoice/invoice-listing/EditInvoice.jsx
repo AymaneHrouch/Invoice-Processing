@@ -13,8 +13,13 @@ import { categories, currencies } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useEditInvoice } from '@/hooks/useEditInvoice';
 import { FormField } from '@/components/ui/form-field';
-import { InvoiceTags, InvoiceItems, AmountWarningBanner } from '@/components/invoice';
+import {
+  InvoiceTags,
+  InvoiceItems,
+  AmountWarningBanner,
+} from '@/components/invoice';
 import { validateInvoice } from '@/api';
+import SupplierCombobox from '@/components/ui/SupplierCombobox';
 import {
   Dialog,
   DialogContent,
@@ -79,8 +84,12 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
         vendor_name: invoice.vendor_name || '',
         invoice_number: invoice.invoice_number || '',
         ice: invoice.ice ?? '',
-        tva: invoice.tva != null && invoice.tva !== '' ? String(invoice.tva) : '',
-        amount_tva: invoice.amount_tva != null && invoice.amount_tva !== '' ? String(invoice.amount_tva) : '',
+        tva:
+          invoice.tva != null && invoice.tva !== '' ? String(invoice.tva) : '',
+        amount_tva:
+          invoice.amount_tva != null && invoice.amount_tva !== ''
+            ? String(invoice.amount_tva)
+            : '',
         invoice_date: formatDateForInput(invoice.invoice_date),
         invoice_due_date: formatDateForInput(invoice.invoice_due_date),
         total_amount: invoice.total_amount?.toString() || '',
@@ -213,8 +222,14 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       invoice_due_date: formData.invoice_due_date?.trim() || null,
       status: formData.status,
       ice: formData.ice?.trim() || null,
-      tva: formData.tva !== '' && formData.tva != null ? parseFloat(formData.tva) : null,
-      amount_tva: formData.amount_tva !== '' && formData.amount_tva != null ? parseFloat(formData.amount_tva) : null,
+      tva:
+        formData.tva !== '' && formData.tva != null
+          ? parseFloat(formData.tva)
+          : null,
+      amount_tva:
+        formData.amount_tva !== '' && formData.amount_tva != null
+          ? parseFloat(formData.amount_tva)
+          : null,
     };
 
     console.log('🚀 Submitting invoice data:', invoiceData);
@@ -274,7 +289,10 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
           >
             <Card className="border-0 shadow-none bg-transparent">
               {amountWarnings.length > 0 && (
-                <AmountWarningBanner warnings={amountWarnings} className="mb-4" />
+                <AmountWarningBanner
+                  warnings={amountWarnings}
+                  className="mb-4"
+                />
               )}
               <CardHeaderUI className="px-0 pb-4">
                 <CardTitleUI
@@ -285,14 +303,13 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
               </CardHeaderUI>
               <CardContent className="px-0 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <FormField
-                    id="vendor_name"
-                    label="Supplier"
+                  <SupplierCombobox
                     value={formData.vendor_name}
-                    onChange={(e) => updateField('vendor_name', e.target.value)}
-                    placeholder="Supplier name"
-                    required
+                    iceValue={formData.ice}
+                    onChange={(val) => updateField('vendor_name', val)}
+                    onIceChange={(ice) => updateField('ice', ice)}
                     error={errors.vendor_name}
+                    required
                   />
                   <FormField
                     id="invoice_number"

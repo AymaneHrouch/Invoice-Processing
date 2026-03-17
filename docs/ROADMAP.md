@@ -18,11 +18,13 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [x] **Frontend**: *(added)* Persistent incomplete-profile indicator — orange dot + "Setup" label on "Mon Entreprise" sidebar item, visible on every page until profile is saved
 
 ### 1.2 Contact Directory
-- [ ] **Backend**: Create `Contact` model in `models/contact.py`
-- [ ] **Backend**: CRUD routes in `routes/contacts.py`: `GET /contacts`, `POST /contacts`, `PUT /contacts/{id}`, `DELETE /contacts/{id}`
-- [ ] **Backend**: Query param `?type=client` or `?type=supplier` for filtering
-- [ ] **Frontend**: `ContactsPage.jsx` — table with search, add/edit modal
-- [ ] **Frontend**: Add "Clients" and "Fournisseurs" to sidebar under Ventes/Achats
+- [x] **Backend**: Create `Contact` model in `models/contact.py`
+- [x] **Backend**: CRUD routes in `routes/contacts.py`: `GET /contacts`, `POST /contacts`, `PUT /contacts/{id}`, `DELETE /contacts/{id}`
+- [x] **Backend**: Query param `?type=client` or `?type=supplier` for filtering
+- [x] **Frontend**: `ContactsPage.jsx` — table with search, add/edit modal
+- [x] **Frontend**: Add "Contacts" to sidebar (will split into Clients/Fournisseurs in 1.3 nav restructure)
+- [x] **Frontend**: *(added)* Contact count badge on sidebar "Contacts" item — updates on every navigation
+- [x] **Frontend**: *(added)* "Save as supplier" quick-add button on the invoice edit form — pre-fills contact modal with vendor name + ICE
 
 ### 1.3 Navigation Restructure
 - [ ] **Frontend**: Update `constants/index.jsx` sidebar items to Ventes/Achats structure

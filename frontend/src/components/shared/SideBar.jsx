@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { sidebarItems } from '@/constants';
 import { useAuth, useTheme } from '@/contexts';
+import { getContacts } from '@/api/contacts';
 
 import {
   FileText,
@@ -18,9 +19,16 @@ const Sidebar = ({ profileComplete = true }) => {
   const { isDarkMode } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [invoicesExpanded, setInvoicesExpanded] = useState(true);
+  const [contactsCount, setContactsCount] = useState(null);
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    getContacts()
+      .then((data) => setContactsCount(data.length))
+      .catch(() => setContactsCount(null));
+  }, [location.pathname]);
 
   // Filter sidebar items based on user role
   const filteredSidebarItems = sidebarItems.filter((item) => {
@@ -80,6 +88,13 @@ const Sidebar = ({ profileComplete = true }) => {
           {!isCollapsed && (
             <>
               <span className="font-medium flex-1 text-left">{item.label}</span>
+              {item.id === 'contacts' && contactsCount !== null && (
+                <span
+                  className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}
+                >
+                  {contactsCount}
+                </span>
+              )}
               {item.id === 'company' && !profileComplete && (
                 <span className="text-xs font-semibold text-orange-500">
                   Setup

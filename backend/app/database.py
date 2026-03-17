@@ -89,3 +89,8 @@ def get_cache_collection():
 def get_company_collection():
     """Get company_profile collection (single document)"""
     return get_database()["company_profile"]
+
+
+def get_contacts_collection():
+    """Get contacts collection (clients + suppliers)"""
+    return get_database()["contacts"]

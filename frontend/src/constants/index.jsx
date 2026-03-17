@@ -1,4 +1,5 @@
 import {
+  BookUser,
   Building2,
   File,
   FileText,
@@ -82,6 +83,12 @@ export const sidebarItems = [
         path: '/invoices/add',
       },
     ],
+  },
+  {
+    id: 'contacts',
+    label: 'Contacts',
+    icon: BookUser,
+    path: '/contacts',
   },
   {
     id: 'company',
