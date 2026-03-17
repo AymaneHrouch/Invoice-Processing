@@ -73,24 +73,29 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 
 **Goal**: Users can create, number, and export outgoing invoices with UBL 2.1 output.
 
-### 2.1 Outgoing Invoice Creation
-- [ ] **Backend**: `POST /ventes` — creates outgoing invoice with auto-generated sequential number
-- [ ] **Backend**: Atomic numbering with `findOneAndUpdate` on `company_profile.next_invoice_number`
-- [ ] **Backend**: Auto-fill `vendor_name`, `vendor_ice` from company profile
-- [ ] **Backend**: Year-reset logic for invoice numbering (detect year change)
-- [ ] **Frontend**: `VenteCreatePage.jsx` — form with:
+### 2.1 Outgoing Invoice Creation ✅
+- [x] **Backend**: `POST /ventes` — creates outgoing invoice with auto-generated sequential number
+- [x] **Backend**: Atomic numbering with `find_one_and_update` on `company_profile.next_invoice_number`
+- [x] **Backend**: Auto-fill `vendor_name`, `vendor_ice` from company profile
+- [x] **Backend**: Year-reset logic for invoice numbering (detect year change, reset counter to 1)
+- [x] **Backend**: `GET /ventes/next-number` — preview next number without consuming it
+- [x] **Backend**: Full CRUD — `GET /ventes`, `GET /ventes/{id}`, `PUT /ventes/{id}` (draft only), `DELETE /ventes/{id}`
+- [x] **Frontend**: `VenteCreatePage.jsx` — form with:
   - Auto-filled "From" section (my company, read-only)
-  - "To" section: pick from contacts or type new client (with ICE)
-  - Line items editor (description, quantity, unit price, TVA rate per line)
+  - Client combobox (searches contacts type=client, auto-fills ICE, saves new clients on the fly)
+  - Line items editor with labeled Quantité / Prix unitaire fields and required-name validation
   - Auto-calculated subtotal HT, TVA amount, total TTC
-  - Due date picker
+  - Due date picker, category, currency selectors
   - Save as draft / Validate buttons
+- [x] **Frontend**: `api/ventes.js` — full API client
 
-### 2.2 Outgoing Invoice Statuses
-- [ ] **Backend**: `POST /ventes/{id}/validate` — transitions from `draft` → `validated`, locks editing
-- [ ] **Backend**: Validation rules: all required fields must be present (client ICE for B2B, items, amounts)
-- [ ] **Frontend**: Status badges: Draft (gray), Validated (green), Sent (blue), Paid (emerald)
-- [ ] **Frontend**: `VentesListPage.jsx` — outgoing invoice list with status filters
+### 2.2 Outgoing Invoice Statuses ✅
+- [x] **Backend**: `POST /ventes/{id}/validate` — `draft` → `validated`, locks editing
+- [x] **Backend**: `POST /ventes/{id}/mark-sent` — `validated` → `sent`
+- [x] **Backend**: `POST /ventes/{id}/mark-paid` — `validated`/`sent` → `paid`, sets `is_paid=true`
+- [x] **Frontend**: Status badges: Brouillon (gray), Validé (green), Envoyé (indigo), Payé (emerald)
+- [x] **Frontend**: Per-row action buttons on Ventes list — Valider (✓), Marquer envoyé (→), Marquer payé (💵) — shown based on current status
+- [x] **Frontend**: `SupplierCombobox` extended with `contactType` prop to reuse for clients
 
 ### 2.3 PDF Generation
 - [ ] **Backend**: `GET /ventes/{id}/pdf` — generate human-readable PDF invoice
