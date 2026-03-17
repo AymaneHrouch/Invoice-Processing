@@ -74,7 +74,7 @@ const FinanceTable = ({
                 onClick={() =>
                   navigate(linkBase, { state: { editId: item.id } })
                 }
-                className="w-full flex items-center justify-between py-2 px-3 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors group text-left"
+                className="w-full flex items-center justify-between py-2 px-3 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors group text-left cursor-pointer"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400">
