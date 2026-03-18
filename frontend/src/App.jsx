@@ -54,9 +54,9 @@ function App() {
       .catch((err) => {
         if (err.response?.status === 404) {
           setProfileComplete(false);
-          const exempt = ['/company', '/users'];
+          const exempt = ['/company', '/company/new', '/users'];
           if (!exempt.includes(location.pathname)) {
-            navigate('/company', { state: { onboarding: true } });
+            navigate('/company/new', { state: { onboarding: true } });
           }
         }
       });
