@@ -95,7 +95,6 @@ const UserManagement = () => {
     }
   };
 
-
   const handleUpdate = async () => {
     const formErrors = validateForm();
     if (Object.keys(formErrors).length > 0) {
@@ -192,7 +191,10 @@ const UserManagement = () => {
         </Button>
       </div>
 
-      <Dialog open={userModalOpen} onOpenChange={(open) => !open && closeUserModal()}>
+      <Dialog
+        open={userModalOpen}
+        onOpenChange={(open) => !open && closeUserModal()}
+      >
         <DialogContent className="max-w-md bg-white dark:bg-gray-800">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -242,7 +244,9 @@ const UserManagement = () => {
                 type="password"
                 value={form.password}
                 onChange={handleChange}
-                placeholder={editingUser ? 'New Password (optional)' : 'Password'}
+                placeholder={
+                  editingUser ? 'New Password (optional)' : 'Password'
+                }
                 className={inputClass('password')}
               />
               {errors.password && (
@@ -262,8 +266,8 @@ const UserManagement = () => {
                 onChange={handleChange}
                 className={`border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 w-full ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white focus:ring-purple-800' : 'bg-gray-50 border-gray-300 text-gray-900 focus:ring-purple-300'}`}
               >
-                <option value="USER">USER</option>
-                <option value="ADMIN">ADMIN</option>
+                <option value="USER">Comptable</option>
+                <option value="FIRM_ADMIN">Admin cabinet</option>
               </select>
             </div>
             {errors.general && (
@@ -273,7 +277,11 @@ const UserManagement = () => {
             )}
             <DialogFooter className="gap-2 pt-4">
               <DialogClose asChild>
-                <Button type="button" variant="outline" onClick={closeUserModal}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeUserModal}
+                >
                   Cancel
                 </Button>
               </DialogClose>

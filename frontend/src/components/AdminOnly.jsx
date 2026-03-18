@@ -12,8 +12,8 @@ const AdminOnly = ({ children }) => {
     );
   }
 
-  // Check if user is authenticated and has admin role
-  if (!user || user.role !== 'ADMIN') {
+  // ADMIN and FIRM_ADMIN can access user management
+  if (!user || !['ADMIN', 'FIRM_ADMIN'].includes(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }
 

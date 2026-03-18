@@ -94,3 +94,8 @@ def get_company_collection():
 def get_contacts_collection():
     """Get contacts collection (clients + suppliers)"""
     return get_database()["contacts"]
+
+
+def get_firm_collection():
+    """Get firms collection (one doc per accounting firm/tenant)"""
+    return get_database()["firms"]

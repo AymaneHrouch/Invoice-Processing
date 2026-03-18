@@ -32,7 +32,9 @@ const Sidebar = ({ profileComplete = true }) => {
   });
   const [companySwitcherOpen, setCompanySwitcherOpen] = useState(false);
   const switcherRef = useRef(null);
-  const { logout, user, companies, activeCompany, switchCompany } = useAuth();
+  const { logout, user, firmName, companies, activeCompany, switchCompany } =
+    useAuth();
+  const isAdmin = user?.role === 'ADMIN';
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -60,12 +62,12 @@ const Sidebar = ({ profileComplete = true }) => {
       .catch(() => setContactsCount(null));
   }, [location.pathname]);
 
-  // Filter sidebar items based on user role
+  // Super Admin sees only admin-specific items; others see normal items
   const filteredSidebarItems = sidebarItems.filter((item) => {
-    // Show admin-only items only to admin users
-    if (item.adminOnly && user?.role !== 'ADMIN') {
+    if (isAdmin) return item.adminOnly || item.superAdminOnly;
+    if (item.superAdminOnly) return false;
+    if (item.adminOnly && user?.role !== 'ADMIN' && user?.role !== 'FIRM_ADMIN')
       return false;
-    }
     return true;
   });
 
@@ -273,8 +275,21 @@ const Sidebar = ({ profileComplete = true }) => {
         </button>
       </div>
 
+      {/* Firm label (non-admin users only) */}
+      {!isCollapsed && !isAdmin && firmName && (
+        <div
+          className={`px-4 pt-2 pb-1 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
+        >
+          <p
+            className={`text-xs font-semibold uppercase tracking-wider truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-400'}`}
+          >
+            {firmName}
+          </p>
+        </div>
+      )}
+
       {/* Company switcher */}
-      {!isCollapsed && companies.length > 0 && (
+      {!isCollapsed && !isAdmin && companies.length > 0 && (
         <div
           ref={switcherRef}
           className={`px-3 pb-3 relative border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}

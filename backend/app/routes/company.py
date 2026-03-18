@@ -38,7 +38,10 @@ def _get_company_or_404(company_id: str) -> dict:
 
 @router.get("")
 def list_companies(current_user: dict = Depends(get_current_user)):
-    docs = list(get_company_collection().find({}).sort("created_at", 1))
+    query = {}
+    if current_user.get("firm_id"):
+        query["firm_id"] = current_user["firm_id"]
+    docs = list(get_company_collection().find(query).sort("created_at", 1))
     return [_serialize(doc) for doc in docs]
 
 
@@ -57,6 +60,7 @@ def create_company(
             status_code=422,
             detail=f"Missing required fields: {', '.join(missing)}",
         )
+    payload["firm_id"] = current_user.get("firm_id")
     payload["created_at"] = datetime.now(UTC)
     result = get_company_collection().insert_one(payload)
     doc = get_company_collection().find_one({"_id": result.inserted_id})

@@ -41,6 +41,7 @@ class CompanyProfile(BaseModel):
 
 
 class CompanyProfileUpdate(BaseModel):
+    firm_id: str | None = None
     company_name: str | None = None
     legal_form: str | None = None
     capital: str | None = None

@@ -9,21 +9,20 @@ Via Docker:
     docker exec <container> uv run python scripts/reset.py --seed
 """
 import argparse
+from datetime import UTC, datetime, timedelta
 import os
 import random
 import sys
-from datetime import datetime, timezone, timedelta
 
 random.seed(42)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
-from app.database import init_database, get_database
-
-UTC = timezone.utc
+from app.database import get_database, init_database
 
 # Users that appear in seeded history entries
 SEED_USERS = ["youness@gmail.com", "aymane@gmail.com", "admin@gmail.com"]
@@ -319,14 +318,46 @@ def reset(db):
     db["company_profile"].drop()
     db["contacts"].drop()
     db["cache"].drop()
+    db["firms"].drop()
+    # Keep users collection — wipe only non-admin users so seeded firm admin can be re-created
+    db["users"].delete_many({"role": {"$ne": "ADMIN"}})
     print("[OK] Collections dropped.")
 
 
 # ── Seed ──────────────────────────────────────────────────────────────────────
 
+FIRM_ADMIN_EMAIL = "demo@voynich.ma"
+FIRM_ADMIN_PASSWORD = "demo1234"
+FIRM_ADMIN_NAME = "Demo Admin"
+FIRM_NAME = "Cabinet Voynich Demo"
+
+
 def seed(db):
+    import bcrypt
+
+    # ── Demo firm ─────────────────────────────────────────────────────────────
+    firm_result = db["firms"].insert_one({
+        "name": FIRM_NAME,
+        "created_at": _now(),
+        "auto_created": False,
+    })
+    FIRM_ID = str(firm_result.inserted_id)
+    print(f"[OK] Demo firm inserted (id={FIRM_ID}).")
+
+    # ── Firm admin account ────────────────────────────────────────────────────
+    hashed = bcrypt.hashpw(FIRM_ADMIN_PASSWORD.encode(), bcrypt.gensalt()).decode()
+    db["users"].insert_one({
+        "full_name": FIRM_ADMIN_NAME,
+        "email": FIRM_ADMIN_EMAIL,
+        "hashed_password": hashed,
+        "role": "FIRM_ADMIN",
+        "firm_id": FIRM_ID,
+    })
+    print(f"[OK] Firm admin created: {FIRM_ADMIN_EMAIL} / {FIRM_ADMIN_PASSWORD}")
+
     # ── Company profile ───────────────────────────────────────────────────────
     company_result = db["company_profile"].insert_one({
+        "firm_id": FIRM_ID,
         "company_name": COMPANY_NAME,
         "legal_form": "SARL",
         "ice": COMPANY_ICE,
@@ -597,7 +628,7 @@ def main():
     if args.seed:
         print("Seeding demo data...")
         seed(db)
-        print("\nDone. You can now log in and see demo data.")
+        print(f"\nDone. Log in as firm admin: {FIRM_ADMIN_EMAIL} / {FIRM_ADMIN_PASSWORD}")
     else:
         print("\nDone. Database is empty and ready for a fresh demo.")
 

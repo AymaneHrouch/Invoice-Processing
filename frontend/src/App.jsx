@@ -20,10 +20,10 @@ import { getCompanyProfile } from '@/api/company';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import UserManagement from './components/admin/UserManagement';
-// Protected route component
+import FirmsPage from './pages/FirmsPage';
+
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -31,23 +31,22 @@ const ProtectedRoute = ({ children }) => {
       </div>
     );
   }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   return children;
 };
 
 function App() {
   const { isDarkMode } = useTheme();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [profileComplete, setProfileComplete] = useState(true);
 
+  const isSuperAdmin = user?.role === 'ADMIN';
+  const defaultHome = isSuperAdmin ? '/firms' : '/dashboard';
+
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || isSuperAdmin) return;
 
     getCompanyProfile()
       .then(() => setProfileComplete(true))
@@ -60,7 +59,7 @@ function App() {
           }
         }
       });
-  }, [isAuthenticated, location.pathname]);
+  }, [isAuthenticated, isSuperAdmin, location.pathname]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -77,7 +76,7 @@ function App() {
                 !isAuthenticated ? (
                   <LoginPage />
                 ) : (
-                  <Navigate to="/dashboard" replace />
+                  <Navigate to={defaultHome} replace />
                 )
               }
             />
@@ -87,7 +86,7 @@ function App() {
                 !isAuthenticated ? (
                   <RegisterPage />
                 ) : (
-                  <Navigate to="/dashboard" replace />
+                  <Navigate to={defaultHome} replace />
                 )
               }
             />
@@ -100,6 +99,16 @@ function App() {
             <Route
               path="/invoices/list"
               element={<Navigate to="/achats" replace />}
+            />
+
+            {/* Super Admin */}
+            <Route
+              path="/firms"
+              element={
+                <ProtectedRoute>
+                  <FirmsPage />
+                </ProtectedRoute>
+              }
             />
 
             {/* Achats */}
@@ -137,6 +146,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
             <Route
               path="/dashboard"
               element={
@@ -169,24 +179,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/"
-              element={
-                <Navigate
-                  to={isAuthenticated ? '/dashboard' : '/login'}
-                  replace
-                />
-              }
-            />
-            <Route
-              path="*"
-              element={
-                <Navigate
-                  to={isAuthenticated ? '/dashboard' : '/login'}
-                  replace
-                />
-              }
-            />
+
             <Route
               path="/users"
               element={
@@ -195,6 +188,25 @@ function App() {
                     <UserManagement />
                   </AdminOnly>
                 </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/"
+              element={
+                <Navigate
+                  to={isAuthenticated ? defaultHome : '/login'}
+                  replace
+                />
+              }
+            />
+            <Route
+              path="*"
+              element={
+                <Navigate
+                  to={isAuthenticated ? defaultHome : '/login'}
+                  replace
+                />
               }
             />
           </Routes>

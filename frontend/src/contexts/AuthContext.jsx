@@ -21,6 +21,8 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [firmId, setFirmId] = useState(null);
+  const [firmName, setFirmName] = useState(null);
   const [companies, setCompanies] = useState([]);
   const [activeCompany, setActiveCompany] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -43,13 +45,15 @@ export const AuthProvider = ({ children }) => {
       const userData = await getCurrentUser();
       setUser(userData);
       setError(null);
-      // Load companies list and resolve active company from JWT
+      // Decode JWT to get firm_id + company_id, then load companies
       try {
-        const allCompanies = await listCompanies();
-        setCompanies(allCompanies);
         const token = getAuthToken();
         if (token) {
           const payload = JSON.parse(atob(token.split('.')[1]));
+          setFirmId(payload.firm_id || null);
+          setFirmName(payload.firm_name || null);
+          const allCompanies = await listCompanies();
+          setCompanies(allCompanies);
           const cid = payload.company_id;
           const found =
             allCompanies.find((c) => c._id === cid) || allCompanies[0] || null;
@@ -127,6 +131,8 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    firmId,
+    firmName,
     companies,
     activeCompany,
     switchCompany,

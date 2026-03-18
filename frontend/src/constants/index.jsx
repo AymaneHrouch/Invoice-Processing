@@ -15,6 +15,7 @@ import {
   UserPen,
   UserRound,
   Users,
+  Briefcase,
 } from 'lucide-react';
 
 export const currencies = [
@@ -148,11 +149,25 @@ export const sidebarItems = [
     path: '/company',
   },
   {
+    id: 'contacts',
+    label: 'Contacts',
+    icon: UserRound,
+    path: '/contacts',
+  },
+  {
     id: 'users',
-    label: 'Gestion des utilisateurs',
+    label: 'Utilisateurs',
     icon: Users,
     path: '/users',
     adminOnly: true,
+  },
+  // Super Admin only
+  {
+    id: 'firms',
+    label: 'Cabinets',
+    icon: Briefcase,
+    path: '/firms',
+    superAdminOnly: true,
   },
 ];
 export const formatDate = (dateString) => {
