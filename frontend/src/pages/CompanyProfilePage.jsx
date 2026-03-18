@@ -38,11 +38,14 @@ const Field = ({ label, id, children }) => (
   </div>
 );
 
-export default function CompanyProfilePage({ createMode = false }) {
+export default function CompanyProfilePage({
+  createMode: createModeProp = false,
+}) {
   const { isDarkMode } = useTheme();
   const { state } = useLocation();
   const navigate = useNavigate();
   const isOnboarding = state?.onboarding === true;
+  const [createMode, setCreateMode] = useState(createModeProp);
   const [companyId, setCompanyId] = useState(null);
 
   const [form, setForm] = useState({
@@ -76,7 +79,7 @@ export default function CompanyProfilePage({ createMode = false }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (createMode) {
+    if (createModeProp) {
       setLoading(false);
       return;
     }
@@ -89,12 +92,15 @@ export default function CompanyProfilePage({ createMode = false }) {
         }
       })
       .catch((err) => {
-        if (err.response?.status !== 404) {
+        if (err.response?.status === 404) {
+          // No company exists yet — treat this page as create mode
+          setCreateMode(true);
+        } else {
           setError('Failed to load company profile.');
         }
       })
       .finally(() => setLoading(false));
-  }, [createMode]);
+  }, [createModeProp]);
 
   const set = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
