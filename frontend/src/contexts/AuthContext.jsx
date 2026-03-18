@@ -7,6 +7,7 @@ import {
   switchCompany as apiSwitchCompany,
 } from '@/api';
 import { listCompanies } from '@/api/company';
+import { getMyFirm } from '@/api/firms';
 import { getAuthToken, removeAuthToken, setAuthToken } from '@/utils/auth';
 
 const AuthContext = createContext();
@@ -51,7 +52,11 @@ export const AuthProvider = ({ children }) => {
         if (token) {
           const payload = JSON.parse(atob(token.split('.')[1]));
           setFirmId(payload.firm_id || null);
-          setFirmName(payload.firm_name || null);
+          if (payload.firm_id) {
+            getMyFirm()
+              .then((f) => setFirmName(f.name))
+              .catch(() => {});
+          }
           const allCompanies = await listCompanies();
           setCompanies(allCompanies);
           const cid = payload.company_id;

@@ -18,7 +18,8 @@
 - **PDF generation**: Server-side via weasyprint + Jinja2 (`app/templates/invoice.html`) — both directions. Outgoing PDFs look up contact by `contact_id` to include client address/phone/email in the client block.
 - **Excel export**: Per-direction (`POST /ventes/export`, `POST /invoices/achats/export`) with post-download confirmation to mark as exported
 - **Dashboard**: PME KPI widgets, À encaisser / À payer finance widgets (clickable rows open invoice edit modal via location state), TVA balance with period selector, Top 5 clients/fournisseurs, "Dernières actions" activity feed
-- **Auth**: JWT-based, admin/user roles — token carries `sub` (ObjectId), `role`, `username` (email), and `company_id`
+- **Multi-firm tenancy**: Three-tier role hierarchy — `ADMIN` (Super Admin, manages firms) → `FIRM_ADMIN` (cabinet owner, manages users/companies within firm) → `USER` (accountant). Firms stored in `firms` collection. Self-registration auto-creates a firm + sets user as `FIRM_ADMIN`. Super Admin creates firm+admin in one action via `POST /firms`, returning a temp password.
+- **Auth**: JWT-based — token carries `sub` (ObjectId), `role`, `username` (email), `firm_id`, and `company_id`
 - **Invoice audit trail**: Every status transition appends an `InvoiceHistoryEntry` to the invoice's `history` array (action, status_from, status_to, user email, timestamp). Legacy ObjectId user values are resolved to email via users collection lookup.
 - **History UI**: Collapsible timeline in the EditInvoice modal; inline history in the expanded row of the invoice listing (`InvoiceExpandedRow`)
 
@@ -49,7 +50,9 @@
 - Deployed on **Vercel** (frontend), **Railway** (backend)
 
 ### Database (MongoDB)
-- Collections: `invoices`, `company_profile`, `contacts`, `cache`, `users`
+- Collections: `invoices`, `company_profile`, `contacts`, `cache`, `users`, `firms`
+- `firms` — one document per cabinet (name, created_at, created_by)
+- `users` carry `firm_id`; `company_profile` carries `firm_id` for firm-scoped listing
 - `company_profile` supports **multiple documents** — each identified by `_id`; scoped per user via JWT `company_id`
 - `invoices` and `contacts` carry a `company_id` field for multi-tenant filtering
 - `invoices` handles both Achats and Ventes via `direction` field ("incoming"/"outgoing")
@@ -74,8 +77,9 @@ backend/
 │   │   ├── company.py       # GET/PUT /company, GET /company/categories
 │   │   ├── contacts.py      # Contacts CRUD
 │   │   ├── dashboard.py     # Dashboard stats + GET /recent-activity
-│   │   ├── auth.py          # Login/register (JWT includes username field)
-│   │   ├── users.py         # User management (admin)
+│   │   ├── auth.py          # Login/register (JWT includes username, firm_id fields)
+│   │   ├── firms.py         # Firms CRUD (ADMIN only) + GET /firms/me (any auth)
+│   │   ├── users.py         # User management — FIRM_ADMIN scoped to own firm
 │   │   └── health.py        # Health check
 │   ├── services/
 │   │   ├── invoices.py      # OCR extraction, regex for TVA/ICE, amount checks
@@ -103,6 +107,7 @@ frontend/
 │   │   ├── company.js       # Company profile API
 │   │   ├── contacts.js      # Contacts API
 │   │   ├── dashboard.js     # Dashboard API (getPmeKpis, getTopVendors, getAEncaisser, getAPayer, getTvaBalance, getRecentActivity)
+│   │   ├── firms.js         # listFirms, createFirm, deleteFirm, getMyFirm
 │   │   └── auth.js          # Auth API
 │   ├── components/
 │   │   ├── shared/          # NavBar, SideBar
@@ -114,7 +119,8 @@ frontend/
 │   ├── pages/
 │   │   ├── InvoiceListPage.jsx   # Shared list page for Achats + Ventes (direction prop)
 │   │   ├── VenteCreatePage.jsx   # Create outgoing invoice
-│   │   ├── CompanyProfilePage.jsx
+│   │   ├── CompanyProfilePage.jsx  # createMode prop: POST vs PUT; auto-detects 404
+│   │   ├── FirmsPage.jsx         # Super Admin firm management (create + credentials reveal)
 │   │   ├── ContactsPage.jsx
 │   │   ├── DashboardPage.jsx
 │   │   └── LoginPage.jsx
@@ -148,11 +154,17 @@ frontend/
 
 10. **Recent activity feed**: `GET /dashboard/recent-activity` uses a MongoDB `$unwind` aggregation on the `history` array, sorted by `history.timestamp` desc, to produce a cross-invoice activity feed. ObjectId user values resolved post-aggregation. Consumed by the dashboard "Dernières actions" widget.
 
-11. **JWT payload**: Contains `sub` (MongoDB user ObjectId as string), `role`, `username` (user email), and `company_id` (active company ObjectId as string). `get_current_user` returns `{"user_id", "role", "username", "company_id"}`. `company_id` is `None` for users with no company yet. The `username` field is used when recording history entries so display is human-readable from the start.
+11. **JWT payload**: Contains `sub` (MongoDB user ObjectId as string), `role`, `username` (user email), `firm_id`, and `company_id` (active company ObjectId as string). `get_current_user` returns `{"user_id", "role", "username", "firm_id", "company_id"}`. `company_id` is `None` for users with no company yet. `firm_id` is `None` for Super Admin. The `username` field is used when recording history entries so display is human-readable from the start.
 
 12. **Dashboard invoice navigation**: Clicking a row in À encaisser / À payer navigates using React Router `location.state` (`{ editId }`) instead of URL params — the listing page reads `location.state?.editId` on mount, opens the edit modal, then clears the state. URL stays clean.
 
 13. **Contact enrichment in PDFs**: `GET /ventes/{id}/pdf` looks up the contact by `contact_id` and injects `client_address`, `client_city`, `client_phone`, `client_email` onto the invoice before rendering. Template renders these in the destinataire block.
+
+14. **Axios auth interceptor**: `baseApi.js` has a request interceptor that automatically attaches `Authorization: Bearer <token>` to every request from `localStorage`. Do NOT manually pass `getAuthConfig()` in API call sites — the interceptor handles it globally.
+
+15. **Firm name in sidebar**: `GET /firms/me` returns `{_id, name}` for the current user's firm. Called from `AuthContext.fetchCurrentUser()` when `firm_id` is present in the JWT. Super Admin has no firm_id and skips this call. `firmName` is exposed via `useAuth()`.
+
+16. **Role-scoped access**: Super Admin (`ADMIN`) — `/firms` only, no company data. `FIRM_ADMIN` — user management + company management scoped to own firm. `USER` — regular accountant. `AdminOnly` component guards `/users` for `ADMIN`+`FIRM_ADMIN`. Sidebar filters items by role using `adminOnly`/`superAdminOnly` flags in `sidebarItems`.
 
 ## Local Development
 

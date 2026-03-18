@@ -14,3 +14,8 @@ export const createFirm = async (data) => {
 export const deleteFirm = async (id) => {
   await api.delete(`/firms/${id}`, getAuthConfig());
 };
+
+export const getMyFirm = async () => {
+  const response = await api.get('/firms/me');
+  return response.data;
+};

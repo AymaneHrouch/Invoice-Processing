@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.database import get_company_collection, get_database, get_firm_collection
 from app.models.firm import FirmAdminCreate
-from app.utils.auth import generate_random_password, hash_password, require_admin
+from app.utils.auth import generate_random_password, get_current_user, hash_password, require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +16,21 @@ router = APIRouter(prefix="/firms", tags=["Firms"])
 def _serialize(doc: dict) -> dict:
     doc["_id"] = str(doc["_id"])
     return doc
+
+
+@router.get("/me")
+def get_my_firm(current_user: dict = Depends(get_current_user)):
+    firm_id = current_user.get("firm_id")
+    if not firm_id:
+        raise HTTPException(status_code=404, detail="No firm associated with this account")
+    try:
+        oid = ObjectId(firm_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid firm ID")
+    firm = get_firm_collection().find_one({"_id": oid})
+    if not firm:
+        raise HTTPException(status_code=404, detail="Firm not found")
+    return {"_id": str(firm["_id"]), "name": firm.get("name")}
 
 
 @router.get("")
