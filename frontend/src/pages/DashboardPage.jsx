@@ -7,6 +7,12 @@ import {
   getAPayer,
   getTvaBalance,
   getRecentActivity,
+  getCAEvolution,
+  getDelaiPaiement,
+  getTresoreriePrevision,
+  getFacturesRetard,
+  getEcheancesProches,
+  getCategoryBreakdown,
 } from '@/api/dashboard';
 import {
   DashboardHeader,
@@ -17,25 +23,25 @@ import {
   TopVendorsWidget,
   DashboardLoading,
   DashboardError,
+  CAEvolutionWidget,
+  AlertsWidget,
+  TresorerieWidget,
+  DelaiPaiementWidget,
+  CategoryBreakdownWidget,
 } from '@/components/dashboard';
 
-// Compute year/quarter params from a period key
 const getPeriodParams = (period) => {
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentQuarter = Math.floor(now.getMonth() / 3); // 0-based
-
-  if (period === 'this_quarter') {
+  const currentQuarter = Math.floor(now.getMonth() / 3);
+  if (period === 'this_quarter')
     return { year: currentYear, quarter: currentQuarter };
-  }
   if (period === 'last_quarter') {
     const q = currentQuarter - 1;
     if (q < 0) return { year: currentYear - 1, quarter: 3 };
     return { year: currentYear, quarter: q };
   }
-  if (period === 'this_year') {
-    return { year: currentYear }; // no quarter = full year
-  }
+  if (period === 'this_year') return { year: currentYear };
   return { year: currentYear, quarter: currentQuarter };
 };
 
@@ -58,6 +64,12 @@ const DashboardPage = () => {
   const [recentActivity, setRecentActivity] = useState([]);
   const [tvaPeriod, setTvaPeriod] = useState('this_quarter');
   const [tvaLoading, setTvaLoading] = useState(false);
+  const [caEvolution, setCAEvolution] = useState([]);
+  const [delaiPaiement, setDelaiPaiement] = useState(null);
+  const [tresorerie, setTresorerie] = useState(null);
+  const [alertsData, setAlertsData] = useState(null);
+  const [categoryData, setCategoryData] = useState([]);
+  const [categoryDirection, setCategoryDirection] = useState('incoming');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,16 +77,35 @@ const DashboardPage = () => {
         setLoading(true);
         setError(null);
         const periodParams = getPeriodParams('this_quarter');
-        const [kpis, encaisser, payer, tva, clients, suppliers, activity] =
-          await Promise.all([
-            getPmeKpis(),
-            getAEncaisser(),
-            getAPayer(),
-            getTvaBalance(periodParams),
-            getTopVendors(5, 'outgoing'),
-            getTopVendors(5, 'incoming'),
-            getRecentActivity(15),
-          ]);
+        const [
+          kpis,
+          encaisser,
+          payer,
+          tva,
+          clients,
+          suppliers,
+          activity,
+          caEvo,
+          delai,
+          tresor,
+          retard,
+          echeances,
+          categories,
+        ] = await Promise.all([
+          getPmeKpis(),
+          getAEncaisser(),
+          getAPayer(),
+          getTvaBalance(periodParams),
+          getTopVendors(5, 'outgoing'),
+          getTopVendors(5, 'incoming'),
+          getRecentActivity(15),
+          getCAEvolution(),
+          getDelaiPaiement(),
+          getTresoreriePrevision(),
+          getFacturesRetard(),
+          getEcheancesProches(),
+          getCategoryBreakdown('incoming'),
+        ]);
         setPmeKpis(kpis);
         setAEncaisser(encaisser);
         setAPayer(payer);
@@ -82,6 +113,15 @@ const DashboardPage = () => {
         setTopClients(clients);
         setTopSuppliers(suppliers);
         setRecentActivity(activity);
+        setCAEvolution(caEvo);
+        setDelaiPaiement(delai);
+        setTresorerie(tresor);
+        setAlertsData({
+          factures_retard: retard,
+          echeances_proches: echeances,
+          non_exportees: kpis?.non_exportees ?? 0,
+        });
+        setCategoryData(categories);
       } catch (err) {
         setError(err.message);
         console.error('Dashboard data fetch error:', err);
@@ -89,7 +129,6 @@ const DashboardPage = () => {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
@@ -107,15 +146,21 @@ const DashboardPage = () => {
     }
   }, []);
 
-  if (loading) {
-    return <DashboardLoading />;
-  }
+  const handleCategoryDirectionChange = useCallback(async (dir) => {
+    setCategoryDirection(dir);
+    try {
+      const categories = await getCategoryBreakdown(dir);
+      setCategoryData(categories);
+    } catch (err) {
+      console.error('Category breakdown fetch error:', err);
+    }
+  }, []);
 
-  if (error) {
+  if (loading) return <DashboardLoading />;
+  if (error)
     return (
       <DashboardError error={error} onRetry={() => window.location.reload()} />
     );
-  }
 
   return (
     <div
@@ -126,6 +171,26 @@ const DashboardPage = () => {
       <WorkQueueWidgets stats={pmeKpis} />
 
       <FinanceWidgets aEncaisser={aEncaisser} aPayer={aPayer} />
+
+      {/* CA Evolution — full width */}
+      <div className="mb-6">
+        <CAEvolutionWidget data={caEvolution} />
+      </div>
+
+      {/* Alerts + Trésorerie */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <AlertsWidget data={alertsData} />
+        <TresorerieWidget data={tresorerie} />
+      </div>
+
+      {/* Délai paiement + Category breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <DelaiPaiementWidget data={delaiPaiement} />
+        <CategoryBreakdownWidget
+          data={categoryData}
+          onDirectionChange={handleCategoryDirectionChange}
+        />
+      </div>
 
       {/* TVA Balance with period selector */}
       <div className="mb-6">

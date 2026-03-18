@@ -549,11 +549,18 @@ def get_pme_kpis(company_id: str | None = None):
         "status": "extracted",
     })
 
+    non_exportees = invoice_collection.count_documents({
+        **base_filter,
+        "status": {"$in": ["validated", "sent", "paid"]},
+        "is_exported": {"$ne": True},
+    })
+
     return {
         "ca_ventes_ce_mois": ca_ventes,
         "depenses_achats_ce_mois": depenses_achats,
         "ventes_brouillons": ventes_brouillons,
         "achats_a_valider": achats_a_valider,
+        "non_exportees": non_exportees,
     }
 
 
@@ -702,6 +709,194 @@ def get_weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: s
         })
 
     return result
+
+
+def get_ca_evolution(company_id: str | None = None):
+    """Monthly CA (Ventes) vs Achats totals for the past 12 months."""
+    now = datetime.now()
+    MONTHS_FR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
+    result = []
+    for i in range(11, -1, -1):
+        month = now.month - i
+        year = now.year
+        while month <= 0:
+            month += 12
+            year -= 1
+        month_start = datetime(year, month, 1)
+        month_end = datetime(year + (month == 12), month % 12 + 1, 1)
+
+        def month_total(direction, extra=None):
+            match: dict = {
+                "direction": direction,
+                "invoice_date": {"$gte": month_start, "$lt": month_end},
+                "total_amount": {"$ne": None},
+                "is_archived": {"$ne": True},
+            }
+            if extra:
+                match.update(extra)
+            if company_id:
+                match["company_id"] = company_id
+            res = list(invoice_collection.aggregate([
+                {"$match": match},
+                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+            ]))
+            return round(float(res[0]["total"]) if res else 0.0, 2)
+
+        result.append({
+            "month": f"{MONTHS_FR[month - 1]} {year}",
+            "ventes": month_total("outgoing", {"status": {"$nin": ["draft"]}}),
+            "achats": month_total("incoming"),
+        })
+    return result
+
+
+def get_delai_paiement(company_id: str | None = None):
+    """Average payment delay in days: encaissement (ventes) and règlement (achats)."""
+    base: dict = {"is_paid": True, "paid_at": {"$ne": None}, "invoice_date": {"$ne": None}}
+    if company_id:
+        base["company_id"] = company_id
+
+    def avg_days(direction):
+        docs = list(invoice_collection.find(
+            {**base, "direction": direction},
+            {"invoice_date": 1, "paid_at": 1},
+        ))
+        days_list = [
+            (doc["paid_at"] - doc["invoice_date"]).days
+            for doc in docs
+            if doc.get("paid_at") and doc.get("invoice_date")
+            and (doc["paid_at"] - doc["invoice_date"]).days >= 0
+        ]
+        return round(sum(days_list) / len(days_list)) if days_list else None
+
+    return {
+        "delai_encaissement": avg_days("outgoing"),
+        "delai_reglement": avg_days("incoming"),
+    }
+
+
+def get_tresorerie_prevision(company_id: str | None = None):
+    """Projected inflows and outflows for the next 30, 60, 90 days."""
+    now = datetime.now()
+
+    def window_total(direction, days):
+        match: dict = {
+            "direction": direction,
+            "is_paid": {"$ne": True},
+            "invoice_due_date": {"$gte": now, "$lte": now + timedelta(days=days)},
+            "status": {"$nin": ["draft"]},
+            "is_archived": {"$ne": True},
+            "total_amount": {"$ne": None},
+        }
+        if company_id:
+            match["company_id"] = company_id
+        res = list(invoice_collection.aggregate([
+            {"$match": match},
+            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}},
+        ]))
+        return {
+            "total": round(float(res[0]["total"]) if res else 0.0, 2),
+            "count": int(res[0]["count"]) if res else 0,
+        }
+
+    return {
+        "30j": {"encaissements": window_total("outgoing", 30), "decaissements": window_total("incoming", 30)},
+        "60j": {"encaissements": window_total("outgoing", 60), "decaissements": window_total("incoming", 60)},
+        "90j": {"encaissements": window_total("outgoing", 90), "decaissements": window_total("incoming", 90)},
+    }
+
+
+def get_factures_retard(company_id: str | None = None):
+    """Overdue invoices grouped by delay bucket: 1-30d, 31-60d, 60+d."""
+    now = datetime.now()
+    match: dict = {
+        "is_paid": {"$ne": True},
+        "is_archived": {"$ne": True},
+        "invoice_due_date": {"$lt": now},
+        "status": {"$nin": ["draft"]},
+    }
+    if company_id:
+        match["company_id"] = company_id
+    docs = list(invoice_collection.find(match, {"invoice_due_date": 1, "total_amount": 1}))
+
+    buckets = {
+        "1_30":  {"label": "1 – 30 jours",  "count": 0, "total": 0.0},
+        "31_60": {"label": "31 – 60 jours", "count": 0, "total": 0.0},
+        "60p":   {"label": "60+ jours",     "count": 0, "total": 0.0},
+    }
+    for doc in docs:
+        days = (now - doc["invoice_due_date"]).days
+        amount = float(doc.get("total_amount") or 0)
+        key = "1_30" if days <= 30 else "31_60" if days <= 60 else "60p"
+        buckets[key]["count"] += 1
+        buckets[key]["total"] += amount
+
+    for b in buckets.values():
+        b["total"] = round(b["total"], 2)
+
+    return {
+        "buckets": list(buckets.values()),
+        "total_count": len(docs),
+        "total_amount": round(sum(float(d.get("total_amount") or 0) for d in docs), 2),
+    }
+
+
+def get_echeances_proches(company_id: str | None = None):
+    """Invoices due within 7 and 15 days (not yet overdue, not paid)."""
+    now = datetime.now()
+
+    def due_in(days):
+        match: dict = {
+            "is_paid": {"$ne": True},
+            "is_archived": {"$ne": True},
+            "invoice_due_date": {"$gte": now, "$lte": now + timedelta(days=days)},
+            "status": {"$nin": ["draft"]},
+            "total_amount": {"$ne": None},
+        }
+        if company_id:
+            match["company_id"] = company_id
+        res = list(invoice_collection.aggregate([
+            {"$match": match},
+            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}},
+        ]))
+        return {
+            "total": round(float(res[0]["total"]) if res else 0.0, 2),
+            "count": int(res[0]["count"]) if res else 0,
+        }
+
+    return {"7j": due_in(7), "15j": due_in(15)}
+
+
+def get_category_breakdown(company_id: str | None = None, direction: str | None = None):
+    """Amount by category for the current year, sorted by total descending."""
+    now = datetime.now()
+    match: dict = {
+        "invoice_date": {"$gte": datetime(now.year, 1, 1)},
+        "total_amount": {"$ne": None},
+        "is_archived": {"$ne": True},
+        "status": {"$nin": ["draft"]},
+    }
+    if direction:
+        match["direction"] = direction
+    if company_id:
+        match["company_id"] = company_id
+
+    pipeline = [
+        {"$match": match},
+        {"$group": {"_id": "$category", "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}},
+        {"$sort": {"total": -1}},
+    ]
+    results = list(invoice_collection.aggregate(pipeline))
+    grand_total = sum(r["total"] for r in results)
+    return [
+        {
+            "category": r["_id"] or "Non catégorisé",
+            "total": round(float(r["total"]), 2),
+            "count": r["count"],
+            "percentage": round(float(r["total"]) / grand_total * 100, 1) if grand_total else 0.0,
+        }
+        for r in results
+    ]
 
 
 _OBJECTID_RE = __import__("re").compile(r"^[a-f0-9]{24}$")

@@ -78,6 +78,38 @@ export const getTvaBalance = async ({ year, quarter } = {}) => {
   return response.data;
 };
 
+export const getCAEvolution = async () => {
+  const response = await api.get('/dashboard/ca-evolution');
+  return response.data;
+};
+
+export const getDelaiPaiement = async () => {
+  const response = await api.get('/dashboard/delai-paiement');
+  return response.data;
+};
+
+export const getTresoreriePrevision = async () => {
+  const response = await api.get('/dashboard/tresorerie-prevision');
+  return response.data;
+};
+
+export const getFacturesRetard = async () => {
+  const response = await api.get('/dashboard/factures-retard');
+  return response.data;
+};
+
+export const getEcheancesProches = async () => {
+  const response = await api.get('/dashboard/echeances-proches');
+  return response.data;
+};
+
+export const getCategoryBreakdown = async (direction = null) => {
+  const params = {};
+  if (direction) params.direction = direction;
+  const response = await api.get('/dashboard/category-breakdown', { params });
+  return response.data;
+};
+
 // Get dashboard overview with all stats
 export const getDashboardOverview = async (currency = 'MAD') => {
   try {

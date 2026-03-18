@@ -121,3 +121,39 @@ def tva_balance(
     current_user: dict = Depends(get_current_user),
 ):
     return dashboard.get_tva_balance(year=year, quarter=quarter, company_id=current_user.get("company_id"))
+
+
+@router.get("/ca-evolution")
+def ca_evolution(current_user: dict = Depends(get_current_user)):
+    return dashboard.get_ca_evolution(company_id=current_user.get("company_id"))
+
+
+@router.get("/delai-paiement")
+def delai_paiement(current_user: dict = Depends(get_current_user)):
+    return dashboard.get_delai_paiement(company_id=current_user.get("company_id"))
+
+
+@router.get("/tresorerie-prevision")
+def tresorerie_prevision(current_user: dict = Depends(get_current_user)):
+    return dashboard.get_tresorerie_prevision(company_id=current_user.get("company_id"))
+
+
+@router.get("/factures-retard")
+def factures_retard(current_user: dict = Depends(get_current_user)):
+    return dashboard.get_factures_retard(company_id=current_user.get("company_id"))
+
+
+@router.get("/echeances-proches")
+def echeances_proches(current_user: dict = Depends(get_current_user)):
+    return dashboard.get_echeances_proches(company_id=current_user.get("company_id"))
+
+
+@router.get("/category-breakdown")
+def category_breakdown(
+    direction: str | None = Query(None, description="incoming or outgoing"),
+    current_user: dict = Depends(get_current_user),
+):
+    return dashboard.get_category_breakdown(
+        company_id=current_user.get("company_id"),
+        direction=direction,
+    )

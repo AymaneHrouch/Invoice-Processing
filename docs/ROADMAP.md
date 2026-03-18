@@ -260,6 +260,10 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [ ] **Backend**: Add `exported=false` count to `GET /dashboard/pme-kpis` or separate endpoint
 - [ ] **Frontend**: "Factures non exportées" alert badge on dashboard — count of validated invoices not yet exported to accounting
 
+### Dashboard — Répartition par catégorie
+- [ ] **Backend**: `GET /dashboard/category-breakdown` — sum of amounts grouped by category for both directions (Achats + Ventes), filterable by period (month/quarter/year)
+- [ ] **Frontend**: `CategoryBreakdownWidget.jsx` — donut chart showing spending/revenue split by category with legend; toggle between Achats and Ventes views
+
 ### Dashboard — Top Vendors Date Range
 - [ ] **Frontend**: Add period selector (ce mois / ce trimestre / cette année) to `TopVendorsWidget`
 - [ ] **Backend**: Add `start_date` / `end_date` params to `GET /dashboard/top_vendors`

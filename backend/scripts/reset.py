@@ -24,15 +24,12 @@ load_dotenv()
 
 from app.database import get_database, init_database
 
-# Users that appear in seeded history entries
-SEED_USERS = ["youness@gmail.com", "aymane@gmail.com", "admin@gmail.com"]
+SEED_USERS = ["youness@gmail.com", "aymane@gmail.com", "demo@voynich.ma"]
 
 
 def _user():
     return random.choice(SEED_USERS)
 
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _now():
     return datetime.now(UTC)
@@ -43,13 +40,10 @@ def _date(days_ago=0):
 
 
 def _history(status, direction, inv_date, due_date):
-    """Build a realistic audit-trail for a seeded invoice."""
     entries = []
-
     if status in ("extracted", "draft"):
         return []
 
-    # Validation: 1–3 days after invoice date
     validate_at = inv_date + timedelta(days=random.randint(1, 3))
     status_from = "draft" if direction == "outgoing" else "extracted"
     entries.append({
@@ -59,12 +53,10 @@ def _history(status, direction, inv_date, due_date):
         "user": _user(),
         "timestamp": validate_at,
     })
-
     if status == "validated":
         return entries
 
     if direction == "outgoing":
-        # Sent: 1–4 days after validation
         sent_at = validate_at + timedelta(days=random.randint(1, 4))
         entries.append({
             "action": "sent",
@@ -75,7 +67,6 @@ def _history(status, direction, inv_date, due_date):
         })
         if status == "sent":
             return entries
-        # Paid: near due date (±5 days), min 1 day after sent
         base = due_date if due_date else sent_at + timedelta(days=30)
         paid_at = base + timedelta(days=random.randint(-5, 5))
         paid_at = max(paid_at, sent_at + timedelta(days=1))
@@ -87,7 +78,6 @@ def _history(status, direction, inv_date, due_date):
             "timestamp": paid_at,
         })
     else:
-        # Incoming paid: near due date, min 1 day after validation
         base = due_date if due_date else validate_at + timedelta(days=30)
         paid_at = base + timedelta(days=random.randint(-5, 5))
         paid_at = max(paid_at, validate_at + timedelta(days=1))
@@ -98,7 +88,6 @@ def _history(status, direction, inv_date, due_date):
             "user": _user(),
             "timestamp": paid_at,
         })
-
     return entries
 
 
@@ -107,6 +96,7 @@ def _invoice(
     client_name, client_ice, items, tva, status,
     invoice_date, due_date=None, category="services",
     is_paid=False, currency="MAD", company_id=None,
+    is_exported=False,
 ):
     subtotal = sum(i["quantity"] * i["unit_price"] for i in items)
     tva_amount = round(subtotal * tva / 100, 2)
@@ -127,7 +117,7 @@ def _invoice(
         "is_paid": is_paid,
         "paid_at": paid_at,
         "is_archived": False,
-        "is_exported": False,
+        "is_exported": is_exported,
         "currency": currency,
         "category": category,
         "tva": float(tva),
@@ -154,7 +144,6 @@ def _invoice(
 
 
 def _make_items(templates, amount_ht):
-    """Generate 1–2 realistic line items summing to amount_ht."""
     pool = list(templates)
     if len(pool) >= 2 and amount_ht > 25000:
         t1 = pool[random.randrange(len(pool))]
@@ -171,62 +160,60 @@ def _make_items(templates, amount_ht):
     return [{"name": t[0], "description": t[1], "quantity": 1, "unit_price": amount_ht}]
 
 
-# ── Master data ───────────────────────────────────────────────────────────────
+# ── Master data ────────────────────────────────────────────────────────────────
 
 COMPANY_NAME = "Voynich Tech SARL"
 COMPANY_ICE  = "001234567000089"
 
-# 25 clients — (name, ice, phone, city, address)
 CLIENTS = [
-    ("Maroc Telecom SA",           "001000001000001", "+212 537 71 41 00", "Rabat",         "Avenue Annakhil, Hay Riad"),
-    ("OCP Group",                  "001000002000002", "+212 523 00 28 28", "Casablanca",    "2 Rue Al Abtal, Hay Erraha"),
-    ("Banque Populaire du Maroc",  "002610000000001", "+212 522 20 25 00", "Casablanca",    "101 Boulevard Zerktouni"),
-    ("Attijariwafa Bank",          "002600000000002", "+212 522 29 88 88", "Casablanca",    "2 Boulevard Moulay Youssef"),
-    ("BMCE Bank of Africa",        "002800000000003", "+212 522 49 80 00", "Casablanca",    "140 Avenue Hassan II"),
-    ("Royal Air Maroc",            "001100001000004", "+212 522 48 97 97", "Casablanca",    "Aéroport Mohammed V"),
-    ("ONCF",                       "001300001000005", "+212 537 77 47 47", "Rabat",         "8 bis Rue Abderrahmane El Ghafiki"),
-    ("Lydec",                      "001500001000006", "+212 522 54 90 00", "Casablanca",    "48 Rue Mohamed Diouri"),
-    ("LafargeHolcim Maroc",        "001700001000007", "+212 522 23 28 00", "Casablanca",    "Route de Rabat, Km 12"),
-    ("Centrale Danone Maroc",      "001800001000008", "+212 522 67 10 00", "Casablanca",    "Bouskoura, Zone Industrielle"),
-    ("Managem Group",              "001900001000009", "+212 522 23 26 00", "Casablanca",    "Twin Center, Tour Ouest"),
-    ("Wafa Assurance",             "002100001000010", "+212 522 54 55 55", "Casablanca",    "1 Boulevard Abdelmoumen"),
-    ("BMCI",                       "002200001000011", "+212 522 66 52 00", "Casablanca",    "26 Place des Nations Unies"),
-    ("Société Générale Maroc",     "002300001000012", "+212 522 43 88 00", "Casablanca",    "55 Boulevard Abdelmoumen"),
-    ("Auto Nejma",                 "001200001000013", "+212 522 54 10 00", "Casablanca",    "Route de l'Aéroport"),
-    ("Renault Maroc",              "001400001000014", "+212 522 30 50 00", "Casablanca",    "Route de Rabat, Ain Sebaa"),
-    ("inwi",                       "001600001000015", "+212 522 80 00 00", "Casablanca",    "82 Boulevard d'Anfa"),
-    ("Orange Maroc",               "001600002000016", "+212 522 97 00 00", "Casablanca",    "Avenue Annakhil, Hay Riad"),
-    ("M2M Group",                  "001700001000017", "+212 522 77 60 00", "Casablanca",    "Technopark Casablanca"),
-    ("Ernst & Young Maroc",        "001800001000018", "+212 522 95 79 00", "Casablanca",    "37 Boulevard Abdellatif Ben Kaddour"),
-    ("Deloitte Maroc",             "001900001000019", "+212 522 22 40 00", "Casablanca",    "288 Boulevard Zerktouni"),
-    ("Cabinet Fiduciaire Alami",   "002000001000020", "+212 537 72 11 00", "Rabat",         "14 Rue Jaâfar Assadik, Agdal"),
-    ("Agence Nationale des Ports", "002100001000021", "+212 522 23 16 10", "Casablanca",    "Boulevard de la Résistance"),
-    ("MASEN",                      "002200001000022", "+212 537 71 85 00", "Rabat",         "Immeuble Le Mirador, Hay Riad"),
-    ("Marsa Maroc",                "002300001000023", "+212 522 23 24 24", "Casablanca",    "175 Boulevard Zerktouni"),
+    ("Maroc Telecom SA",           "001000001000001", "+212 537 71 41 00", "Rabat",       "Avenue Annakhil, Hay Riad"),
+    ("OCP Group",                  "001000002000002", "+212 523 00 28 28", "Casablanca",  "2 Rue Al Abtal, Hay Erraha"),
+    ("Banque Populaire du Maroc",  "002610000000001", "+212 522 20 25 00", "Casablanca",  "101 Boulevard Zerktouni"),
+    ("Attijariwafa Bank",          "002600000000002", "+212 522 29 88 88", "Casablanca",  "2 Boulevard Moulay Youssef"),
+    ("BMCE Bank of Africa",        "002800000000003", "+212 522 49 80 00", "Casablanca",  "140 Avenue Hassan II"),
+    ("Royal Air Maroc",            "001100001000004", "+212 522 48 97 97", "Casablanca",  "Aéroport Mohammed V"),
+    ("ONCF",                       "001300001000005", "+212 537 77 47 47", "Rabat",       "8 bis Rue Abderrahmane El Ghafiki"),
+    ("Lydec",                      "001500001000006", "+212 522 54 90 00", "Casablanca",  "48 Rue Mohamed Diouri"),
+    ("LafargeHolcim Maroc",        "001700001000007", "+212 522 23 28 00", "Casablanca",  "Route de Rabat, Km 12"),
+    ("Centrale Danone Maroc",      "001800001000008", "+212 522 67 10 00", "Casablanca",  "Bouskoura, Zone Industrielle"),
+    ("Managem Group",              "001900001000009", "+212 522 23 26 00", "Casablanca",  "Twin Center, Tour Ouest"),
+    ("Wafa Assurance",             "002100001000010", "+212 522 54 55 55", "Casablanca",  "1 Boulevard Abdelmoumen"),
+    ("BMCI",                       "002200001000011", "+212 522 66 52 00", "Casablanca",  "26 Place des Nations Unies"),
+    ("Société Générale Maroc",     "002300001000012", "+212 522 43 88 00", "Casablanca",  "55 Boulevard Abdelmoumen"),
+    ("Auto Nejma",                 "001200001000013", "+212 522 54 10 00", "Casablanca",  "Route de l'Aéroport"),
+    ("Renault Maroc",              "001400001000014", "+212 522 30 50 00", "Casablanca",  "Route de Rabat, Ain Sebaa"),
+    ("inwi",                       "001600001000015", "+212 522 80 00 00", "Casablanca",  "82 Boulevard d'Anfa"),
+    ("Orange Maroc",               "001600002000016", "+212 522 97 00 00", "Casablanca",  "Avenue Annakhil, Hay Riad"),
+    ("M2M Group",                  "001700001000017", "+212 522 77 60 00", "Casablanca",  "Technopark Casablanca"),
+    ("Ernst & Young Maroc",        "001800001000018", "+212 522 95 79 00", "Casablanca",  "37 Boulevard Abdellatif Ben Kaddour"),
+    ("Deloitte Maroc",             "001900001000019", "+212 522 22 40 00", "Casablanca",  "288 Boulevard Zerktouni"),
+    ("Cabinet Fiduciaire Alami",   "002000001000020", "+212 537 72 11 00", "Rabat",       "14 Rue Jaâfar Assadik, Agdal"),
+    ("Agence Nationale des Ports", "002100001000021", "+212 522 23 16 10", "Casablanca",  "Boulevard de la Résistance"),
+    ("MASEN",                      "002200001000022", "+212 537 71 85 00", "Rabat",       "Immeuble Le Mirador, Hay Riad"),
+    ("Marsa Maroc",                "002300001000023", "+212 522 23 24 24", "Casablanca",  "175 Boulevard Zerktouni"),
 ]
 
-# 20 suppliers — (name, ice, phone, city, address)
 SUPPLIERS = [
-    ("Microsoft Maroc",            "001000003000001", "+212 522 97 09 00", "Casablanca",    "Technopark, Route de Nouaceur"),
-    ("Amazon Web Services",        None,              "+1 206 266 1000",   "Seattle",        "410 Terry Ave N"),
-    ("Google Cloud EMEA",          None,              "+353 1 543 1000",   "Dublin",         "Gordon House, Barrow Street"),
-    ("Oracle Maroc",               "001000004000002", "+212 522 36 87 00", "Casablanca",    "Boulevard Sidi Abderrahmane"),
-    ("SAP Maroc",                  "001000005000003", "+212 522 97 24 00", "Casablanca",    "Technopark, Route de Nouaceur"),
-    ("IBM Maroc",                  "001000006000004", "+212 522 97 30 00", "Casablanca",    "Lotissement Attaoufik, Sidi Maârouf"),
-    ("Cisco Systems Maroc",        "001000007000005", "+212 522 97 50 00", "Casablanca",    "Technopark, Route de Nouaceur"),
-    ("Huawei Technologies Maroc",  "001000008000006", "+212 522 97 60 00", "Casablanca",    "Avenue Moulay Hassan II"),
-    ("Dell Technologies Maroc",    "001000009000007", "+212 522 97 70 00", "Casablanca",    "Technopark, Route de Nouaceur"),
-    ("HP Maroc",                   "001000010000008", "+212 522 97 80 00", "Casablanca",    "Lotissement Attaoufik, Sidi Maârouf"),
-    ("Dataprotect",                "001000011000009", "+212 522 52 00 52", "Casablanca",    "16 Rue Socrate, Racine"),
-    ("HighTech Payment Systems",   "001000012000010", "+212 522 90 30 00", "Casablanca",    "37 Rue Ibnou Majid El Bahar"),
-    ("Intelcia Group",             "001000013000011", "+212 522 78 30 00", "Casablanca",    "Route de Nouaceur, Sidi Maârouf"),
-    ("Manpower Maroc",             "001000014000012", "+212 522 94 06 00", "Casablanca",    "Immeuble Mimouna, Boulevard Zerktouni"),
-    ("Bureau Veritas Maroc",       "001000015000013", "+212 522 36 60 00", "Casablanca",    "Lotissement Attaoufik, Sidi Maârouf"),
-    ("ONEE",                       "001300002000014", "+212 537 66 80 00", "Rabat",         "65 Rue Othman Ben Affane"),
-    ("Marjane Holding",            "001400002000015", "+212 522 86 00 00", "Casablanca",    "Route de Kénitra, Ain Sebaa"),
-    ("CIH Bank",                   "002500001000016", "+212 522 46 44 00", "Casablanca",    "187 Avenue Hassan II"),
-    ("Wafabail",                   "002600001000017", "+212 522 54 80 00", "Casablanca",    "Avenue Hassan II, Immeuble Wafa"),
-    ("Riad Bureautique",           "001500002000018", "+212 522 30 11 00", "Casablanca",    "68 Boulevard d'Anfa"),
+    ("Microsoft Maroc",            "001000003000001", "+212 522 97 09 00", "Casablanca",  "Technopark, Route de Nouaceur"),
+    ("Amazon Web Services",        None,              "+1 206 266 1000",   "Seattle",     "410 Terry Ave N"),
+    ("Google Cloud EMEA",          None,              "+353 1 543 1000",   "Dublin",      "Gordon House, Barrow Street"),
+    ("Oracle Maroc",               "001000004000002", "+212 522 36 87 00", "Casablanca",  "Boulevard Sidi Abderrahmane"),
+    ("SAP Maroc",                  "001000005000003", "+212 522 97 24 00", "Casablanca",  "Technopark, Route de Nouaceur"),
+    ("IBM Maroc",                  "001000006000004", "+212 522 97 30 00", "Casablanca",  "Lotissement Attaoufik, Sidi Maârouf"),
+    ("Cisco Systems Maroc",        "001000007000005", "+212 522 97 50 00", "Casablanca",  "Technopark, Route de Nouaceur"),
+    ("Huawei Technologies Maroc",  "001000008000006", "+212 522 97 60 00", "Casablanca",  "Avenue Moulay Hassan II"),
+    ("Dell Technologies Maroc",    "001000009000007", "+212 522 97 70 00", "Casablanca",  "Technopark, Route de Nouaceur"),
+    ("HP Maroc",                   "001000010000008", "+212 522 97 80 00", "Casablanca",  "Lotissement Attaoufik, Sidi Maârouf"),
+    ("Dataprotect",                "001000011000009", "+212 522 52 00 52", "Casablanca",  "16 Rue Socrate, Racine"),
+    ("HighTech Payment Systems",   "001000012000010", "+212 522 90 30 00", "Casablanca",  "37 Rue Ibnou Majid El Bahar"),
+    ("Intelcia Group",             "001000013000011", "+212 522 78 30 00", "Casablanca",  "Route de Nouaceur, Sidi Maârouf"),
+    ("Manpower Maroc",             "001000014000012", "+212 522 94 06 00", "Casablanca",  "Immeuble Mimouna, Boulevard Zerktouni"),
+    ("Bureau Veritas Maroc",       "001000015000013", "+212 522 36 60 00", "Casablanca",  "Lotissement Attaoufik, Sidi Maârouf"),
+    ("ONEE",                       "001300002000014", "+212 537 66 80 00", "Rabat",       "65 Rue Othman Ben Affane"),
+    ("Marjane Holding",            "001400002000015", "+212 522 86 00 00", "Casablanca",  "Route de Kénitra, Ain Sebaa"),
+    ("CIH Bank",                   "002500001000016", "+212 522 46 44 00", "Casablanca",  "187 Avenue Hassan II"),
+    ("Wafabail",                   "002600001000017", "+212 522 54 80 00", "Casablanca",  "Avenue Hassan II, Immeuble Wafa"),
+    ("Riad Bureautique",           "001500002000018", "+212 522 30 11 00", "Casablanca",  "68 Boulevard d'Anfa"),
 ]
 
 SUPPLIER_PREFIXES = [
@@ -235,58 +222,16 @@ SUPPLIER_PREFIXES = [
     "ONEE", "MJN", "CIH", "WFB", "RBQ",
 ]
 
-# Item templates for ventes, by category
 VENTE_ITEMS = {
-    "services": [
-        ("Développement sur mesure", "Selon cahier des charges"),
-        ("Intégration API", "Connexion systèmes tiers"),
-        ("Migration de données", "Transfert et validation"),
-        ("Développement de fonctionnalités", "Sprint agile"),
-        ("Mise en production", "Déploiement et tests"),
-    ],
-    "logiciels": [
-        ("Licence plateforme SaaS", "Abonnement annuel"),
-        ("Module complémentaire", "Intégration incluse"),
-        ("Renouvellement licences", ""),
-        ("Solution ERP sur mesure", "Déploiement inclus"),
-        ("Logiciel de gestion", "Formation incluse"),
-    ],
-    "conseil": [
-        ("Audit et diagnostic SI", ""),
-        ("Étude de cadrage projet", ""),
-        ("Accompagnement transformation digitale", ""),
-        ("Analyse des besoins", "Rapport inclus"),
-        ("Conseil en cybersécurité", ""),
-    ],
-    "infrastructure": [
-        ("Infrastructure cloud managée", "SLA 99.9%"),
-        ("Architecture réseau", "Installation incluse"),
-        ("Hébergement et supervision", ""),
-        ("Migration cloud", ""),
-        ("Mise en place VPN", ""),
-    ],
-    "formation": [
-        ("Formation technique spécialisée", ""),
-        ("Atelier pratique", "Matériel inclus"),
-        ("Programme de certification", ""),
-        ("Formation management IT", ""),
-        ("E-learning sur mesure", "Accès 12 mois"),
-    ],
-    "maintenance": [
-        ("Contrat de maintenance préventive", "Rapport mensuel"),
-        ("Support technique niveau 2", ""),
-        ("Maintenance corrective applicative", ""),
-        ("Télémaintenance 7j/7", ""),
-        ("MCO applicatif", ""),
-    ],
-    "autre": [
-        ("Prestations diverses", ""),
-        ("Assistance technique", ""),
-        ("Location équipements", ""),
-    ],
+    "services":       [("Développement sur mesure", "Selon cahier des charges"), ("Intégration API", "Connexion systèmes tiers"), ("Migration de données", "Transfert et validation"), ("Développement de fonctionnalités", "Sprint agile"), ("Mise en production", "Déploiement et tests")],
+    "logiciels":      [("Licence plateforme SaaS", "Abonnement annuel"), ("Module complémentaire", "Intégration incluse"), ("Renouvellement licences", ""), ("Solution ERP sur mesure", "Déploiement inclus"), ("Logiciel de gestion", "Formation incluse")],
+    "conseil":        [("Audit et diagnostic SI", ""), ("Étude de cadrage projet", ""), ("Accompagnement transformation digitale", ""), ("Analyse des besoins", "Rapport inclus"), ("Conseil en cybersécurité", "")],
+    "infrastructure": [("Infrastructure cloud managée", "SLA 99.9%"), ("Architecture réseau", "Installation incluse"), ("Hébergement et supervision", ""), ("Migration cloud", ""), ("Mise en place VPN", "")],
+    "formation":      [("Formation technique spécialisée", ""), ("Atelier pratique", "Matériel inclus"), ("Programme de certification", ""), ("Formation management IT", ""), ("E-learning sur mesure", "Accès 12 mois")],
+    "maintenance":    [("Contrat de maintenance préventive", "Rapport mensuel"), ("Support technique niveau 2", ""), ("Maintenance corrective applicative", ""), ("Télémaintenance 7j/7", ""), ("MCO applicatif", "")],
+    "autre":          [("Prestations diverses", ""), ("Assistance technique", ""), ("Location équipements", "")],
 }
 
-# Item templates for achats, by supplier index
 ACHAT_ITEMS = {
     0:  [("Microsoft 365 Business", "Licences utilisateurs"), ("Azure DevOps", "5 utilisateurs"), ("Power BI Premium", ""), ("GitHub Enterprise", "")],
     1:  [("EC2 Compute", "Instances t3.medium"), ("S3 Storage", ""), ("RDS Database", "MySQL managed"), ("CloudFront CDN", ""), ("Lambda Functions", "")],
@@ -310,6 +255,82 @@ ACHAT_ITEMS = {
     19: [("Fournitures de bureau", ""), ("Cartouches imprimante", ""), ("Papeterie et consommables", "")],
 }
 
+# Ventes: client weights — some clients are regulars, others occasional
+# (client_idx, weight, category, base_amount_ht, tva_pct, due_days)
+VENTE_PROFILES = [
+    (0,  8, "logiciels",      45000, 20, 30),
+    (1,  7, "conseil",        32000, 20, 30),
+    (2,  6, "services",       38000, 20, 30),
+    (3,  5, "logiciels",      55000, 20, 30),
+    (4,  5, "infrastructure", 22000, 20, 45),
+    (5,  4, "maintenance",    14000, 10, 30),
+    (6,  4, "logiciels",      67000, 20, 30),
+    (7,  3, "conseil",        35000, 20, 30),
+    (8,  3, "services",       44000, 20, 30),
+    (9,  3, "formation",      21000, 20, 30),
+    (10, 2, "services",       31000, 20, 30),
+    (11, 2, "infrastructure", 48000, 20, 45),
+    (12, 2, "conseil",        28000, 20, 30),
+    (13, 2, "maintenance",    19000, 10, 30),
+    (14, 1, "logiciels",      58000, 20, 30),
+    (15, 1, "formation",      26000, 20, 30),
+    (16, 1, "conseil",        33000, 20, 30),
+    (17, 1, "services",       41000, 20, 30),
+    (18, 1, "infrastructure", 51000, 20, 45),
+    (19, 1, "logiciels",      74000, 20, 30),
+    (20, 1, "logiciels",      82000, 20, 30),
+    (21, 1, "maintenance",    16000, 10, 30),
+    (22, 1, "logiciels",      66000, 20, 30),
+    (23, 1, "formation",      26000, 20, 45),
+    (24, 1, "logiciels",      89000, 20, 45),
+]
+
+# Achats: recurring supplier patterns
+# (supplier_idx, category, base_amount_ht, tva_pct, due_days, frequency_months)
+# frequency_months=1 → monthly, 3 → quarterly, 6 → semi-annual, 12 → annual
+ACHAT_PROFILES = [
+    (1,  "infrastructure", 4500,  0,  15, 1),   # AWS — monthly cloud
+    (2,  "infrastructure", 7200,  0,  15, 1),   # Google Cloud — monthly
+    (15, "autre",          4000,  14, 15, 1),   # ONEE — monthly utilities
+    (19, "autre",          1200,  20, 15, 1),   # Riad Bureautique — monthly office supplies
+    (0,  "logiciels",      13000, 20, 30, 3),   # Microsoft — quarterly
+    (12, "services",       37000, 20, 30, 3),   # Intelcia — quarterly BPO
+    (13, "services",       25000, 20, 30, 3),   # Manpower — quarterly HR
+    (6,  "infrastructure", 28000, 20, 45, 3),   # Cisco — quarterly network
+    (5,  "services",       40000, 20, 45, 3),   # IBM — quarterly consulting
+    (10, "services",       30000, 20, 30, 6),   # Dataprotect — semi-annual
+    (11, "services",       45000, 20, 30, 6),   # HPS — semi-annual
+    (18, "infrastructure", 15000, 10, 30, 6),   # Wafabail — semi-annual leasing
+    (8,  "infrastructure", 92000, 20, 45, 12),  # Dell — annual hardware
+    (9,  "infrastructure", 34000, 20, 30, 12),  # HP — annual hardware
+    (3,  "logiciels",      85000, 20, 60, 12),  # Oracle — annual license
+    (4,  "logiciels",      72000, 20, 60, 12),  # SAP — annual license
+    (14, "services",       18000, 20, 30, 12),  # Bureau Veritas — annual audit
+]
+
+
+def _month_start(days_ago_approx):
+    """Return datetime at the start of the month for approximately days_ago days ago."""
+    d = _now() - timedelta(days=days_ago_approx)
+    return datetime(d.year, d.month, 1, tzinfo=UTC)
+
+
+def _rand_day_in_month(month_start_dt):
+    """Return a random working day within the month."""
+    import calendar
+    month = month_start_dt.month
+    year = month_start_dt.year
+    last_day = calendar.monthrange(year, month)[1]
+    day = random.randint(1, last_day)
+    return month_start_dt.replace(day=day)
+
+
+def _jitter(base_amount, pct=0.25):
+    """Add ±pct% random variation to an amount, rounded to 500."""
+    factor = 1 + random.uniform(-pct, pct)
+    raw = base_amount * factor
+    return max(500, round(raw / 500) * 500)
+
 
 # ── Reset ─────────────────────────────────────────────────────────────────────
 
@@ -319,17 +340,18 @@ def reset(db):
     db["contacts"].drop()
     db["cache"].drop()
     db["firms"].drop()
-    # Keep users collection — wipe only non-admin users so seeded firm admin can be re-created
     db["users"].delete_many({"role": {"$ne": "ADMIN"}})
     print("[OK] Collections dropped.")
 
 
 # ── Seed ──────────────────────────────────────────────────────────────────────
 
-FIRM_ADMIN_EMAIL = "demo@voynich.ma"
+FIRM_ADMIN_EMAIL    = "demo@voynich.ma"
 FIRM_ADMIN_PASSWORD = "demo1234"
-FIRM_ADMIN_NAME = "Demo Admin"
-FIRM_NAME = "Cabinet Voynich Demo"
+FIRM_ADMIN_NAME     = "Demo Admin"
+FIRM_NAME           = "Cabinet Voynich Demo"
+
+MONTHS_BACK = 12   # how many months of history to generate
 
 
 def seed(db):
@@ -344,7 +366,7 @@ def seed(db):
     FIRM_ID = str(firm_result.inserted_id)
     print(f"[OK] Demo firm inserted (id={FIRM_ID}).")
 
-    # ── Firm admin account ────────────────────────────────────────────────────
+    # ── Firm admin ────────────────────────────────────────────────────────────
     hashed = bcrypt.hashpw(FIRM_ADMIN_PASSWORD.encode(), bcrypt.gensalt()).decode()
     db["users"].insert_one({
         "full_name": FIRM_ADMIN_NAME,
@@ -373,12 +395,9 @@ def seed(db):
         "bank_name": "Attijariwafa Bank",
         "bank_account": "007 780 0001234567890 12",
         "invoice_prefix": "FAC",
-        "next_invoice_number": 61,
+        "next_invoice_number": 1,
         "invoice_year": _now().year,
-        "categories": [
-            "services", "logiciels", "conseil", "infrastructure",
-            "formation", "maintenance", "autre",
-        ],
+        "categories": ["services", "logiciels", "conseil", "infrastructure", "formation", "maintenance", "autre"],
         "created_at": _now(),
         "updated_at": _now(),
     })
@@ -390,220 +409,167 @@ def seed(db):
     for name, ice, phone, city, address in CLIENTS:
         slug = name.lower().replace(" ", "").replace("'", "")[:14]
         contacts.append({
-            "name": name,
-            "ice": ice,
-            "contact_type": ["client"],
-            "email": f"facturation@{slug}.ma",
-            "phone": phone,
-            "city": city,
-            "address": address,
-            "company_id": COMPANY_ID,
-            "created_at": _now(),
+            "name": name, "ice": ice, "contact_type": ["client"],
+            "email": f"facturation@{slug}.ma", "phone": phone,
+            "city": city, "address": address,
+            "company_id": COMPANY_ID, "created_at": _now(),
         })
     for name, ice, phone, city, address in SUPPLIERS:
         slug = name.lower().replace(" ", "").replace("'", "")[:14]
         tld = "com" if city not in ("Casablanca", "Rabat") else "ma"
         contacts.append({
-            "name": name,
-            "ice": ice,
-            "contact_type": ["supplier"],
-            "email": f"billing@{slug}.{tld}",
-            "phone": phone,
-            "city": city,
-            "address": address,
-            "company_id": COMPANY_ID,
-            "created_at": _now(),
+            "name": name, "ice": ice, "contact_type": ["supplier"],
+            "email": f"billing@{slug}.{tld}", "phone": phone,
+            "city": city, "address": address,
+            "company_id": COMPANY_ID, "created_at": _now(),
         })
     db["contacts"].insert_many(contacts)
-    print(f"[OK] {len(contacts)} contacts inserted ({len(CLIENTS)} clients, {len(SUPPLIERS)} fournisseurs).")
+    print(f"[OK] {len(contacts)} contacts inserted.")
 
-    # ── Ventes (outgoing) — 60 invoices ───────────────────────────────────────
-    # (client_idx, category, status, days_ago, amount_ht, tva_pct, due_offset)
-    # due_offset: invoice_date + due_offset = due_date
-    # Negative due_offset means due date is in the future from today.
-    VENTES_SPEC = [
-        # ── ~12 months ago (330-365 days) — all paid ──────────────────────────
-        ( 0, "logiciels",      "paid",  355, 45000, 20, 30),
-        ( 1, "conseil",        "paid",  348, 30000, 20, 30),
-        ( 4, "infrastructure", "paid",  340, 22000, 20, 30),
-        ( 8, "formation",      "paid",  338, 15000, 20, 30),
-        ( 2, "services",       "paid",  332, 38000, 20, 30),
-        # ── ~11 months ago (295-330) ──────────────────────────────────────────
-        ( 3, "logiciels",      "paid",  322, 52000, 20, 30),
-        ( 9, "maintenance",    "paid",  315, 18000, 10, 30),
-        ( 5, "conseil",        "paid",  308, 25000, 20, 30),
-        (11, "infrastructure", "paid",  300, 44000, 20, 45),
-        # ── ~10 months ago (260-295) ──────────────────────────────────────────
-        ( 6, "logiciels",      "paid",  288, 67000, 20, 30),
-        (10, "services",       "paid",  280, 31000, 20, 30),
-        ( 0, "formation",      "paid",  272, 21000, 20, 30),
-        (12, "conseil",        "paid",  265, 28000, 20, 30),
-        # ── ~9 months ago (225-260) ───────────────────────────────────────────
-        ( 1, "logiciels",      "paid",  255, 78000, 20, 45),
-        ( 7, "conseil",        "paid",  248, 35000, 20, 30),
-        (13, "maintenance",    "paid",  240, 19000, 10, 30),
-        ( 2, "services",       "paid",  232, 42000, 20, 30),
-        # ── ~8 months ago (190-225) ───────────────────────────────────────────
-        (14, "logiciels",      "paid",  220, 55000, 20, 30),
-        ( 4, "conseil",        "paid",  212, 27000, 20, 30),
-        ( 8, "services",       "paid",  205, 36000, 20, 30),
-        ( 3, "infrastructure", "paid",  198, 48000, 20, 45),
-        # ── ~7 months ago (155-190) ───────────────────────────────────────────
-        ( 0, "logiciels",      "paid",  188, 63000, 20, 30),
-        (15, "formation",      "paid",  180, 28000, 20, 30),
-        ( 9, "services",       "paid",  172, 39000, 20, 30),
-        (16, "conseil",        "paid",  165, 32000, 20, 30),
-        ( 5, "maintenance",    "paid",  158, 14000, 10, 30),
-        # ── ~6 months ago (120-155) ───────────────────────────────────────────
-        ( 1, "logiciels",      "paid",  150, 72000, 20, 30),
-        (17, "services",       "paid",  142, 41000, 20, 30),
-        (10, "infrastructure", "paid",  135, 51000, 20, 45),
-        (18, "conseil",        "paid",  128, 29000, 20, 30),
-        # ── ~5 months ago (85-120) ────────────────────────────────────────────
-        ( 6, "logiciels",      "paid",  118, 58000, 20, 30),
-        ( 0, "conseil",        "paid",  110, 34000, 20, 30),
-        (19, "services",       "sent",  105, 46000, 20, 30),  # overdue (due 75d ago)
-        (11, "formation",      "paid",   92, 24000, 20, 30),
-        # ── ~4 months ago (50-85) ─────────────────────────────────────────────
-        (20, "logiciels",      "paid",   82, 82000, 20, 30),
-        ( 7, "services",       "paid",   75, 37000, 20, 30),
-        (13, "conseil",        "sent",   68, 43000, 20, 30),  # overdue (due 38d ago)
-        (21, "maintenance",    "paid",   58, 16000, 10, 30),
-        # ── ~3 months ago (20-50) ─────────────────────────────────────────────
-        (22, "logiciels",      "sent",   48, 66000, 20, 30),  # overdue (due 18d ago)
-        ( 1, "services",       "paid",   42, 49000, 20, 30),
-        (14, "conseil",        "sent",   38, 31000, 20, 45),  # due in 7 days
-        (23, "formation",      "sent",   32, 26000, 20, 45),  # due in 13 days
-        ( 3, "infrastructure", "validated", 28, 57000, 20, 45),
-        # ── ~2 months ago (8-20) ──────────────────────────────────────────────
-        (24, "logiciels",      "sent",   20, 74000, 20, 30),  # due in 10 days
-        (15, "services",       "validated", 17, 53000, 20, 30),
-        ( 0, "conseil",        "validated", 14, 38000, 20, 30),
-        ( 4, "maintenance",    "sent",   11, 17000, 10, 30),  # due in 19 days
-        (16, "logiciels",      "validated", 9, 89000, 20, 45),
-        # ── Recent (0-8 days) ─────────────────────────────────────────────────
-        ( 8, "services",       "validated",  7, 44000, 20, 30),
-        (17, "conseil",        "validated",  5, 29000, 20, 30),
-        ( 2, "logiciels",      "draft",      4, 61000, 20, 30),
-        ( 5, "formation",      "draft",      3, 32000, 20, 30),
-        (12, "services",       "draft",      3, 41000, 20, 30),
-        ( 9, "infrastructure", "draft",      2, 76000, 20, 30),
-        (18, "logiciels",      "draft",      2, 55000, 20, 30),
-        (20, "conseil",        "draft",      1, 48000, 20, 30),
-        (24, "services",       "draft",      1, 38000, 20, 30),
-        (11, "logiciels",      "draft",      0, 92000, 20, 30),
-        (23, "maintenance",    "paid",      195, 23000, 10, 30),
-        ( 6, "services",       "paid",      145, 34000, 20, 30),
-    ]
+    # ── Generate Ventes (outgoing) via weighted monthly loop ──────────────────
+    # Build weighted pool of client profiles
+    weighted_pool = []
+    for prof in VENTE_PROFILES:
+        weighted_pool.extend([prof] * prof[1])  # weight = number of times in pool
 
     ventes = []
+    vente_counter = 0
     year = _now().year
-    for i, (ci, cat, status, days_ago, ht, tva_pct, due_off) in enumerate(VENTES_SPEC, 1):
-        c_name, c_ice, *_ = CLIENTS[ci]
-        inv_date = _date(days_ago)
-        due_date = _date(days_ago - due_off) if status != "draft" else None
-        items = _make_items(VENTE_ITEMS[cat], ht)
-        ventes.append(_invoice(
-            invoice_number=f"FAC-{year}-{i:03d}",
-            direction="outgoing",
-            vendor_name=COMPANY_NAME, vendor_ice=COMPANY_ICE,
-            client_name=c_name, client_ice=c_ice,
-            items=items, tva=tva_pct, status=status,
-            invoice_date=inv_date, due_date=due_date,
-            category=cat, is_paid=(status == "paid"),
-            company_id=COMPANY_ID,
-        ))
+
+    for month_offset in range(MONTHS_BACK - 1, -1, -1):
+        # month_offset=11 → 11 months ago, 0 → current month
+        days_ago_approx = month_offset * 30 + 15
+        month_dt = _month_start(days_ago_approx)
+
+        # Monthly invoice count: more in recent months, natural variation
+        base_count = 5 + random.randint(0, 4)
+        # Slight growth trend: more invoices in recent months
+        growth = int((MONTHS_BACK - month_offset) * 0.3)
+        n_invoices = base_count + growth
+
+        # Sample without replacement from weighted pool
+        sample = random.choices(weighted_pool, k=n_invoices)
+
+        for ci, _w, cat, base_ht, tva_pct, due_days in sample:
+            c_name, c_ice, *_ = CLIENTS[ci]
+            inv_date = _rand_day_in_month(month_dt)
+            amount_ht = _jitter(base_ht)
+
+            # Status logic based on age
+            is_current_month = (month_offset == 0)
+            is_last_month = (month_offset == 1)
+
+            if is_current_month:
+                # Mix of draft, validated, sent for current month
+                status = random.choices(["draft", "validated", "sent"], weights=[4, 3, 2])[0]
+                due_date = inv_date + timedelta(days=due_days) if status != "draft" else None
+                is_paid = False
+            elif is_last_month:
+                # Some sent (not yet paid), some validated, some already paid
+                status = random.choices(["validated", "sent", "paid"], weights=[2, 3, 5])[0]
+                due_date = inv_date + timedelta(days=due_days)
+                is_paid = (status == "paid")
+            else:
+                # Older months: mostly paid, some sent (overdue)
+                # Intentionally leave ~15% unpaid for overdue alerts
+                if month_offset <= 3:
+                    status = random.choices(["paid", "sent"], weights=[85, 15])[0]
+                else:
+                    status = random.choices(["paid", "sent"], weights=[93, 7])[0]
+                due_date = inv_date + timedelta(days=due_days)
+                is_paid = (status == "paid")
+
+            vente_counter += 1
+            items = _make_items(VENTE_ITEMS[cat], amount_ht)
+            # Mark older paid ventes as exported
+            is_exported = is_paid and month_offset >= 2 and random.random() > 0.2
+
+            ventes.append(_invoice(
+                invoice_number=f"FAC-{year}-{vente_counter:03d}",
+                direction="outgoing",
+                vendor_name=COMPANY_NAME, vendor_ice=COMPANY_ICE,
+                client_name=c_name, client_ice=c_ice,
+                items=items, tva=tva_pct, status=status,
+                invoice_date=inv_date, due_date=due_date,
+                category=cat, is_paid=is_paid,
+                company_id=COMPANY_ID, is_exported=is_exported,
+            ))
+
+    # Update next_invoice_number to avoid conflicts
+    db["company_profile"].update_one(
+        {"_id": company_result.inserted_id},
+        {"$set": {"next_invoice_number": vente_counter + 1}},
+    )
 
     db["invoices"].insert_many(ventes)
     print(f"[OK] {len(ventes)} ventes inserted.")
 
-    # ── Achats (incoming) — 40 invoices ───────────────────────────────────────
-    # (supplier_idx, category, status, days_ago, amount_ht, tva_pct, due_offset)
-    ACHATS_SPEC = [
-        # ── AWS — recurring monthly cloud bill ────────────────────────────────
-        ( 1, "infrastructure", "paid",      335, 3800, 0,  15),
-        ( 1, "infrastructure", "paid",      305, 4200, 0,  15),
-        ( 1, "infrastructure", "paid",      275, 3950, 0,  15),
-        ( 1, "infrastructure", "paid",      245, 4500, 0,  15),
-        ( 1, "infrastructure", "paid",      215, 4100, 0,  15),
-        ( 1, "infrastructure", "paid",      185, 4800, 0,  15),
-        ( 1, "infrastructure", "paid",      155, 5200, 0,  15),
-        ( 1, "infrastructure", "paid",      125, 4900, 0,  15),
-        ( 1, "infrastructure", "validated",  65, 5500, 0,  15),
-        ( 1, "infrastructure", "extracted",  18, 5100, 0,  15),
-        # ── Microsoft — semi-annual license renewal ───────────────────────────
-        ( 0, "logiciels",      "paid",      310, 12000, 20, 30),
-        ( 0, "logiciels",      "paid",      130, 14400, 20, 30),
-        ( 0, "logiciels",      "extracted",  12, 14400, 20, 30),
-        # ── Google Cloud — quarterly ──────────────────────────────────────────
-        ( 2, "infrastructure", "paid",      280,  6500, 0,  15),
-        ( 2, "infrastructure", "paid",      185,  7200, 0,  15),
-        ( 2, "infrastructure", "validated",  88,  7800, 0,  15),
-        ( 2, "infrastructure", "extracted",   8,  8100, 0,  15),
-        # ── Oracle — annual license ───────────────────────────────────────────
-        ( 3, "logiciels",      "paid",      320, 85000, 20, 60),
-        # ── SAP — annual license ──────────────────────────────────────────────
-        ( 4, "logiciels",      "paid",      295, 72000, 20, 60),
-        ( 4, "logiciels",      "extracted",  22, 76000, 20, 60),
-        # ── IBM — consulting ──────────────────────────────────────────────────
-        ( 5, "services",       "paid",      252, 38000, 20, 45),
-        ( 5, "services",       "validated",  58, 42000, 20, 45),
-        # ── Cisco — networking ────────────────────────────────────────────────
-        ( 6, "infrastructure", "paid",      268, 55000, 20, 45),
-        ( 6, "infrastructure", "validated",  42, 28000, 20, 45),
-        # ── Dell — hardware ───────────────────────────────────────────────────
-        ( 8, "infrastructure", "paid",      228, 92000, 20, 45),
-        # ── HP — hardware ─────────────────────────────────────────────────────
-        ( 9, "infrastructure", "paid",      178, 34000, 20, 30),
-        # ── Dataprotect — cybersecurity ───────────────────────────────────────
-        (10, "services",       "paid",      312, 28000, 20, 30),
-        (10, "services",       "validated",  72, 32000, 20, 30),
-        # ── HPS — payment platform ────────────────────────────────────────────
-        (11, "services",       "paid",      200, 45000, 20, 30),
-        # ── Intelcia — BPO ────────────────────────────────────────────────────
-        (12, "services",       "paid",      338, 36000, 20, 30),
-        (12, "services",       "paid",      158, 38000, 20, 30),
-        (12, "services",       "extracted",  15, 39000, 20, 30),
-        # ── Manpower — HR ─────────────────────────────────────────────────────
-        (13, "services",       "paid",      258, 24000, 20, 30),
-        (13, "services",       "validated",  52, 26000, 20, 30),
-        # ── Bureau Veritas — certification ────────────────────────────────────
-        (14, "services",       "paid",      318, 18000, 20, 30),
-        # ── ONEE — utilities ──────────────────────────────────────────────────
-        (15, "autre",          "paid",      322,  4200, 14, 15),
-        (15, "autre",          "paid",      202,  3800, 14, 15),
-        (15, "autre",          "extracted",  16,  4100, 14, 15),
-        # ── Wafabail — leasing ────────────────────────────────────────────────
-        (18, "infrastructure", "paid",      352, 15000, 10, 30),
-        (18, "infrastructure", "paid",      172, 15000, 10, 30),
-    ]
-
-    achat_counters = {}
+    # ── Generate Achats (incoming) via recurring supplier loop ────────────────
     achats = []
-    for sup_idx, cat, status, days_ago, ht, tva_pct, due_off in ACHATS_SPEC:
+    achat_counters = {}
+
+    now_dt = _now()
+
+    for sup_idx, cat, base_ht, tva_pct, due_days, freq_months in ACHAT_PROFILES:
         s_name, s_ice, *_ = SUPPLIERS[sup_idx]
         prefix = SUPPLIER_PREFIXES[sup_idx]
-        achat_counters[sup_idx] = achat_counters.get(sup_idx, 0) + 1
-        inv_num = f"{prefix}-{year}-{achat_counters[sup_idx]:04d}"
-        inv_date = _date(days_ago)
-        due_date = _date(days_ago - due_off) if status != "extracted" else None
-        items = _make_items(ACHAT_ITEMS[sup_idx], ht)
-        achats.append(_invoice(
-            invoice_number=inv_num,
-            direction="incoming",
-            vendor_name=s_name, vendor_ice=s_ice,
-            client_name=COMPANY_NAME, client_ice=COMPANY_ICE,
-            items=items, tva=tva_pct, status=status,
-            invoice_date=inv_date, due_date=due_date,
-            category=cat, is_paid=(status == "paid"),
-            company_id=COMPANY_ID,
-        ))
+
+        # Generate one invoice per occurrence within MONTHS_BACK
+        occurrence = 0
+        month_offset = MONTHS_BACK - 1
+        while month_offset >= 0:
+            # Only generate at the right frequency
+            if month_offset % freq_months != 0:
+                month_offset -= 1
+                continue
+
+            days_ago_approx = month_offset * 30 + 15
+            month_dt = _month_start(days_ago_approx)
+            inv_date = _rand_day_in_month(month_dt)
+            amount_ht = _jitter(base_ht, pct=0.15)
+
+            # Status logic
+            is_current_month = (month_offset == 0)
+            is_recent = (month_offset <= 1)
+            if is_current_month:
+                status = random.choices(["extracted", "validated"], weights=[3, 2])[0]
+                due_date = None
+                is_paid = False
+            elif is_recent:
+                status = random.choices(["validated", "paid"], weights=[3, 7])[0]
+                due_date = inv_date + timedelta(days=due_days)
+                is_paid = (status == "paid")
+            else:
+                # Older: mostly paid, a few validated (overdue) for alerts
+                if month_offset <= 3:
+                    status = random.choices(["paid", "validated"], weights=[85, 15])[0]
+                else:
+                    status = "paid"
+                due_date = inv_date + timedelta(days=due_days)
+                is_paid = (status == "paid")
+
+            achat_counters[sup_idx] = achat_counters.get(sup_idx, 0) + 1
+            inv_num = f"{prefix}-{year}-{achat_counters[sup_idx]:04d}"
+            items = _make_items(ACHAT_ITEMS[sup_idx], amount_ht)
+            is_exported = is_paid and month_offset >= 2 and random.random() > 0.25
+
+            achats.append(_invoice(
+                invoice_number=inv_num,
+                direction="incoming",
+                vendor_name=s_name, vendor_ice=s_ice,
+                client_name=COMPANY_NAME, client_ice=COMPANY_ICE,
+                items=items, tva=tva_pct, status=status,
+                invoice_date=inv_date, due_date=due_date,
+                category=cat, is_paid=is_paid,
+                company_id=COMPANY_ID, is_exported=is_exported,
+            ))
+
+            occurrence += 1
+            month_offset -= 1
 
     db["invoices"].insert_many(achats)
     print(f"[OK] {len(achats)} achats inserted.")
-
-    total = len(ventes) + len(achats)
-    print(f"\n[OK] Total: {total} invoices ({len(ventes)} ventes, {len(achats)} achats).")
+    print(f"\n[OK] Total: {len(ventes) + len(achats)} invoices ({len(ventes)} ventes, {len(achats)} achats).")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -621,7 +587,6 @@ def main():
         sys.exit(1)
 
     db = get_database()
-
     print("Resetting collections...")
     reset(db)
 

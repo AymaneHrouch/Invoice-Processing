@@ -15,3 +15,8 @@ export { DashboardLoading, DashboardError } from './DashboardStates';
 export { default as FinanceWidgets } from './FinanceWidgets';
 export { default as TVABalanceWidget } from './TVABalanceWidget';
 export { default as TopVendorsWidget } from './TopVendorsWidget';
+export { default as CAEvolutionWidget } from './CAEvolutionWidget';
+export { default as AlertsWidget } from './AlertsWidget';
+export { default as TresorerieWidget } from './TresorerieWidget';
+export { default as DelaiPaiementWidget } from './DelaiPaiementWidget';
+export { default as CategoryBreakdownWidget } from './CategoryBreakdownWidget';
