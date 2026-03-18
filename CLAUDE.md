@@ -17,7 +17,7 @@
 - **Invoice listing**: Filterable, sortable, paginated — separate `/achats` and `/ventes` pages. `vendor_name` filter searches both `vendor_name` and `client_name` fields.
 - **PDF generation**: Server-side via weasyprint + Jinja2 (`app/templates/invoice.html`) — both directions. Outgoing PDFs look up contact by `contact_id` to include client address/phone/email in the client block.
 - **Excel export**: Per-direction (`POST /ventes/export`, `POST /invoices/achats/export`) with post-download confirmation to mark as exported
-- **Dashboard**: PME KPI widgets, À encaisser / À payer finance widgets (clickable rows open invoice edit modal via location state), TVA balance with period selector, Top 5 clients/fournisseurs, "Dernières actions" activity feed
+- **Dashboard**: PME KPI widgets (including `non_exportees` count), À encaisser / À payer finance widgets (clickable rows open invoice edit modal via location state), TVA balance with period selector, Top 5 clients/fournisseurs, "Dernières actions" activity feed. Additional widgets: CA Évolution (12-month bar chart), Délai moyen de paiement, Prévision de trésorerie (30/60/90 days), Factures en retard (3 overdue buckets), Échéances proches (7 and 15 days), Répartition par catégorie (donut chart with direction toggle)
 - **Multi-firm tenancy**: Three-tier role hierarchy — `ADMIN` (Super Admin, manages firms) → `FIRM_ADMIN` (cabinet owner, manages users/companies within firm) → `USER` (accountant). Firms stored in `firms` collection. Self-registration auto-creates a firm + sets user as `FIRM_ADMIN`. Super Admin creates firm+admin in one action via `POST /firms`, returning a temp password.
 - **Auth**: JWT-based — token carries `sub` (ObjectId), `role`, `username` (email), `firm_id`, and `company_id`
 - **Invoice audit trail**: Every status transition appends an `InvoiceHistoryEntry` to the invoice's `history` array (action, status_from, status_to, user email, timestamp). Legacy ObjectId user values are resolved to email via users collection lookup.
@@ -160,11 +160,15 @@ frontend/
 
 13. **Contact enrichment in PDFs**: `GET /ventes/{id}/pdf` looks up the contact by `contact_id` and injects `client_address`, `client_city`, `client_phone`, `client_email` onto the invoice before rendering. Template renders these in the destinataire block.
 
-14. **Axios auth interceptor**: `baseApi.js` has a request interceptor that automatically attaches `Authorization: Bearer <token>` to every request from `localStorage`. Do NOT manually pass `getAuthConfig()` in API call sites — the interceptor handles it globally.
+14. **Dashboard financial widgets**: Six new service functions in `services/dashboard.py`: `get_ca_evolution` (12-month monthly ventes vs achats), `get_delai_paiement` (avg days using `paid_at - invoice_date`), `get_tresorerie_prevision` (inflows/outflows in 30/60/90 day windows), `get_factures_retard` (overdue grouped 1-30d/31-60d/60+d), `get_echeances_proches` (due within 7 and 15 days), `get_category_breakdown` (current year amounts by category with direction param). `get_pme_kpis` also returns `non_exportees` count.
 
-15. **Firm name in sidebar**: `GET /firms/me` returns `{_id, name}` for the current user's firm. Called from `AuthContext.fetchCurrentUser()` when `firm_id` is present in the JWT. Super Admin has no firm_id and skips this call. `firmName` is exposed via `useAuth()`.
+15. **Seed script**: `scripts/reset.py` uses loop-based generation — `VENTE_PROFILES` (25 weighted client profiles) × 12-month loop + `ACHAT_PROFILES` (17 suppliers with frequency_months 1/3/6/12). `_jitter(base, pct)` adds ±25% variation. Status set by invoice age: current month → draft/validated; older → mostly paid with ~15% overdue.
 
-16. **Role-scoped access**: Super Admin (`ADMIN`) — `/firms` only, no company data. `FIRM_ADMIN` — user management + company management scoped to own firm. `USER` — regular accountant. `AdminOnly` component guards `/users` for `ADMIN`+`FIRM_ADMIN`. Sidebar filters items by role using `adminOnly`/`superAdminOnly` flags in `sidebarItems`.
+16. **Axios auth interceptor**: `baseApi.js` has a request interceptor that automatically attaches `Authorization: Bearer <token>` to every request from `localStorage`. Do NOT manually pass `getAuthConfig()` in API call sites — the interceptor handles it globally.: `baseApi.js` has a request interceptor that automatically attaches `Authorization: Bearer <token>` to every request from `localStorage`. Do NOT manually pass `getAuthConfig()` in API call sites — the interceptor handles it globally.
+
+17. **Firm name in sidebar**: `GET /firms/me` returns `{_id, name}` for the current user's firm. Called from `AuthContext.fetchCurrentUser()` when `firm_id` is present in the JWT. Super Admin has no firm_id and skips this call. `firmName` is exposed via `useAuth()`.
+
+18. **Role-scoped access**: Super Admin (`ADMIN`) — `/firms` only, no company data. `FIRM_ADMIN` — user management + company management scoped to own firm. `USER` — regular accountant. `AdminOnly` component guards `/users` for `ADMIN`+`FIRM_ADMIN`. Sidebar filters items by role using `adminOnly`/`superAdminOnly` flags in `sidebarItems`.
 
 ## Local Development
 
