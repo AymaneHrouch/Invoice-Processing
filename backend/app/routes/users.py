@@ -75,6 +75,10 @@ def delete_user(user_id: str, current_user=Depends(_require_user_manager)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
     if current_user["role"] == "FIRM_ADMIN" and user.get("firm_id") != current_user.get("firm_id"):
         raise HTTPException(status_code=403, detail="Access denied")
+    if user.get("role") == "FIRM_ADMIN":
+        admin_count = user_collection.count_documents({"firm_id": user.get("firm_id"), "role": "FIRM_ADMIN"})
+        if admin_count <= 1:
+            raise HTTPException(status_code=400, detail="Ce cabinet doit avoir au moins un administrateur.")
     user_collection.delete_one({"_id": ObjectId(user_id)})
     logger.info("User deleted: %s", user_id)
     return {"message": "User deleted successfully"}

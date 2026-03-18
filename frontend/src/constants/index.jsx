@@ -94,6 +94,7 @@ export const sidebarItems = [
     id: 'achats',
     label: 'Achats',
     icon: ShoppingCart,
+    path: '/achats',
     hasChildren: true,
     children: [
       {
@@ -120,6 +121,7 @@ export const sidebarItems = [
     id: 'ventes',
     label: 'Ventes',
     icon: TrendingUp,
+    path: '/ventes',
     hasChildren: true,
     children: [
       {

@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { Building2, Plus, Trash2, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTheme } from '@/contexts';
-import { listFirms, createFirm, deleteFirm } from '@/api/firms';
+import {
+  listFirms,
+  createFirm,
+  deleteFirm,
+  getFirmInventory,
+} from '@/api/firms';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +19,16 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function FirmsPage() {
   const { isDarkMode } = useTheme();
@@ -23,6 +38,8 @@ export default function FirmsPage() {
   const [saving, setSaving] = useState(false);
   const [createdCreds, setCreatedCreds] = useState(null); // { firm_name, admin_email, temp_password }
   const [copied, setCopied] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [inventory, setInventory] = useState(null);
   const [form, setForm] = useState({
     firm_name: '',
     admin_full_name: '',
@@ -57,16 +74,13 @@ export default function FirmsPage() {
     }
   };
 
-  const handleDelete = async (id, name) => {
-    if (
-      !window.confirm(
-        `Supprimer le cabinet "${name}" ? Cette action est irréversible.`,
-      )
-    )
-      return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteFirm(id);
+      await deleteFirm(deleteTarget._id);
       toast.success('Cabinet supprimé.');
+      setDeleteTarget(null);
+      setInventory(null);
       load();
     } catch {
       toast.error('Erreur lors de la suppression.');
@@ -150,7 +164,13 @@ export default function FirmsPage() {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => handleDelete(f._id, f.name)}
+                      onClick={async () => {
+                        setDeleteTarget(f);
+                        setInventory(null);
+                        getFirmInventory(f._id)
+                          .then(setInventory)
+                          .catch(() => setInventory({}));
+                      }}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
@@ -211,6 +231,74 @@ export default function FirmsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete confirmation */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => {
+          if (!o) {
+            setDeleteTarget(null);
+            setInventory(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Supprimer le cabinet "{deleteTarget?.name}" ?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Cette action est irréversible. Les données suivantes seront
+                  supprimées :
+                </p>
+                {inventory === null ? (
+                  <p className="text-sm text-gray-400">
+                    Chargement de l'inventaire…
+                  </p>
+                ) : (
+                  <ul className="text-sm rounded-lg border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 p-3 space-y-1">
+                    <li>
+                      <span className="font-semibold">
+                        {inventory.users ?? '—'}
+                      </span>{' '}
+                      utilisateur(s)
+                    </li>
+                    <li>
+                      <span className="font-semibold">
+                        {inventory.companies ?? '—'}
+                      </span>{' '}
+                      entreprise(s)
+                    </li>
+                    <li>
+                      <span className="font-semibold">
+                        {inventory.invoices ?? '—'}
+                      </span>{' '}
+                      facture(s)
+                    </li>
+                    <li>
+                      <span className="font-semibold">
+                        {inventory.contacts ?? '—'}
+                      </span>{' '}
+                      contact(s)
+                    </li>
+                  </ul>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Supprimer définitivement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Credentials reveal modal */}
       {createdCreds && (
         <Dialog
@@ -246,7 +334,7 @@ export default function FirmsPage() {
                   </span>
                   <button
                     onClick={copyPassword}
-                    className="ml-auto text-blue-500 hover:text-blue-600"
+                    className="ml-auto text-blue-500 hover:text-blue-600 cursor-pointer"
                   >
                     {copied ? (
                       <Check className="w-4 h-4" />

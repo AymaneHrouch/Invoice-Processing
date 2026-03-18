@@ -533,7 +533,8 @@ def seed(db):
             is_recent = (month_offset <= 1)
             if is_current_month:
                 status = random.choices(["extracted", "validated"], weights=[3, 2])[0]
-                due_date = None
+                # extracted invoices have no due date yet; validated ones do
+                due_date = inv_date + timedelta(days=due_days) if status == "validated" else None
                 is_paid = False
             elif is_recent:
                 status = random.choices(["validated", "paid"], weights=[3, 7])[0]

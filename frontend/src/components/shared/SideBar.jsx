@@ -87,6 +87,7 @@ const Sidebar = ({ profileComplete = true }) => {
   const handleItemClick = (item) => {
     if (item.hasChildren) {
       setExpandedSections((prev) => ({ ...prev, [item.id]: !prev[item.id] }));
+      if (item.path) navigate(item.path);
     } else if (item.path) {
       navigate(item.path);
     }

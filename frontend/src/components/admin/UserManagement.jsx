@@ -11,7 +11,18 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
 
 const fetchUsers = async () => {
   const { users } = await getAllUsers();
@@ -30,6 +41,7 @@ const UserManagement = () => {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     fetchUsers().then(setUsers);
@@ -133,10 +145,18 @@ const UserManagement = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!id) return;
-    await deleteUser(id);
-    fetchUsers().then(setUsers);
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteUser(deleteTarget._id || deleteTarget.id);
+      setDeleteTarget(null);
+      fetchUsers().then(setUsers);
+    } catch (error) {
+      setDeleteTarget(null);
+      toast.error(
+        error.response?.data?.detail || 'Erreur lors de la suppression.',
+      );
+    }
   };
 
   const { isDarkMode } = useTheme();
@@ -353,7 +373,7 @@ const UserManagement = () => {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => handleDelete(user._id || user.id)}
+                    onClick={() => setDeleteTarget(user)}
                   >
                     Delete
                   </Button>
@@ -363,6 +383,31 @@ const UserManagement = () => {
           </tbody>
         </table>
       </div>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'utilisateur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vous allez supprimer{' '}
+              <span className="font-semibold">{deleteTarget?.full_name}</span> (
+              {deleteTarget?.email}). Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.database import get_company_collection, get_database, get_firm_collection
 from app.models.firm import FirmAdminCreate
-from app.utils.auth import generate_random_password, get_current_user, hash_password, require_admin
+from app.utils.auth import (
+    generate_random_password,
+    get_current_user,
+    hash_password,
+    require_admin,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +94,27 @@ def create_firm(data: FirmAdminCreate, current_user: dict = Depends(require_admi
     }
 
 
+@router.get("/{firm_id}/inventory")
+def get_firm_inventory(firm_id: str, current_user: dict = Depends(require_admin)):
+    try:
+        oid = ObjectId(firm_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid firm ID")
+    if not get_firm_collection().find_one({"_id": oid}):
+        raise HTTPException(status_code=404, detail="Firm not found")
+    db = get_database()
+    company_ids = [
+        str(c["_id"])
+        for c in db["company_profile"].find({"firm_id": firm_id}, {"_id": 1})
+    ]
+    return {
+        "users": db["users"].count_documents({"firm_id": firm_id}),
+        "companies": len(company_ids),
+        "invoices": db["invoices"].count_documents({"company_id": {"$in": company_ids}}) if company_ids else 0,
+        "contacts": db["contacts"].count_documents({"company_id": {"$in": company_ids}}) if company_ids else 0,
+    }
+
+
 @router.delete("/{firm_id}", status_code=204)
 def delete_firm(firm_id: str, current_user: dict = Depends(require_admin)):
     try:
@@ -97,5 +123,15 @@ def delete_firm(firm_id: str, current_user: dict = Depends(require_admin)):
         raise HTTPException(status_code=400, detail="Invalid firm ID")
     if not get_firm_collection().find_one({"_id": oid}):
         raise HTTPException(status_code=404, detail="Firm not found")
+    db = get_database()
+    company_ids = [
+        str(c["_id"])
+        for c in db["company_profile"].find({"firm_id": firm_id}, {"_id": 1})
+    ]
+    if company_ids:
+        db["invoices"].delete_many({"company_id": {"$in": company_ids}})
+        db["contacts"].delete_many({"company_id": {"$in": company_ids}})
+        db["company_profile"].delete_many({"firm_id": firm_id})
+    db["users"].delete_many({"firm_id": firm_id})
     get_firm_collection().delete_one({"_id": oid})
-    logger.info("Firm %s deleted by %s", firm_id, current_user["username"])
+    logger.info("Firm %s and all its data deleted by %s", firm_id, current_user["username"])
