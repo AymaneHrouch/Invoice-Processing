@@ -99,7 +99,7 @@ def get_amount_growth(currency: Literal["MAD", "USD", "EUR"] = "MAD"):
         "growth_rate_percent": round(growth, 2),
         "currency": currency
     }
-def get_top_vendors(limit=5, currency: Literal["MAD", "USD", "EUR"] = "MAD", direction: str | None = None):
+def get_top_vendors(limit=5, currency: Literal["MAD", "USD", "EUR"] = "MAD", direction: str | None = None, company_id: str | None = None):
     if currency not in EXCHANGE_RATES:
         raise ValueError(f"Unsupported currency: {currency}")
 
@@ -109,6 +109,8 @@ def get_top_vendors(limit=5, currency: Literal["MAD", "USD", "EUR"] = "MAD", dir
     }
     if direction:
         query["direction"] = direction
+    if company_id:
+        query["company_id"] = company_id
 
     invoices = invoice_collection.find(query)
 
@@ -410,15 +412,18 @@ def get_monthly_chart_data(currency: Literal["MAD", "USD", "EUR"] = "MAD", perio
 
     return months_data
 
-def get_a_encaisser(limit: int = 10):
+def get_a_encaisser(limit: int = 10, company_id: str | None = None):
     """Unpaid outgoing invoices (Ventes) — what clients owe us."""
     today = datetime.now()
-    cursor = invoice_collection.find({
+    query: dict = {
         "direction": "outgoing",
         "is_paid": {"$ne": True},
         "status": {"$nin": ["draft"]},
         "is_archived": {"$ne": True},
-    }).sort("invoice_due_date", 1).limit(limit)
+    }
+    if company_id:
+        query["company_id"] = company_id
+    cursor = invoice_collection.find(query).sort("invoice_due_date", 1).limit(limit)
 
     items = []
     total_amount = 0.0
@@ -453,15 +458,18 @@ def get_a_encaisser(limit: int = 10):
     }
 
 
-def get_a_payer(limit: int = 10):
+def get_a_payer(limit: int = 10, company_id: str | None = None):
     """Unpaid incoming invoices (Achats) — what we owe suppliers."""
     today = datetime.now()
-    cursor = invoice_collection.find({
+    query: dict = {
         "direction": "incoming",
         "is_paid": {"$ne": True},
         "status": {"$in": ["validated", "sent", "extracted"]},
         "is_archived": {"$ne": True},
-    }).sort("invoice_due_date", 1).limit(limit)
+    }
+    if company_id:
+        query["company_id"] = company_id
+    cursor = invoice_collection.find(query).sort("invoice_due_date", 1).limit(limit)
 
     items = []
     total_amount = 0.0
@@ -495,12 +503,14 @@ def get_a_payer(limit: int = 10):
     }
 
 
-def get_pme_kpis():
+def get_pme_kpis(company_id: str | None = None):
     """PME KPIs: CA Ventes ce mois, Dépenses Achats ce mois, Ventes brouillons, Achats à valider."""
     now = datetime.now()
     this_month = datetime(now.year, now.month, 1)
     next_month = datetime(now.year + (now.month == 12), (now.month % 12) + 1, 1)
     base_filter: dict = {"is_archived": {"$ne": True}}
+    if company_id:
+        base_filter["company_id"] = company_id
 
     pipeline_ventes = [
         {"$match": {
@@ -547,7 +557,7 @@ def get_pme_kpis():
     }
 
 
-def get_tva_balance(year: int | None = None, quarter: int | None = None):
+def get_tva_balance(year: int | None = None, quarter: int | None = None, company_id: str | None = None):
     """TVA collectée (Ventes) vs TVA déductible (Achats).
 
     - year + quarter (0-based): single quarter
@@ -573,13 +583,16 @@ def get_tva_balance(year: int | None = None, quarter: int | None = None):
         period_label = f"Année {year}"
 
     def sum_tva(direction, statuses):
+        match: dict = {
+            "direction": direction,
+            "status": {"$in": statuses},
+            "invoice_date": {"$gte": quarter_start, "$lt": quarter_end},
+            "amount_tva": {"$ne": None},
+        }
+        if company_id:
+            match["company_id"] = company_id
         pipeline = [
-            {"$match": {
-                "direction": direction,
-                "status": {"$in": statuses},
-                "invoice_date": {"$gte": quarter_start, "$lt": quarter_end},
-                "amount_tva": {"$ne": None},
-            }},
+            {"$match": match},
             {"$group": {"_id": None, "total": {"$sum": "$amount_tva"}}},
         ]
         result = list(invoice_collection.aggregate(pipeline))
@@ -694,15 +707,18 @@ def get_weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: s
 _OBJECTID_RE = __import__("re").compile(r"^[a-f0-9]{24}$")
 
 
-def get_recent_activity(limit: int = 15) -> list:
+def get_recent_activity(limit: int = 15, company_id: str | None = None) -> list:
     """
     Return the most recent audit-trail events across all invoices by
     unwinding each invoice's history array and sorting newest-first.
     ObjectId user values (from entries recorded before username was added
     to the JWT) are resolved to emails via a batch users lookup.
     """
+    match: dict = {"is_archived": {"$ne": True}, "history": {"$exists": True, "$ne": []}}
+    if company_id:
+        match["company_id"] = company_id
     pipeline = [
-        {"$match": {"is_archived": {"$ne": True}, "history": {"$exists": True, "$ne": []}}},
+        {"$match": match},
         {"$project": {
             "invoice_number": 1,
             "vendor_name": 1,
@@ -734,6 +750,7 @@ def get_recent_activity(limit: int = 15) -> list:
         raw_ids = {r["user"] for r in results if _OBJECTID_RE.match(r.get("user") or "")}
         if raw_ids:
             from bson import ObjectId
+
             from app.database import get_database
             users_col = get_database()["users"]
             user_map = {

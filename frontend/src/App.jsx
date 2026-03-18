@@ -154,6 +154,14 @@ function App() {
               }
             />
             <Route
+              path="/company/new"
+              element={
+                <ProtectedRoute>
+                  <CompanyProfilePage createMode />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/contacts"
               element={
                 <ProtectedRoute>

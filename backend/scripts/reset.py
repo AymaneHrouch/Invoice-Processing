@@ -107,7 +107,7 @@ def _invoice(
     invoice_number, direction, vendor_name, vendor_ice,
     client_name, client_ice, items, tva, status,
     invoice_date, due_date=None, category="services",
-    is_paid=False, currency="MAD",
+    is_paid=False, currency="MAD", company_id=None,
 ):
     subtotal = sum(i["quantity"] * i["unit_price"] for i in items)
     tva_amount = round(subtotal * tva / 100, 2)
@@ -150,6 +150,7 @@ def _invoice(
         "history": history,
         "created_at": invoice_date,
         "updated_at": last_action_at,
+        **({"company_id": company_id} if company_id else {}),
     }
 
 
@@ -325,7 +326,7 @@ def reset(db):
 
 def seed(db):
     # ── Company profile ───────────────────────────────────────────────────────
-    db["company_profile"].insert_one({
+    company_result = db["company_profile"].insert_one({
         "company_name": COMPANY_NAME,
         "legal_form": "SARL",
         "ice": COMPANY_ICE,
@@ -350,7 +351,8 @@ def seed(db):
         "created_at": _now(),
         "updated_at": _now(),
     })
-    print("[OK] Company profile inserted.")
+    COMPANY_ID = str(company_result.inserted_id)
+    print(f"[OK] Company profile inserted (id={COMPANY_ID}).")
 
     # ── Contacts ──────────────────────────────────────────────────────────────
     contacts = []
@@ -364,6 +366,7 @@ def seed(db):
             "phone": phone,
             "city": city,
             "address": address,
+            "company_id": COMPANY_ID,
             "created_at": _now(),
         })
     for name, ice, phone, city, address in SUPPLIERS:
@@ -377,6 +380,7 @@ def seed(db):
             "phone": phone,
             "city": city,
             "address": address,
+            "company_id": COMPANY_ID,
             "created_at": _now(),
         })
     db["contacts"].insert_many(contacts)
@@ -476,6 +480,7 @@ def seed(db):
             items=items, tva=tva_pct, status=status,
             invoice_date=inv_date, due_date=due_date,
             category=cat, is_paid=(status == "paid"),
+            company_id=COMPANY_ID,
         ))
 
     db["invoices"].insert_many(ventes)
@@ -560,6 +565,7 @@ def seed(db):
             items=items, tva=tva_pct, status=status,
             invoice_date=inv_date, due_date=due_date,
             category=cat, is_paid=(status == "paid"),
+            company_id=COMPANY_ID,
         ))
 
     db["invoices"].insert_many(achats)

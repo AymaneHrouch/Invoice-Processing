@@ -21,3 +21,12 @@ export const getCurrentUser = async () => {
   const response = await api.get('/auth/me', authConfig);
   return response.data;
 };
+
+export const switchCompany = async (companyId) => {
+  const response = await api.post(
+    `/auth/switch-company/${companyId}`,
+    {},
+    getAuthConfig(),
+  );
+  return response.data;
+};

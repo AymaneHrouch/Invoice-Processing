@@ -80,6 +80,9 @@ class Invoice(BaseModel):
     paid_at: datetime | None = None
     exported_at: datetime | None = None
 
+    # Multi-company scoping
+    company_id: str | None = Field(default=None, description="Company this invoice belongs to")
+
     @field_validator("id", mode="before")
     @classmethod
     def validate_object_id(cls, v):
@@ -139,6 +142,9 @@ class InvoiceCreate(BaseModel):
     is_paid: bool = Field(default=False, description="Payment confirmed")
     is_archived: bool = Field(default=False, description="Hidden from main list")
     direction: str = Field(default="incoming", description="incoming or outgoing")
+
+    # Multi-company scoping
+    company_id: str | None = Field(default=None, description="Company this invoice belongs to")
 
     @model_validator(mode="after")
     def sync_vendor_ice(self):
@@ -287,3 +293,5 @@ class InvoiceResponse(BaseModel):
     is_overdue: bool | None = None
     # Audit trail — only populated by the /history endpoint
     history: list[dict] | None = None
+    # Multi-company scoping
+    company_id: str | None = None

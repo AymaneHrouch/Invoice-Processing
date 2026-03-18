@@ -128,12 +128,15 @@ class InvoiceCRUD:
             start_date: datetime | None = None,
             end_date: datetime | None = None,
             overdue: bool | None = None,
+            company_id: str | None = None,
     ):
         """Get all invoices with optional filtering. Excludes archived by default."""
         try:
             collection = get_invoices_collection()
             # Build filter query
             filter_query: dict = {}
+            if company_id:
+                filter_query["company_id"] = company_id
             if not include_archived:
                 filter_query["is_archived"] = {"$ne": True}
             if status:
@@ -197,11 +200,14 @@ class InvoiceCRUD:
             direction: str | None = None,
             sort_by: str = "created_at",
             order: Literal["asc", "desc"] = "desc",
+            company_id: str | None = None,
     ) -> list[Invoice]:
         """Get all invoices matching filters for export (no pagination)."""
         try:
             collection = get_invoices_collection()
             filter_query = {}
+            if company_id:
+                filter_query["company_id"] = company_id
             if not include_archived:
                 filter_query["is_archived"] = {"$ne": True}
             if status:

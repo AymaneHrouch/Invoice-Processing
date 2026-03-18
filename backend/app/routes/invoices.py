@@ -68,9 +68,10 @@ def _source_type_from_filename(filename: str) -> str:
 # ============= CREATE ENDPOINTS =============
 
 @router.post("/", response_model=InvoiceResponse, summary="Create a new invoice")
-def create_invoice(invoice_data: InvoiceCreate):
+def create_invoice(invoice_data: InvoiceCreate, current_user: dict = Depends(get_current_user)):
     """Create a new invoice with all required fields"""
     try:
+        invoice_data.company_id = current_user.get("company_id")
         logger.info("Creating invoice: %s", invoice_data.invoice_number)
         invoice = InvoiceCRUD.create_invoice(invoice_data)
         if not invoice:
@@ -90,6 +91,7 @@ def create_invoice(invoice_data: InvoiceCreate):
 async def handle_upload_files(
     files: list[UploadFile] = File(...),
     direction: str = Query("incoming", description="Invoice direction: incoming or outgoing"),
+    current_user: dict = Depends(get_current_user),
 ):
 
     extracted_data = []
@@ -119,6 +121,7 @@ async def handle_upload_files(
                 source_type=source_type,
                 status="extracted",
                 direction=direction,
+                company_id=current_user.get("company_id"),
             )
             saved_invoice = InvoiceCRUD.create_invoice(invoice_create)
             logger.info("Saved invoice from %s with ID: %s", file.filename, saved_invoice.id)
@@ -161,6 +164,7 @@ def export_achats(
         is_exported=is_exported,
         include_archived=include_archived,
         filename_prefix="achats",
+        company_id=current_user.get("company_id"),
     )
 
 
@@ -193,6 +197,7 @@ def _do_export(
     is_exported: bool | None,
     include_archived: bool,
     filename_prefix: str,
+    company_id: str | None = None,
 ):
     try:
         from openpyxl import Workbook
@@ -204,6 +209,7 @@ def _do_export(
             is_exported=is_exported,
             include_archived=include_archived,
             direction=direction,
+            company_id=company_id,
         )
 
         wb = Workbook()
@@ -277,6 +283,7 @@ def get_invoices(
         start_date: datetime | None = Query(None, description="Filter invoices on or after this date (YYYY-MM-DD)"),
         end_date: datetime | None = Query(None, description="Filter invoices on or before this date (YYYY-MM-DD)"),
         overdue: bool | None = Query(None, description="If true, return only overdue invoices (due_date < today and not paid)"),
+        current_user: dict = Depends(get_current_user),
 ):
     """
     Get all invoices with optional filtering and pagination
@@ -303,6 +310,7 @@ def get_invoices(
             start_date=start_date,
             end_date=end_date,
             overdue=overdue,
+            company_id=current_user.get("company_id"),
         )
         response.headers["X-Total-Count"] = str(result["total"])
         response.headers["X-Total-Pages"] = str(result["total_pages"])

@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { sidebarItems } from '@/constants';
 import { useAuth, useTheme } from '@/contexts';
 import { getContacts } from '@/api/contacts';
 
 import {
-  FileText,
+  Building2,
+  Check,
+  ChevronsUpDown,
   LogOut,
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
 } from 'lucide-react';
 import Cookies from 'js-cookie';
 
@@ -27,9 +30,22 @@ const Sidebar = ({ profileComplete = true }) => {
     client: 0,
     supplier: 0,
   });
-  const { logout, user } = useAuth();
+  const [companySwitcherOpen, setCompanySwitcherOpen] = useState(false);
+  const switcherRef = useRef(null);
+  const { logout, user, companies, activeCompany, switchCompany } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Close switcher on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (switcherRef.current && !switcherRef.current.contains(e.target)) {
+        setCompanySwitcherOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   useEffect(() => {
     getContacts()
@@ -256,6 +272,83 @@ const Sidebar = ({ profileComplete = true }) => {
           )}
         </button>
       </div>
+
+      {/* Company switcher */}
+      {!isCollapsed && companies.length > 0 && (
+        <div
+          ref={switcherRef}
+          className={`px-3 pb-3 relative border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
+        >
+          <button
+            onClick={() => setCompanySwitcherOpen((o) => !o)}
+            className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm transition-colors ${
+              isDarkMode
+                ? 'hover:bg-gray-700 text-gray-200'
+                : 'hover:bg-gray-100 text-gray-700'
+            }`}
+          >
+            <div
+              className={`p-1 rounded-md ${isDarkMode ? 'bg-blue-900/40' : 'bg-blue-50'}`}
+            >
+              <Building2 className="w-3.5 h-3.5 text-blue-500" />
+            </div>
+            <span className="flex-1 text-left truncate font-medium text-xs">
+              {activeCompany?.company_name || 'Sélectionner une entreprise'}
+            </span>
+            <ChevronsUpDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+          </button>
+
+          {companySwitcherOpen && (
+            <div
+              className={`absolute left-3 right-3 top-full z-50 mt-1 rounded-lg border shadow-lg overflow-hidden ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
+              }`}
+            >
+              {companies.map((c) => (
+                <button
+                  key={c._id}
+                  onClick={() => {
+                    setCompanySwitcherOpen(false);
+                    switchCompany(c._id);
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors text-left ${
+                    isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <span
+                    className={`flex-1 truncate ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
+                  >
+                    {c.company_name}
+                  </span>
+                  {activeCompany?._id === c._id && (
+                    <Check className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  )}
+                </button>
+              ))}
+              <div
+                className={`border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-100'}`}
+              >
+                <button
+                  onClick={() => {
+                    setCompanySwitcherOpen(false);
+                    navigate('/company/new');
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors text-left ${
+                    isDarkMode
+                      ? 'hover:bg-gray-700 text-gray-400'
+                      : 'hover:bg-gray-50 text-gray-500'
+                  }`}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Nouvelle entreprise
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">

@@ -4,7 +4,9 @@ import {
   login as apiLogin,
   register as apiRegister,
   getCurrentUser,
+  switchCompany as apiSwitchCompany,
 } from '@/api';
+import { listCompanies } from '@/api/company';
 import { getAuthToken, removeAuthToken, setAuthToken } from '@/utils/auth';
 
 const AuthContext = createContext();
@@ -19,6 +21,8 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [companies, setCompanies] = useState([]);
+  const [activeCompany, setActiveCompany] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -39,6 +43,21 @@ export const AuthProvider = ({ children }) => {
       const userData = await getCurrentUser();
       setUser(userData);
       setError(null);
+      // Load companies list and resolve active company from JWT
+      try {
+        const allCompanies = await listCompanies();
+        setCompanies(allCompanies);
+        const token = getAuthToken();
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const cid = payload.company_id;
+          const found =
+            allCompanies.find((c) => c._id === cid) || allCompanies[0] || null;
+          setActiveCompany(found);
+        }
+      } catch {
+        // Non-fatal — companies may not exist yet
+      }
     } catch (err) {
       console.error('Failed to fetch user:', err);
       logout();
@@ -93,8 +112,24 @@ export const AuthProvider = ({ children }) => {
     navigate('/login');
   };
 
+  const switchCompany = async (companyId) => {
+    try {
+      const { access_token } = await apiSwitchCompany(companyId);
+      setAuthToken(access_token);
+      const found = companies.find((c) => c._id === companyId) || null;
+      setActiveCompany(found);
+      // Reload the page so all data re-fetches with the new company scope
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to switch company:', err);
+    }
+  };
+
   const value = {
     user,
+    companies,
+    activeCompany,
+    switchCompany,
     loading,
     error,
     login,

@@ -1,10 +1,11 @@
-import logging
 from datetime import UTC, datetime
+import logging
 
+from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.database import get_company_collection
-from app.models.company import CompanyProfile, CompanyProfileUpdate
+from app.models.company import CompanyProfileUpdate
 from app.utils.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -22,51 +23,96 @@ def _serialize(doc: dict) -> dict:
     return doc
 
 
+def _get_company_or_404(company_id: str) -> dict:
+    try:
+        oid = ObjectId(company_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid company ID")
+    doc = get_company_collection().find_one({"_id": oid})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return doc
+
+
+# ── List all companies ────────────────────────────────────────────────────────
+
+@router.get("")
+def list_companies(current_user: dict = Depends(get_current_user)):
+    docs = list(get_company_collection().find({}).sort("created_at", 1))
+    return [_serialize(doc) for doc in docs]
+
+
+# ── Create a new company ──────────────────────────────────────────────────────
+
+@router.post("", status_code=201)
+def create_company(
+    data: CompanyProfileUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    required = {"company_name", "ice", "address", "city"}
+    payload = {k: v for k, v in data.model_dump().items() if v is not None}
+    missing = required - set(payload.keys())
+    if missing:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Missing required fields: {', '.join(missing)}",
+        )
+    payload["created_at"] = datetime.now(UTC)
+    result = get_company_collection().insert_one(payload)
+    doc = get_company_collection().find_one({"_id": result.inserted_id})
+    logger.info("Company created by user %s: %s", current_user.get("user_id"), payload.get("company_name"))
+    return _serialize(doc)
+
+
+# ── Get active company (from JWT company_id) ─────────────────────────────────
+
+@router.get("/active")
+def get_active_company(current_user: dict = Depends(get_current_user)):
+    company_id = current_user.get("company_id")
+    if not company_id:
+        raise HTTPException(status_code=404, detail="No active company in token")
+    return _serialize(_get_company_or_404(company_id))
+
+
+# ── Get categories for active company ────────────────────────────────────────
+
 @router.get("/categories")
 def get_company_categories(current_user: dict = Depends(get_current_user)):
-    collection = get_company_collection()
-    doc = collection.find_one({}, {"categories": 1})
+    company_id = current_user.get("company_id")
+    if company_id:
+        try:
+            doc = get_company_collection().find_one({"_id": ObjectId(company_id)}, {"categories": 1})
+        except Exception:
+            doc = None
+    else:
+        doc = get_company_collection().find_one({}, {"categories": 1})
     if not doc or not doc.get("categories"):
         return DEFAULT_CATEGORIES
     return doc["categories"]
 
 
-@router.get("")
-def get_company_profile(current_user: dict = Depends(get_current_user)):
-    collection = get_company_collection()
-    doc = collection.find_one({})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Company profile not found")
-    return _serialize(doc)
+# ── Get a specific company by ID ──────────────────────────────────────────────
+
+@router.get("/{company_id}")
+def get_company(
+    company_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    return _serialize(_get_company_or_404(company_id))
 
 
-@router.put("")
-def upsert_company_profile(
+# ── Update a specific company ─────────────────────────────────────────────────
+
+@router.put("/{company_id}")
+def update_company(
+    company_id: str,
     data: CompanyProfileUpdate,
     current_user: dict = Depends(get_current_user),
 ):
-    collection = get_company_collection()
-    existing = collection.find_one({})
-
+    doc = _get_company_or_404(company_id)
     update_data = {k: v for k, v in data.model_dump().items() if v is not None or isinstance(v, list)}
     update_data["updated_at"] = datetime.now(UTC)
-
-    if existing:
-        collection.update_one({"_id": existing["_id"]}, {"$set": update_data})
-        doc = collection.find_one({"_id": existing["_id"]})
-    else:
-        # First time — require the mandatory fields
-        required = {"company_name", "ice", "address", "city"}
-        missing = required - set(update_data.keys())
-        if missing:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Missing required fields for initial setup: {', '.join(missing)}",
-            )
-        update_data["created_at"] = datetime.now(UTC)
-        update_data.pop("updated_at", None)
-        result = collection.insert_one(update_data)
-        doc = collection.find_one({"_id": result.inserted_id})
-
-    logger.info("Company profile upserted by user %s", current_user.get("user_id"))
-    return _serialize(doc)
+    get_company_collection().update_one({"_id": doc["_id"]}, {"$set": update_data})
+    updated = get_company_collection().find_one({"_id": doc["_id"]})
+    logger.info("Company %s updated by user %s", company_id, current_user.get("user_id"))
+    return _serialize(updated)

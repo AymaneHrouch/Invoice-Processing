@@ -4,7 +4,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.database import get_database
+from app.database import get_company_collection, get_database
 from app.models.user import UserRegister
 from app.utils.auth import (
     create_access_token,
@@ -19,6 +19,12 @@ db = get_database()
 user_collection = db["users"]
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+def _first_company_id() -> str | None:
+    """Return the _id of the first company document, or None if none exist."""
+    doc = get_company_collection().find_one({}, {"_id": 1})
+    return str(doc["_id"]) if doc else None
 
 
 @router.post("/register")
@@ -39,7 +45,7 @@ async def register(user: UserRegister):
     result = user_collection.insert_one(new_user)
     logger.info("User registered: %s", user.email)
 
-    token = create_access_token({"sub": str(result.inserted_id), "role": new_user["role"], "username": new_user["email"]})
+    token = create_access_token({"sub": str(result.inserted_id), "role": new_user["role"], "username": new_user["email"], "company_id": _first_company_id()})
 
     return {
         "message": "User registered successfully",
@@ -54,8 +60,30 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
         logger.warning("Failed login attempt for: %s", form_data.username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_access_token({"sub": str(db_user["_id"]), "role": db_user["role"], "username": db_user.get("email", "")})
+    token = create_access_token({"sub": str(db_user["_id"]), "role": db_user["role"], "username": db_user.get("email", ""), "company_id": _first_company_id()})
     logger.info("User logged in: %s", form_data.username)
+    return {"access_token": token, "token_type": "bearer"}
+
+
+@router.post("/switch-company/{company_id}")
+def switch_company(
+    company_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Return a new JWT scoped to a different company."""
+    try:
+        doc = get_company_collection().find_one({"_id": ObjectId(company_id)}, {"_id": 1})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid company ID")
+    if not doc:
+        raise HTTPException(status_code=404, detail="Company not found")
+    token = create_access_token({
+        "sub": current_user["user_id"],
+        "role": current_user["role"],
+        "username": current_user["username"],
+        "company_id": company_id,
+    })
+    logger.info("User %s switched to company %s", current_user["username"], company_id)
     return {"access_token": token, "token_type": "bearer"}
 
 

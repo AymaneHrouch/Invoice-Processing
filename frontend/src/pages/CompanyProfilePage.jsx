@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Building2, Save, X, Plus, Palette } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTheme } from '@/contexts';
-import { getCompanyProfile, upsertCompanyProfile } from '@/api/company';
+import { getActiveCompany, updateCompany, createCompany } from '@/api/company';
+import { switchCompany as apiSwitchCompany } from '@/api/auth';
+import { setAuthToken } from '@/utils/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,10 +38,12 @@ const Field = ({ label, id, children }) => (
   </div>
 );
 
-export default function CompanyProfilePage() {
+export default function CompanyProfilePage({ createMode = false }) {
   const { isDarkMode } = useTheme();
   const { state } = useLocation();
+  const navigate = useNavigate();
   const isOnboarding = state?.onboarding === true;
+  const [companyId, setCompanyId] = useState(null);
 
   const [form, setForm] = useState({
     company_name: '',
@@ -72,8 +76,13 @@ export default function CompanyProfilePage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    getCompanyProfile()
+    if (createMode) {
+      setLoading(false);
+      return;
+    }
+    getActiveCompany()
       .then((data) => {
+        setCompanyId(data._id);
         setForm((prev) => ({ ...prev, ...data }));
         if (Array.isArray(data.categories) && data.categories.length > 0) {
           setCategories(data.categories);
@@ -85,7 +94,7 @@ export default function CompanyProfilePage() {
         }
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [createMode]);
 
   const set = (field) => (e) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -95,9 +104,18 @@ export default function CompanyProfilePage() {
     setSaving(true);
     setError(null);
     try {
-      const saved = await upsertCompanyProfile({ ...form, categories });
-      setForm((prev) => ({ ...prev, ...saved }));
-      toast.success('Profil enregistré avec succès.');
+      if (createMode) {
+        const created = await createCompany({ ...form, categories });
+        const { access_token } = await apiSwitchCompany(created._id);
+        setAuthToken(access_token);
+        toast.success('Entreprise créée avec succès.');
+        navigate('/company');
+        window.location.reload();
+      } else {
+        const saved = await updateCompany(companyId, { ...form, categories });
+        setForm((prev) => ({ ...prev, ...saved }));
+        toast.success('Profil enregistré avec succès.');
+      }
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to save company profile.');
     } finally {
@@ -125,7 +143,9 @@ export default function CompanyProfilePage() {
           <h1
             className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
           >
-            Mon Entreprise
+            {createMode
+              ? 'Nouvelle entreprise'
+              : form.company_name || 'Mon Entreprise'}
           </h1>
           <p
             className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}

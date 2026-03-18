@@ -28,6 +28,10 @@ def list_contacts(
     collection = get_contacts_collection()
     query: dict = {}
 
+    company_id = current_user.get("company_id")
+    if company_id:
+        query["company_id"] = company_id
+
     if type in ("client", "supplier"):
         query["contact_type"] = type
 
@@ -50,6 +54,9 @@ def create_contact(
     collection = get_contacts_collection()
     doc = data.model_dump()
     doc["created_at"] = datetime.now(UTC)
+    company_id = current_user.get("company_id")
+    if company_id:
+        doc["company_id"] = company_id
     result = collection.insert_one(doc)
     created = collection.find_one({"_id": result.inserted_id})
     logger.info("Contact created: %s by user %s", data.name, current_user.get("user_id"))
@@ -107,9 +114,15 @@ def get_invoice_summaries(current_user: dict = Depends(get_current_user)):
     contacts_col = get_contacts_collection()
     invoices_col = get_invoices_collection()
 
-    contacts = list(contacts_col.find({}, {"_id": 1, "name": 1}))
+    company_id = current_user.get("company_id")
+    contact_query = {"company_id": company_id} if company_id else {}
+    invoice_query = {"is_archived": {"$ne": True}}
+    if company_id:
+        invoice_query["company_id"] = company_id
+
+    contacts = list(contacts_col.find(contact_query, {"_id": 1, "name": 1}))
     all_invoices = list(invoices_col.find(
-        {"is_archived": {"$ne": True}},
+        invoice_query,
         {"contact_id": 1, "vendor_name": 1, "client_name": 1, "total_amount": 1},
     ))
 
@@ -157,7 +170,11 @@ def get_contact_invoices(
     contact_name = contact.get("name", "")
     name_pattern = re.compile(f"^{re.escape(contact_name)}$", re.IGNORECASE)
 
-    query = {"$or": [
+    company_id = current_user.get("company_id")
+    base: dict = {}
+    if company_id:
+        base["company_id"] = company_id
+    query = {**base, "$or": [
         {"contact_id": contact_id},
         {"vendor_name": name_pattern},
         {"client_name": name_pattern},

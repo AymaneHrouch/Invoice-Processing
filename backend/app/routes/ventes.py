@@ -53,10 +53,14 @@ def _to_response(invoice) -> InvoiceResponse:
     return InvoiceResponse(**payload)
 
 
-def _generate_next_number(col) -> str:
+def _generate_next_number(col, company_id: str) -> str:
     """Atomically get next sequential invoice number from company profile."""
     year = datetime.now(UTC).year
-    doc = col.find_one({})
+    try:
+        oid = ObjectId(company_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid company ID in token.")
+    doc = col.find_one({"_id": oid})
     if not doc:
         raise HTTPException(
             status_code=400,
@@ -67,12 +71,12 @@ def _generate_next_number(col) -> str:
 
     if doc.get("invoice_year") != year:
         # New year — reset counter
-        col.update_one({}, {"$set": {"invoice_year": year, "next_invoice_number": 2}})
+        col.update_one({"_id": oid}, {"$set": {"invoice_year": year, "next_invoice_number": 2}})
         return f"{prefix}-{year}-001"
 
     # Atomic increment — find_one_and_update returns doc BEFORE update
     before = col.find_one_and_update(
-        {},
+        {"_id": oid},
         {"$inc": {"next_invoice_number": 1}},
         return_document=False,
     )
@@ -86,7 +90,13 @@ def _generate_next_number(col) -> str:
 def get_next_number(current_user: dict = Depends(get_current_user)):
     """Preview the next invoice number without consuming it."""
     col = get_company_collection()
-    doc = col.find_one({})
+    company_id = current_user.get("company_id")
+    if not company_id:
+        raise HTTPException(status_code=400, detail="Aucune entreprise active.")
+    try:
+        doc = col.find_one({"_id": ObjectId(company_id)})
+    except Exception:
+        doc = None
     if not doc:
         raise HTTPException(status_code=400, detail="Profil entreprise non configuré.")
     prefix = doc.get("invoice_prefix") or "FAC"
@@ -103,12 +113,18 @@ def create_vente(
     current_user: dict = Depends(get_current_user),
 ):
     """Create a new outgoing invoice as draft with auto-generated sequential number."""
+    company_id = current_user.get("company_id")
+    if not company_id:
+        raise HTTPException(status_code=400, detail="Aucune entreprise active.")
     col = get_company_collection()
-    company = col.find_one({})
+    try:
+        company = col.find_one({"_id": ObjectId(company_id)})
+    except Exception:
+        company = None
     if not company:
         raise HTTPException(status_code=400, detail="Profil entreprise non configuré.")
 
-    invoice_number = _generate_next_number(col)
+    invoice_number = _generate_next_number(col, company_id)
 
     invoice_create = InvoiceCreate(
         invoice_number=invoice_number,
@@ -130,6 +146,7 @@ def create_vente(
         source_type="manual",
         status="draft",
         direction="outgoing",
+        company_id=company_id,
     )
 
     try:
@@ -166,6 +183,7 @@ def list_ventes(
         is_exported=is_exported,
         include_archived=include_archived,
         direction="outgoing",
+        company_id=current_user.get("company_id"),
     )
     response.headers["X-Total-Count"] = str(result["total"])
     response.headers["X-Total-Pages"] = str(result["total_pages"])
@@ -391,7 +409,8 @@ def download_vente_pdf(
         raise HTTPException(status_code=404, detail="Facture introuvable.")
 
     col = get_company_collection()
-    company = col.find_one({}) or {}
+    company_id = current_user.get("company_id")
+    company = (col.find_one({"_id": ObjectId(company_id)}) if company_id else col.find_one({})) or {}
 
     # Enrich invoice with contact details (address, phone, email) for the PDF
     if inv.contact_id:
@@ -437,6 +456,7 @@ def export_ventes(
             is_exported=is_exported,
             include_archived=include_archived,
             direction="outgoing",
+            company_id=current_user.get("company_id"),
         )
 
         wb = Workbook()
