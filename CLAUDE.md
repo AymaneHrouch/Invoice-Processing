@@ -78,7 +78,7 @@ backend/
 │   │   ├── contacts.py      # Contacts CRUD
 │   │   ├── dashboard.py     # Dashboard stats + GET /recent-activity
 │   │   ├── auth.py          # Login/register (JWT includes username, firm_id fields)
-│   │   ├── firms.py         # Firms CRUD (ADMIN only) + GET /firms/me (any auth)
+│   │   ├── firms.py         # Firms CRUD (ADMIN only) + GET /firms/me + GET /firms/{id}/inventory
 │   │   ├── users.py         # User management — FIRM_ADMIN scoped to own firm
 │   │   └── health.py        # Health check
 │   ├── services/
@@ -107,14 +107,14 @@ frontend/
 │   │   ├── company.js       # Company profile API
 │   │   ├── contacts.js      # Contacts API
 │   │   ├── dashboard.js     # Dashboard API (getPmeKpis, getTopVendors, getAEncaisser, getAPayer, getTvaBalance, getRecentActivity)
-│   │   ├── firms.js         # listFirms, createFirm, deleteFirm, getMyFirm
+│   │   ├── firms.js         # listFirms, createFirm, deleteFirm, getFirmInventory, getMyFirm
 │   │   └── auth.js          # Auth API
 │   ├── components/
 │   │   ├── shared/          # NavBar, SideBar
 │   │   ├── invoice/
 │   │   │   ├── invoice-add/     # UploadCard, AutoInvoice, ManualInvoice, InvoiceItems
 │   │   │   └── invoice-listing/ # InvoiceRow, EditInvoice (collapsible history timeline), InvoiceExpandedRow (inline history), Filters, ExportConfirmDialog...
-│   │   ├── dashboard/       # RecentActivity, FinanceWidgets, TVABalanceWidget, TopVendorsWidget, WorkQueueWidgets, DashboardHeader, DashboardLoading, DashboardError
+│   │   ├── dashboard/       # RecentActivity, FinanceWidgets, TVABalanceWidget, TopVendorsWidget, WorkQueueWidgets, DashboardHeader, DashboardLoading, DashboardError, CAEvolutionWidget, AlertsWidget, TresorerieWidget, DelaiPaiementWidget, CategoryBreakdownWidget
 │   │   └── ui/              # shadcn/ui primitives
 │   ├── pages/
 │   │   ├── InvoiceListPage.jsx   # Shared list page for Achats + Ventes (direction prop)
@@ -164,11 +164,21 @@ frontend/
 
 15. **Seed script**: `scripts/reset.py` uses loop-based generation — `VENTE_PROFILES` (25 weighted client profiles) × 12-month loop + `ACHAT_PROFILES` (17 suppliers with frequency_months 1/3/6/12). `_jitter(base, pct)` adds ±25% variation. Status set by invoice age: current month → draft/validated; older → mostly paid with ~15% overdue.
 
-16. **Axios auth interceptor**: `baseApi.js` has a request interceptor that automatically attaches `Authorization: Bearer <token>` to every request from `localStorage`. Do NOT manually pass `getAuthConfig()` in API call sites — the interceptor handles it globally.: `baseApi.js` has a request interceptor that automatically attaches `Authorization: Bearer <token>` to every request from `localStorage`. Do NOT manually pass `getAuthConfig()` in API call sites — the interceptor handles it globally.
+16. **Axios auth interceptor**: `baseApi.js` has a request interceptor that automatically attaches `Authorization: Bearer <token>` to every request from `localStorage`. Do NOT manually pass `getAuthConfig()` in API call sites — the interceptor handles it globally.
 
 17. **Firm name in sidebar**: `GET /firms/me` returns `{_id, name}` for the current user's firm. Called from `AuthContext.fetchCurrentUser()` when `firm_id` is present in the JWT. Super Admin has no firm_id and skips this call. `firmName` is exposed via `useAuth()`.
 
 18. **Role-scoped access**: Super Admin (`ADMIN`) — `/firms` only, no company data. `FIRM_ADMIN` — user management + company management scoped to own firm. `USER` — regular accountant. `AdminOnly` component guards `/users` for `ADMIN`+`FIRM_ADMIN`. Sidebar filters items by role using `adminOnly`/`superAdminOnly` flags in `sidebarItems`.
+
+19. **Firm cascade delete**: `DELETE /firms/{id}` removes all firm data in order: invoices → contacts → company_profile → users → firm. `GET /firms/{id}/inventory` returns counts (users, companies, invoices, contacts) used by the frontend confirmation modal before deletion.
+
+20. **Last-admin guard**: `DELETE /users/{id}` blocks deletion if the target user is the only `FIRM_ADMIN` in their firm — returns 400 "Ce cabinet doit avoir au moins un administrateur."
+
+21. **Delete confirmations**: All destructive delete actions use shadcn `AlertDialog` (not `window.confirm`). Firm deletion modal fetches and displays live inventory counts. User deletion modal shows the user's name and email.
+
+22. **`button.jsx` cursor**: `cursor-pointer` is in the base `cva` class — applies globally to every `Button` variant across the app.
+
+23. **Sidebar parent navigation**: Achats and Ventes sidebar items have both `hasChildren: true` and a `path`. Clicking them navigates to the list page AND toggles sub-menu expansion.
 
 ## Local Development
 
