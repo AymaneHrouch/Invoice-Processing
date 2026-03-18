@@ -11,9 +11,9 @@ Auth mocked via dependency_overrides. MongoDB patched — no real DB needed.
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
-import pytest
 from bson import ObjectId
 from fastapi.testclient import TestClient
+import pytest
 
 from app.main import app
 from app.utils.auth import get_current_user

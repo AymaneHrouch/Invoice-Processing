@@ -1,8 +1,8 @@
-import re
-import hashlib
-import logging
 from datetime import date, datetime
 from decimal import Decimal
+import hashlib
+import logging
+import re
 
 from app.database import get_cache_collection
 from app.services.ocr.factory import get_invoice_parser
@@ -57,20 +57,20 @@ def get_amount_tva(text: str) -> float | None:
         # Handles "Montant TVA DH ( 20% )\n83.33"
         # Handles "Montant TVA ( Taux de 20% ) : \n74.67"
         # Handles "Montant TVA : 83.33"
-        r'MONTANT\s+TVA\b(?:[^(\n]*)?(?:\([^)]*\))?\s*[:\-]?\s*\n?\s*([\d]+[.,]\d+)',
+        r"MONTANT\s+TVA\b(?:[^(\n]*)?(?:\([^)]*\))?\s*[:\-]?\s*\n?\s*([\d]+[.,]\d+)",
         # "T.V.A 381,67"
-        r'T\.V\.A\.?\s*[:\-]?\s*([\d,.]+)',
+        r"T\.V\.A\.?\s*[:\-]?\s*([\d,.]+)",
         # "TVA 20% 381,67"
-        r'TVA\s*[\(\d%\)]*\s*[:\-]?\s*([\d,.]+)',
+        r"TVA\s*[\(\d%\)]*\s*[:\-]?\s*([\d,.]+)",
         # "Taxes 131.89" — ONEE style
-        r'(?:^|\n)\s*Taxes?\s*[:\-]?\s*([\d,.]+)',
+        r"(?:^|\n)\s*Taxes?\s*[:\-]?\s*([\d,.]+)",
     ]
 
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
         if match:
             raw = match.group(1).strip()
-            normalized = raw.replace(' ', '').replace(',', '.')
+            normalized = raw.replace(" ", "").replace(",", ".")
             try:
                 return float(normalized)
             except ValueError:
