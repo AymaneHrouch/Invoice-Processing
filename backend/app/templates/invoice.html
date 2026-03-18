@@ -266,6 +266,9 @@
   <!-- ── Header ─────────────────────────────────────────────────── -->
   <div class="header">
     <div class="header-left">
+      {% if logo_url %}
+        <img src="{{ logo_url }}" alt="Logo" style="max-height: 14mm; max-width: 50mm; margin-bottom: 3pt; display: block;" />
+      {% endif %}
       <div class="doc-title">FACTURE</div>
       <div class="doc-subtitle">
         {% if direction == 'outgoing' %}Facture de vente{% else %}Facture d'achat{% endif %}
@@ -421,6 +424,12 @@
       </div>
       {% endif %}
     </div>
+  </div>
+  {% endif %}
+
+  {% if custom_footer %}
+  <div style="margin-top: 3mm; font-size: 7.5pt; color: #6B7280; text-align: center; border-top: 0.5pt solid #E5E7EB; padding-top: 2mm;">
+    {{ custom_footer }}
   </div>
   {% endif %}
 

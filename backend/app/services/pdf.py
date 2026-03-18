@@ -110,7 +110,9 @@ def generate_invoice_pdf(invoice, company: dict) -> bytes:
 
     status = invoice.status or "draft"
     context = {
-        "primary": "#2563EB",
+        "primary": company.get("primary_color") or "#2563EB",
+        "logo_url": company.get("logo_url"),
+        "custom_footer": company.get("custom_footer"),
         "direction": direction,
         "invoice_number": invoice.invoice_number or "—",
         "invoice_date": _fmt_date(invoice.invoice_date),

@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
@@ -22,6 +21,8 @@ class CompanyProfile(BaseModel):
     bank_name: str | None = None
     bank_account: str | None = None        # RIB
     logo_url: str | None = None
+    primary_color: str = "#2563EB"
+    custom_footer: str | None = None
     default_tva_rate: float = 20.0
     default_currency: str = "MAD"
     invoice_prefix: str = "FAC"
@@ -56,6 +57,8 @@ class CompanyProfileUpdate(BaseModel):
     bank_name: str | None = None
     bank_account: str | None = None
     logo_url: str | None = None
+    primary_color: str | None = None
+    custom_footer: str | None = None
     default_tva_rate: float | None = None
     default_currency: str | None = None
     invoice_prefix: str | None = None

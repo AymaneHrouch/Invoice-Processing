@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Building2, Save, X, Plus } from 'lucide-react';
+import { Building2, Save, X, Plus, Palette } from 'lucide-react';
+import { toast } from 'sonner';
 import { useTheme } from '@/contexts';
 import { getCompanyProfile, upsertCompanyProfile } from '@/api/company';
 import { Button } from '@/components/ui/button';
@@ -56,6 +57,9 @@ export default function CompanyProfilePage() {
     email: '',
     bank_name: '',
     bank_account: '',
+    logo_url: '',
+    primary_color: '#2563EB',
+    custom_footer: '',
     invoice_prefix: 'FAC',
     default_tva_rate: 20,
     default_currency: 'MAD',
@@ -66,7 +70,6 @@ export default function CompanyProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     getCompanyProfile()
@@ -91,12 +94,10 @@ export default function CompanyProfilePage() {
     e.preventDefault();
     setSaving(true);
     setError(null);
-    setSuccess(false);
     try {
       const saved = await upsertCompanyProfile({ ...form, categories });
       setForm((prev) => ({ ...prev, ...saved }));
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      toast.success('Profil enregistré avec succès.');
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to save company profile.');
     } finally {
@@ -146,12 +147,6 @@ export default function CompanyProfilePage() {
           {error}
         </div>
       )}
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm dark:bg-green-900/20 dark:border-green-800 dark:text-green-400">
-          Profil enregistré avec succès.
-        </div>
-      )}
-
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Identity */}
         <Card className={cardClass}>
@@ -316,6 +311,73 @@ export default function CompanyProfilePage() {
                 className={inputClass}
               />
             </Field>
+          </CardContent>
+        </Card>
+
+        {/* PDF Personalization */}
+        <Card className={cardClass}>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Palette className="w-4 h-4 text-blue-500" />
+              Personnalisation PDF
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="URL du logo" id="logo_url">
+              <Input
+                id="logo_url"
+                value={form.logo_url}
+                onChange={set('logo_url')}
+                placeholder="https://..."
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Couleur principale" id="primary_color">
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  id="primary_color"
+                  value={form.primary_color}
+                  onChange={set('primary_color')}
+                  className="h-9 w-12 rounded-md border border-input cursor-pointer p-0.5"
+                />
+                <Input
+                  value={form.primary_color}
+                  onChange={set('primary_color')}
+                  placeholder="#2563EB"
+                  className={`font-mono ${inputClass}`}
+                />
+              </div>
+            </Field>
+            <div className="md:col-span-2">
+              <Field label="Pied de page personnalisé" id="custom_footer">
+                <textarea
+                  id="custom_footer"
+                  value={form.custom_footer}
+                  onChange={set('custom_footer')}
+                  placeholder="ex: Merci de votre confiance. Pénalité de retard : 1,5% par mois."
+                  rows={2}
+                  className={`flex w-full rounded-md border px-3 py-2 text-sm shadow-sm resize-none ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-input'}`}
+                />
+              </Field>
+            </div>
+            {form.logo_url && (
+              <div className="md:col-span-2">
+                <p
+                  className={`text-xs mb-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                >
+                  Aperçu du logo :
+                </p>
+                <img
+                  src={form.logo_url}
+                  alt="Logo aperçu"
+                  className="max-h-16 max-w-48 rounded border border-gray-200 dark:border-gray-600 p-1"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 
