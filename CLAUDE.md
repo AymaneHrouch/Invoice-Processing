@@ -11,7 +11,7 @@
 - **Manual invoice creation**: Form-based for both Achats and Ventes
 - **Ventes workflow**: Create → auto-number (FAC-YYYY-NNN) → validate → mark sent → mark paid
 - **Achats workflow**: Upload/manual → extract → validate
-- **Company profile**: Single-document store (`company_profile` collection) — name, ICE, IF, RC, CNSS, address, bank, invoice prefix, categories
+- **Company profile**: Single-document store (`company_profile` collection) — name, ICE, IF, RC, CNSS, address, bank, invoice prefix, categories, logo URL, primary color, custom footer
 - **Contact directory**: Clients + suppliers with full details (name, ICE, IF, RC, address, city, phone, email, notes, contact_type)
 - **Invoice listing**: Filterable, sortable, paginated — separate `/achats` and `/ventes` pages. `vendor_name` filter searches both `vendor_name` and `client_name` fields.
 - **PDF generation**: Server-side via weasyprint + Jinja2 (`app/templates/invoice.html`) — both directions. Outgoing PDFs look up contact by `contact_id` to include client address/phone/email in the client block.
@@ -26,7 +26,6 @@
 - Electronic signature
 - DGI clearance submission (Phase 3)
 - 10-year compliant archiving
-- PDF template personalization (color, logo) — planned as 2.3.1
 
 ## Tech Stack
 
@@ -133,7 +132,7 @@ frontend/
 
 3. **Achats status flow**: `extracted → validated`. No locking — can always be edited.
 
-4. **PDF generation**: `services/pdf.py` calls `generate_invoice_pdf(invoice, company)` which renders `app/templates/invoice.html` via Jinja2 + weasyprint. Template is direction-aware. Requires system libs (pango/cairo) — only works in Docker locally on Windows.
+4. **PDF generation**: `services/pdf.py` calls `generate_invoice_pdf(invoice, company)` which renders `app/templates/invoice.html` via Jinja2 + weasyprint. Template is direction-aware and supports branding: `primary_color` drives all accent colors, `logo_url` renders in the header, `custom_footer` appears as a centered line above the generation timestamp. Requires system libs (pango/cairo) — only works in Docker locally on Windows.
 
 5. **Company profile** is a single document (upsert). `next_invoice_number` + `invoice_year` live here for atomic sequential numbering via `find_one_and_update`.
 
