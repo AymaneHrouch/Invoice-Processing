@@ -22,6 +22,14 @@ export const getCurrentUser = async () => {
   return response.data;
 };
 
+export const changePassword = async (currentPassword, newPassword) => {
+  const response = await api.post('/auth/change-password', {
+    current_password: currentPassword,
+    new_password: newPassword,
+  });
+  return response.data;
+};
+
 export const switchCompany = async (companyId) => {
   const response = await api.post(
     `/auth/switch-company/${companyId}`,

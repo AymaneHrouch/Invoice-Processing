@@ -244,6 +244,22 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [ ] **Frontend**: Replace the current vendor-name-only search input with a global search bar in `InvoiceFilters`
 - [ ] **Frontend**: Debounce + URL-persist the `q` param like other filters
 
+### Dashboard — Cash Flow & Financial Health
+- [ ] **Backend**: `GET /dashboard/ca-evolution` — monthly CA (Ventes) + Achats totals for the current year (12 data points each)
+- [ ] **Frontend**: `CAEvolutionWidget.jsx` — bar/line chart showing monthly revenue vs spending evolution
+- [ ] **Backend**: `GET /dashboard/delai-paiement` — average days to get paid (Ventes: invoice_date → is_paid date) and average days to pay suppliers (Achats: invoice_date → is_paid date)
+- [ ] **Frontend**: `DelaiPaiementWidget.jsx` — two KPI cards: délai moyen encaissement (clients) and délai moyen règlement (fournisseurs)
+- [ ] **Backend**: `GET /dashboard/tresorerie-prevision` — projected cash position for next 30/60/90 days based on due dates of unpaid Ventes and Achats
+- [ ] **Frontend**: `TresoreriePrevisionWidget.jsx` — timeline showing expected inflows vs outflows
+
+### Dashboard — Operational Alerts
+- [ ] **Backend**: `GET /dashboard/factures-retard` — overdue invoices grouped by delay bucket (1-30d, 31-60d, 60d+), both directions, with count + total per bucket
+- [ ] **Frontend**: `FacturesRetardWidget.jsx` — compact alert card with colored buckets, clickable to filtered invoice list
+- [ ] **Backend**: `GET /dashboard/echeances-proches` — invoices due within the next 7 and 15 days (unpaid, both directions)
+- [ ] **Frontend**: `EcheancesProchesWidget.jsx` — "À échéance dans 7j / 15j" alert with count + amount, links to filtered list
+- [ ] **Backend**: Add `exported=false` count to `GET /dashboard/pme-kpis` or separate endpoint
+- [ ] **Frontend**: "Factures non exportées" alert badge on dashboard — count of validated invoices not yet exported to accounting
+
 ### Dashboard — Top Vendors Date Range
 - [ ] **Frontend**: Add period selector (ce mois / ce trimestre / cette année) to `TopVendorsWidget`
 - [ ] **Backend**: Add `start_date` / `end_date` params to `GET /dashboard/top_vendors`

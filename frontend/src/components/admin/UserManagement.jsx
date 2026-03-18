@@ -123,7 +123,11 @@ const UserManagement = () => {
       fetchUsers().then(setUsers);
     } catch (error) {
       console.error('Error updating user:', error);
-      setErrors({ general: 'Failed to update user. Please try again.' });
+      setErrors({
+        general:
+          error.response?.data?.detail ||
+          'Failed to update user. Please try again.',
+      });
     } finally {
       setLoading(false);
     }
@@ -311,6 +315,9 @@ const UserManagement = () => {
                 Email
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
+                Cabinet
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                 Role
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
@@ -325,6 +332,9 @@ const UserManagement = () => {
                   {user.full_name}
                 </td>
                 <td className="px-4 py-2 whitespace-nowrap">{user.email}</td>
+                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                  {user.firm_name || '—'}
+                </td>
                 <td className="px-4 py-2 whitespace-nowrap">
                   <span
                     className={`px-2 py-1 rounded-full text-xs font-semibold ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}

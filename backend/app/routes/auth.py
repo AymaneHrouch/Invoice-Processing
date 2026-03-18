@@ -111,6 +111,30 @@ def switch_company(
     return {"access_token": token, "token_type": "bearer"}
 
 
+@router.post("/change-password")
+def change_password(
+    body: dict,
+    current_user: dict = Depends(get_current_user),
+):
+    current_password = body.get("current_password", "")
+    new_password = body.get("new_password", "")
+    if not current_password or not new_password:
+        raise HTTPException(status_code=400, detail="Les deux champs sont requis")
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="Le nouveau mot de passe doit faire au moins 8 caractères")
+
+    db_user = user_collection.find_one({"_id": ObjectId(current_user["user_id"])})
+    if not db_user or not verify_password(current_password, db_user["hashed_password"]):
+        raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect")
+
+    user_collection.update_one(
+        {"_id": ObjectId(current_user["user_id"])},
+        {"$set": {"hashed_password": hash_password(new_password), "must_change_password": False}},
+    )
+    logger.info("Password changed for user %s", current_user["username"])
+    return {"message": "Mot de passe mis à jour avec succès"}
+
+
 @router.get("/me")
 def get_current_user_endpoint(current_user: dict = Depends(get_current_user)):
     db_user = user_collection.find_one({"_id": ObjectId(current_user["user_id"])})

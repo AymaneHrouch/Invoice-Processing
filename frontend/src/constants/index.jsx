@@ -154,14 +154,14 @@ export const sidebarItems = [
     icon: UserRound,
     path: '/contacts',
   },
+  // Super Admin only
   {
     id: 'users',
     label: 'Utilisateurs',
     icon: Users,
     path: '/users',
-    adminOnly: true,
+    superAdminOnly: true,
   },
-  // Super Admin only
   {
     id: 'firms',
     label: 'Cabinets',

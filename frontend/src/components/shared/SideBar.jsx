@@ -376,22 +376,11 @@ const Sidebar = ({ profileComplete = true }) => {
       >
         <button
           onClick={logout}
-          className={`
-            w-full 
-            flex 
-            items-center 
-            gap-3 
-            px-3 
-            py-2.5 
-            rounded-lg 
-            transition-all 
-            duration-200 
-            ${
-              isDarkMode
-                ? 'text-red-400 hover:bg-red-900/20 hover:text-red-300'
-                : 'text-red-600 hover:bg-red-50 hover:text-red-700'
-            }
-          `}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+            isDarkMode
+              ? 'text-red-400 hover:bg-red-900/20 hover:text-red-300'
+              : 'text-red-600 hover:bg-red-50 hover:text-red-700'
+          }`}
           title={isCollapsed ? 'Se déconnecter' : ''}
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />

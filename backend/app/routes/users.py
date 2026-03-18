@@ -3,7 +3,7 @@ import logging
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.database import get_database
+from app.database import get_database, get_firm_collection
 from app.models.user import UserCreate, UserUpdate
 from app.utils.auth import get_current_user, hash_password
 
@@ -28,9 +28,18 @@ def get_users(current_user=Depends(_require_user_manager)):
     if current_user["role"] == "FIRM_ADMIN":
         query["firm_id"] = current_user.get("firm_id")
     users = list(user_collection.find(query))
+
+    # Build firm_id → name lookup
+    firm_ids = {u["firm_id"] for u in users if u.get("firm_id")}
+    firm_names = {}
+    if firm_ids:
+        for firm in get_firm_collection().find({"_id": {"$in": [ObjectId(fid) for fid in firm_ids]}}):
+            firm_names[str(firm["_id"])] = firm.get("name")
+
     for user in users:
         user["_id"] = str(user["_id"])
         user.pop("hashed_password", None)
+        user["firm_name"] = firm_names.get(user.get("firm_id"))
     return {"users": users}
 
 
@@ -81,6 +90,12 @@ def update_user(user_id: str, user: UserUpdate, current_user=Depends(_require_us
             raise HTTPException(status_code=403, detail="Access denied")
         if user.role not in FIRM_ASSIGNABLE_ROLES:
             raise HTTPException(status_code=403, detail="Cannot assign this role")
+
+    if user.password and user_id == current_user["user_id"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Utilisez le formulaire 'Changer le mot de passe' pour modifier votre propre mot de passe.",
+        )
 
     update_data = {"full_name": user.full_name, "role": user.role}
     if user.password:
