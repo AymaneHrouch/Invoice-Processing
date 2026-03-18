@@ -11,13 +11,14 @@
 - **Manual invoice creation**: Form-based for both Achats and Ventes
 - **Ventes workflow**: Create → auto-number (FAC-YYYY-NNN) → validate → mark sent → mark paid
 - **Achats workflow**: Upload/manual → extract → validate
-- **Company profile**: Single-document store (`company_profile` collection) — name, ICE, IF, RC, CNSS, address, bank, invoice prefix, categories, logo URL, primary color, custom footer
+- **Multi-company support**: Multiple `company_profile` documents per user; active company scoped via `company_id` in JWT. Sidebar company switcher issues a new scoped token (`POST /auth/switch-company/{id}`). Company CRUD: `GET /company` (list), `POST /company` (create), `GET /company/active`, `PUT /company/{id}`. All invoices, contacts, and dashboard data are filtered by `company_id`.
+- **Company profile**: Per-company document in `company_profile` collection — name, ICE, IF, RC, CNSS, address, bank, invoice prefix, categories, logo URL, primary color, custom footer
 - **Contact directory**: Clients + suppliers with full details (name, ICE, IF, RC, address, city, phone, email, notes, contact_type)
 - **Invoice listing**: Filterable, sortable, paginated — separate `/achats` and `/ventes` pages. `vendor_name` filter searches both `vendor_name` and `client_name` fields.
 - **PDF generation**: Server-side via weasyprint + Jinja2 (`app/templates/invoice.html`) — both directions. Outgoing PDFs look up contact by `contact_id` to include client address/phone/email in the client block.
 - **Excel export**: Per-direction (`POST /ventes/export`, `POST /invoices/achats/export`) with post-download confirmation to mark as exported
 - **Dashboard**: PME KPI widgets, À encaisser / À payer finance widgets (clickable rows open invoice edit modal via location state), TVA balance with period selector, Top 5 clients/fournisseurs, "Dernières actions" activity feed
-- **Auth**: JWT-based, admin/user roles — token carries `sub` (ObjectId), `role`, and `username` (email)
+- **Auth**: JWT-based, admin/user roles — token carries `sub` (ObjectId), `role`, `username` (email), and `company_id`
 - **Invoice audit trail**: Every status transition appends an `InvoiceHistoryEntry` to the invoice's `history` array (action, status_from, status_to, user email, timestamp). Legacy ObjectId user values are resolved to email via users collection lookup.
 - **History UI**: Collapsible timeline in the EditInvoice modal; inline history in the expanded row of the invoice listing (`InvoiceExpandedRow`)
 
@@ -49,7 +50,8 @@
 
 ### Database (MongoDB)
 - Collections: `invoices`, `company_profile`, `contacts`, `cache`, `users`
-- `company_profile` is a **single document** (upsert pattern)
+- `company_profile` supports **multiple documents** — each identified by `_id`; scoped per user via JWT `company_id`
+- `invoices` and `contacts` carry a `company_id` field for multi-tenant filtering
 - `invoices` handles both Achats and Ventes via `direction` field ("incoming"/"outgoing")
 
 ## Project Structure
@@ -134,7 +136,7 @@ frontend/
 
 4. **PDF generation**: `services/pdf.py` calls `generate_invoice_pdf(invoice, company)` which renders `app/templates/invoice.html` via Jinja2 + weasyprint. Template is direction-aware and supports branding: `primary_color` drives all accent colors, `logo_url` renders in the header, `custom_footer` appears as a centered line above the generation timestamp. Requires system libs (pango/cairo) — only works in Docker locally on Windows.
 
-5. **Company profile** is a single document (upsert). `next_invoice_number` + `invoice_year` live here for atomic sequential numbering via `find_one_and_update`.
+5. **Company profile** supports multiple documents (one per company). `next_invoice_number` + `invoice_year` live in the company doc for atomic sequential numbering scoped to that company via `find_one_and_update({"_id": ObjectId(company_id)}, ...)`. Active company is resolved from the JWT `company_id` claim.
 
 6. **Export marking**: exports do NOT auto-mark invoices. After download, frontend shows a confirmation dialog. Exported IDs returned via `X-Exported-Ids` response header (exposed in CORS config).
 
@@ -146,7 +148,7 @@ frontend/
 
 10. **Recent activity feed**: `GET /dashboard/recent-activity` uses a MongoDB `$unwind` aggregation on the `history` array, sorted by `history.timestamp` desc, to produce a cross-invoice activity feed. ObjectId user values resolved post-aggregation. Consumed by the dashboard "Dernières actions" widget.
 
-11. **JWT payload**: Contains `sub` (MongoDB user ObjectId as string), `role`, and `username` (user email). `get_current_user` returns `{"user_id", "role", "username"}`. The `username` field is used when recording history entries so display is human-readable from the start.
+11. **JWT payload**: Contains `sub` (MongoDB user ObjectId as string), `role`, `username` (user email), and `company_id` (active company ObjectId as string). `get_current_user` returns `{"user_id", "role", "username", "company_id"}`. `company_id` is `None` for users with no company yet. The `username` field is used when recording history entries so display is human-readable from the start.
 
 12. **Dashboard invoice navigation**: Clicking a row in À encaisser / À payer navigates using React Router `location.state` (`{ editId }`) instead of URL params — the listing page reads `location.state?.editId` on mount, opens the edit modal, then clears the state. URL stays clean.
 
