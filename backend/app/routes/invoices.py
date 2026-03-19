@@ -6,6 +6,7 @@ from io import BytesIO
 import logging
 from typing import Literal
 
+from bson import ObjectId
 from fastapi import (
     APIRouter,
     Body,
@@ -20,7 +21,7 @@ from fastapi.params import Depends
 from fastapi.responses import StreamingResponse
 
 from app.crud.invoice import InvoiceCRUD
-from app.database import get_company_collection
+from app.database import get_company_collection, get_contacts_collection
 from app.models.invoice import (
     Invoice,
     InvoiceBatchUpdate,
@@ -51,6 +52,32 @@ def invoice_to_response(invoice: Invoice) -> InvoiceResponse:
     else:
         payload["is_overdue"] = False
     return InvoiceResponse(**payload)
+
+
+def _contacts_map(invoices: list) -> dict:
+    """Batch-fetch contacts for a list of invoices. Returns {contact_id: contact_doc}."""
+    ids = [inv.contact_id for inv in invoices if inv.contact_id]
+    if not ids:
+        return {}
+    col = get_contacts_collection()
+    return {
+        str(c["_id"]): c
+        for c in col.find({"_id": {"$in": [ObjectId(cid) for cid in ids]}})
+    }
+
+
+def _apply_contact(inv: Invoice, contacts_map: dict) -> Invoice:
+    """Override name+ICE on the invoice object from the linked contact's current data."""
+    contact = contacts_map.get(inv.contact_id) if inv.contact_id else None
+    if not contact:
+        return inv
+    if inv.direction == "outgoing":
+        inv.client_name = contact.get("name") or inv.client_name
+        inv.client_ice = contact.get("ice") or inv.client_ice
+    else:
+        inv.vendor_name = contact.get("name") or inv.vendor_name
+        inv.vendor_ice = contact.get("ice") or inv.vendor_ice
+    return inv
 
 
 def _source_type_from_filename(filename: str) -> str:
@@ -117,7 +144,6 @@ async def handle_upload_files(
                 currency=invoice_data.get("currency") or "MAD",
                 items=invoice_data.get("items", []),
                 category=invoice_data.get("category") or "Others",
-                tags=invoice_data.get("tags", []),
                 source_type=source_type,
                 status="extracted",
                 direction=direction,
@@ -318,7 +344,8 @@ def get_invoices(
         response.headers["X-Page"] = str(page)
         response.headers["X-Has-Next"] = str(result["has_next"]).lower()
         response.headers["X-Has-Prev"] = str(result["has_prev"]).lower()
-        return [invoice_to_response(inv) for inv in result["data"]]
+        contacts = _contacts_map(result["data"])
+        return [invoice_to_response(_apply_contact(inv, contacts)) for inv in result["data"]]
     except Exception as e:
         logger.exception("Error in get_invoices: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -337,7 +364,8 @@ def get_invoice_by_id(
         invoice = InvoiceCRUD.get_invoice_by_id(invoice_id)
         if not invoice:
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
-        return invoice_to_response(invoice)
+        contacts = _contacts_map([invoice])
+        return invoice_to_response(_apply_contact(invoice, contacts))
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
     except Exception as e:
@@ -394,43 +422,6 @@ def get_invoices_by_vendor_name(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/search/tags", response_model=list[InvoiceResponse], summary="Get invoices by tags")
-def get_invoices_by_tags(
-        tags: list[str] = Body(..., description="List of tags to search for")
-):
-    """
-    Get invoices that contain any of the specified tags
-
-    - **tags**: List of tags to search for (e.g., ['development', 'monthly-service'])
-
-    Returns invoices that have at least one of the specified tags.
-    """
-    try:
-        if not tags:
-            raise HTTPException(status_code=400, detail="Tags list cannot be empty")
-
-        invoices = InvoiceCRUD.get_invoices_by_tags(tags)
-        return [invoice_to_response(inv) for inv in invoices]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/tags/{tag}", response_model=list[InvoiceResponse], summary="Get invoices by single tag")
-def get_invoices_by_single_tag(
-        tag: str = Path(..., description="Tag to search for")
-):
-    """
-    Get invoices that contain a specific tag
-
-    - **tag**: The tag to search for (e.g., 'development')
-    """
-    try:
-        invoices = InvoiceCRUD.get_invoices_by_tags([tag])
-        return [invoice_to_response(inv) for inv in invoices]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 # ============= UPDATE ENDPOINTS =============
 
 
@@ -464,9 +455,6 @@ def restore_invoice(invoice_id: str = Path(..., description="MongoDB ObjectId of
         raise HTTPException(status_code=500, detail=str(e))
 
 
-FINANCIAL_FIELDS = {"total_amount", "subtotal_ht", "tva", "amount_tva", "items"}
-
-
 @router.put("/{invoice_id}", response_model=InvoiceResponse, summary="Update invoice by ID")
 def update_invoice_by_id(
         invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
@@ -475,13 +463,18 @@ def update_invoice_by_id(
     try:
         logger.info("Updating invoice %s", invoice_id)
 
+        LOCKED_FIELDS = {
+            "total_amount", "subtotal_ht", "tva", "amount_tva", "items",
+            "vendor_name", "invoice_number", "invoice_date", "invoice_due_date",
+            "currency", "contact_id", "ice",
+        }
         existing = InvoiceCRUD.get_invoice_by_id(invoice_id)
         if existing and existing.status in ("validated", "paid"):
-            changed = FINANCIAL_FIELDS & set(update_data.model_dump(exclude_unset=True).keys())
+            changed = LOCKED_FIELDS & set(update_data.model_dump(exclude_unset=True).keys())
             if changed:
                 raise HTTPException(
                     status_code=400,
-                    detail="Montants non modifiables sur une facture validée."
+                    detail="Facture validée — certains champs ne sont pas modifiables.",
                 )
 
         invoice = InvoiceCRUD.update_invoice(invoice_id, update_data)

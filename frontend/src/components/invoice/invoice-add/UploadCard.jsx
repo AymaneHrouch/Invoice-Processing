@@ -120,13 +120,7 @@ const UploadCard = ({
           const extractedData = await uploadFiles(formData, direction);
           console.log(extractedData);
 
-          // Ensure tags array exists in extracted data
-          const processedData = {
-            ...extractedData[0],
-            tags: extractedData[0]?.tags || [],
-          };
-
-          updateFileStatus(fileToProcess.id, 'completed', processedData);
+          updateFileStatus(fileToProcess.id, 'completed', extractedData[0]);
         } catch (error) {
           console.error('Error processing file:', error);
           updateFileStatus(fileToProcess.id, 'error', null, error.message);

@@ -66,7 +66,6 @@ class Invoice(BaseModel):
 
     # Categorization
     category: str = Field(..., description="Invoice category")
-    tags: list[str] = Field(default_factory=list, description="Invoice tags")
 
     # Processing information
     source_type: str = Field(..., description="Source type (pdf/image)")
@@ -133,7 +132,6 @@ class InvoiceCreate(BaseModel):
     currency: str = Field(default="MAD", description="Currency code")
     items: list[InvoiceItem] = Field(default_factory=list, description="List of invoice items")
     category: str = Field(..., min_length=1, description="Invoice category")
-    tags: list[str] = Field(default_factory=list, description="Invoice tags")
     source_type: str = Field(..., description="Source type (manual/pdf/image)")
     status: str = Field(default="extracted", description="Processing status")
 
@@ -236,7 +234,6 @@ class InvoiceUpdate(BaseModel):
     currency: str | None = None
     items: list[InvoiceItem] | None = None
     category: str | None = None
-    tags: list[str] | None = None
     source_type: str | None = None
     status: str | None = None
     is_exported: bool | None = None
@@ -276,7 +273,6 @@ class InvoiceResponse(BaseModel):
     currency: str | None = None
     items: list[InvoiceItem] | None = None
     category: str | None = None
-    tags: list[str] | None = None
     source_type: str | None = None
     status: str | None = None
     is_exported: bool | None = None

@@ -26,11 +26,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { FormField } from '@/components/ui/form-field';
 import SupplierCombobox from '@/components/ui/SupplierCombobox';
 import TvaRateField from '@/components/ui/TvaRateField';
-import {
-  InvoiceTags,
-  InvoiceItems,
-  AmountWarningBanner,
-} from '@/components/invoice';
+import { InvoiceItems, AmountWarningBanner } from '@/components/invoice';
 import { runAmountChecks } from '@/utils/invoiceCalculations';
 
 // ✅ Fonction utilitaire pour formater les dates
@@ -55,6 +51,7 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
   // ✅ État local direct
   const [formData, setFormData] = useState({
     vendor_name: '',
+    contact_id: null,
     invoice_number: '',
     ice: '',
     tva: '',
@@ -65,7 +62,6 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
     currency: 'MAD',
     category: '',
     items: [],
-    tags: [],
     source_type: 'manual',
     status: 'extracted',
     direction,
@@ -106,14 +102,6 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
     }));
   };
 
-  // ✅ Fonction pour mettre à jour les tags
-  const updateTags = (tags) => {
-    setFormData((prev) => ({
-      ...prev,
-      tags: Array.isArray(tags) ? tags : [],
-    }));
-  };
-
   // ✅ Validation du formulaire
   const validateForm = () => {
     const newErrors = {};
@@ -139,6 +127,7 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
   const resetForm = () => {
     setFormData({
       vendor_name: '',
+      contact_id: null,
       invoice_number: '',
       ice: '',
       tva: '',
@@ -149,7 +138,6 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
       currency: 'MAD',
       category: '',
       items: [],
-      tags: [],
       source_type: 'manual',
       status: 'extracted',
     });
@@ -228,6 +216,7 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
               value={formData.vendor_name}
               onChange={(val) => updateField('vendor_name', val)}
               onIceChange={(ice) => updateField('ice', ice)}
+              onContactSelect={(c) => updateField('contact_id', c._id || null)}
               error={errors.vendor_name}
               placeholder="Saisir le nom du fournisseur"
               required
@@ -341,10 +330,6 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
             currency={formData.currency}
             onItemsChange={updateItems}
           />
-
-          <Separator className={isDarkMode ? 'bg-gray-700' : 'bg-gray-200'} />
-
-          <InvoiceTags tags={formData.tags} onTagsChange={updateTags} />
         </CardContent>
       </Card>
 

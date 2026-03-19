@@ -134,7 +134,6 @@ def _invoice(
             }
             for i in items
         ],
-        "tags": [],
         "source_type": "manual",
         "history": history,
         "created_at": invoice_date,

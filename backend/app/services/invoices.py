@@ -128,7 +128,6 @@ def extract_invoice_data(file: bytes):
         "invoice_number": invoice_data.get("invoice_number", ""),
         "category": "",
         "items": items,
-        "tags": [],
     }
 
     result = _to_mongo_serializable(result)

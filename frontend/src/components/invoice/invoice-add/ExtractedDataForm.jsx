@@ -1,7 +1,7 @@
 import { categories, currencies } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useAddInvoice } from '@/hooks/useAddInvoice';
-import { InvoiceTags, AmountWarningBanner } from '@/components';
+import { AmountWarningBanner } from '@/components';
 import { runAmountChecks } from '@/utils/invoiceCalculations';
 import {
   X,
@@ -76,10 +76,10 @@ const ExtractedDataForm = ({
     return newErrors;
   };
 
-  const currentFormData = {
-    ...extractedData[currentInvoiceIndex],
-    tags: extractedData[currentInvoiceIndex]?.tags || [],
-  } || { tags: [] };
+  const currentFormData =
+    {
+      ...extractedData[currentInvoiceIndex],
+    } || {};
 
   const updateFormData = (field, value) => {
     if (extractedData.length > 0) {
@@ -128,15 +128,6 @@ const ExtractedDataForm = ({
     }
   };
 
-  const handleTagsChange = (newTags) => {
-    if (extractedData.length > 0) {
-      const currentData = extractedData[currentInvoiceIndex];
-      const newData = { ...currentData, tags: newTags || [] };
-      updateExtractedData(currentInvoiceIndex, newData);
-    }
-
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     const currentData = extractedData[currentInvoiceIndex];
@@ -166,7 +157,6 @@ const ExtractedDataForm = ({
           total: parseFloat(item.total || item.quantity * item.unit_price),
         })) || [],
       category: currentData.category?.trim(),
-      tags: currentData.tags || [],
       source_type: 'pdf',
       status: 'extracted',
     };
@@ -197,7 +187,6 @@ const ExtractedDataForm = ({
             </h3>
             <p
               className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}
-
             >
               Review and modify the extracted information if necessary
             </p>
@@ -235,7 +224,6 @@ const ExtractedDataForm = ({
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
-
               </div>
             </div>
           )}
@@ -249,7 +237,7 @@ const ExtractedDataForm = ({
               total_amount: currentFormData.amount,
               items: currentFormData.items || [],
             },
-            currentFormData.currency || 'MAD'
+            currentFormData.currency || 'MAD',
           );
           return warnings.length > 0 ? (
             <AmountWarningBanner warnings={warnings} />
@@ -520,14 +508,6 @@ const ExtractedDataForm = ({
             </div>
           </div>
         )}
-
-        {/* Tags Section */}
-        <div className="space-y-4">
-          <InvoiceTags
-            tags={currentFormData.tags || []}
-            onTagsChange={handleTagsChange}
-          />
-        </div>
 
         {/* Success/Error Messages */}
         {success && message && (

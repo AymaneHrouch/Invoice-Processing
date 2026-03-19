@@ -43,7 +43,6 @@ def init_database():
             invoices_collection.create_index("status")
             invoices_collection.create_index("category")
             invoices_collection.create_index("created_at")
-            invoices_collection.create_index("tags")
         except Exception:
             pass
 

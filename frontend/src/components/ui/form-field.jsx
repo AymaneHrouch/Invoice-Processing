@@ -23,6 +23,7 @@ export const FormField = ({
   step,
   className = 'w-full',
   icon: Icon,
+  disabled = false,
   ...props
 }) => {
   const renderInput = () => {
@@ -33,7 +34,7 @@ export const FormField = ({
             {Icon && (
               <Icon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
             )}
-            <Select value={value} onValueChange={onChange}>
+            <Select value={value} onValueChange={onChange} disabled={disabled}>
               <SelectTrigger className={`${className} ${Icon ? 'pl-10' : ''}`}>
                 <SelectValue placeholder={placeholder} />
               </SelectTrigger>

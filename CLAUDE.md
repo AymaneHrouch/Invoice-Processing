@@ -138,7 +138,7 @@ frontend/
 
 2. **Ventes status flow**: `draft → validated → sent → paid`. Validated invoices are locked (PUT rejected). Status transitions via dedicated POST endpoints.
 
-3. **Achats status flow**: `extracted → validated`. No locking — can always be edited.
+3. **Achats status flow**: `extracted → validated`. Validated/paid invoices are partially locked — `PUT /invoices/{id}` rejects changes to financial and structural fields (`total_amount`, `subtotal_ht`, `tva`, `amount_tva`, `items`, `vendor_name`, `invoice_number`, `invoice_date`, `invoice_due_date`, `currency`, `contact_id`, `ice`) but allows `category` and other metadata fields through. Frontend mirrors this: all fields disabled except `category`, Save button stays enabled.
 
 4. **PDF generation**: `services/pdf.py` calls `generate_invoice_pdf(invoice, company)` which renders `app/templates/invoice.html` via Jinja2 + weasyprint. Template is direction-aware and supports branding: `primary_color` drives all accent colors, `logo_url` renders in the header, `custom_footer` appears as a centered line above the generation timestamp. Requires system libs (pango/cairo) — only works in Docker locally on Windows.
 
@@ -179,6 +179,10 @@ frontend/
 22. **`button.jsx` cursor**: `cursor-pointer` is in the base `cva` class — applies globally to every `Button` variant across the app.
 
 23. **Sidebar parent navigation**: Achats and Ventes sidebar items have both `hasChildren: true` and a `path`. Clicking them navigates to the list page AND toggles sub-menu expansion.
+
+24. **`FormField` select disabled**: The `select` case in `form-field.jsx` requires `disabled` to be explicitly destructured and passed to the shadcn `<Select>` component — it is NOT picked up via `...props` (which spreads onto the wrapper div). Always pass `disabled` explicitly.
+
+25. **Tags feature removed**: Invoice tags were fully removed (frontend `InvoiceTags.jsx` deleted, all state/handlers/UI stripped; backend model fields, `get_invoices_by_tags` CRUD, `/search/tags` and `/tags/{tag}` endpoints, and MongoDB index all removed). Do not re-add without discussion.
 
 ## Local Development
 

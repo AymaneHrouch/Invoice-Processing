@@ -263,21 +263,6 @@ class InvoiceCRUD:
             raise Exception(f"Failed to retrieve invoices for vendor {vendor_name}: {e!s}")
 
     @staticmethod
-    def get_invoices_by_tags(tags: list[str]) -> list[Invoice]:
-        """Get invoices that have any of the specified tags"""
-        try:
-            collection = get_invoices_collection()
-            cursor = collection.find({"tags": {"$in": tags}}).sort("created_at", DESCENDING)
-
-            invoices = []
-            for invoice_data in cursor:
-                invoices.append(Invoice(**invoice_data))
-
-            return invoices
-        except Exception as e:
-            raise Exception(f"Failed to retrieve invoices by tags: {e!s}")
-
-    @staticmethod
     def get_invoices_by_date_range(start_date: datetime, end_date: datetime) -> list[Invoice]:
         """Get invoices within a date range"""
         try:
@@ -348,8 +333,10 @@ class InvoiceCRUD:
             set_op["is_paid"] = is_paid
             if is_paid:
                 set_op["paid_at"] = datetime.utcnow()
+                set_op["status"] = "paid"
             else:
                 unset_op["paid_at"] = ""
+                set_op["status"] = "validated"
         if direction is not None:
             set_op["direction"] = direction
         if status is not None:
@@ -370,10 +357,12 @@ class InvoiceCRUD:
             update = {"$set": set_op}
             if unset_op:
                 update["$unset"] = unset_op
-            result = collection.update_many(
-                {"_id": {"$in": object_ids}},
-                update,
-            )
+            query: dict = {"_id": {"$in": object_ids}}
+            if is_paid is True:
+                query["status"] = "validated"
+            elif is_paid is False:
+                query["status"] = "paid"
+            result = collection.update_many(query, update)
             return result.modified_count
         except Exception as e:
             logger.exception("Batch update failed: %s", e)
@@ -551,7 +540,6 @@ class InvoiceCRUD:
                     {"invoice_number": {"$regex": search_term, "$options": "i"}},
                     {"vendor_name": {"$regex": search_term, "$options": "i"}},
                     {"category": {"$regex": search_term, "$options": "i"}},
-                    {"tags": {"$regex": search_term, "$options": "i"}},
                     {"items.description": {"$regex": search_term, "$options": "i"}}
                 ]
             }

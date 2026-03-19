@@ -179,39 +179,6 @@ const InvoiceExpandedRow = ({ invoice, colSpan = 13 }) => {
                       isDarkMode ? 'text-gray-300' : 'text-gray-700'
                     }`}
                   >
-                    Tags:
-                  </label>
-                  <div className="flex flex-wrap gap-1">
-                    {invoice.tags && invoice.tags.length > 0 ? (
-                      invoice.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className={`inline-block text-xs px-2 py-1 rounded-full ${
-                            isDarkMode
-                              ? 'bg-blue-900 text-blue-200'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}
-                        >
-                          {tag}
-                        </span>
-                      ))
-                    ) : (
-                      <span
-                        className={`text-xs italic ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                        }`}
-                      >
-                        No tags
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label
-                    className={`text-sm font-medium ${
-                      isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}
-                  >
                     Due Date:
                   </label>
                   <span

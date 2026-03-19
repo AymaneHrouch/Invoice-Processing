@@ -18,7 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { FormField } from '@/components/ui/form-field';
 import SupplierCombobox from '@/components/ui/SupplierCombobox';
 import TvaRateField from '@/components/ui/TvaRateField';
-import { InvoiceItems, InvoiceTags } from '@/components/invoice';
+import { InvoiceItems } from '@/components/invoice';
 import { useTheme } from '@/contexts';
 import { useCategories } from '@/hooks/useCategories';
 import { currencies } from '@/constants';
@@ -46,7 +46,6 @@ export default function VenteCreatePage() {
     currency: 'MAD',
     tva_rate: 20,
     category: '',
-    tags: [],
     items: [],
   });
 
@@ -105,7 +104,6 @@ export default function VenteCreatePage() {
     currency: form.currency,
     items: form.items,
     category: form.category,
-    tags: form.tags,
   });
 
   const handleSaveDraft = async () => {
@@ -317,13 +315,6 @@ export default function VenteCreatePage() {
               currency={form.currency}
               onItemsChange={set('items')}
             />
-          </CardContent>
-        </Card>
-
-        {/* Tags */}
-        <Card className={cardClass}>
-          <CardContent className="pt-6">
-            <InvoiceTags tags={form.tags} onTagsChange={set('tags')} />
           </CardContent>
         </Card>
 

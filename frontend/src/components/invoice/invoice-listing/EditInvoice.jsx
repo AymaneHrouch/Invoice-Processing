@@ -1,20 +1,21 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  Save,
-  CheckCircle,
-  Lock,
+  AlertTriangle,
+  BadgeCheck,
   Banknote,
-  Send,
-  Undo2,
   ChevronDown,
   ChevronUp,
+  CheckCircle,
+  CircleDollarSign,
   History,
+  Lock,
+  RotateCcw,
+  Save,
+  Send,
   ShieldCheck,
   ShieldOff,
-  BadgeCheck,
-  RotateCcw,
-  CircleDollarSign,
+  Undo2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,11 +30,7 @@ import { useTheme } from '@/contexts';
 import { useEditInvoice } from '@/hooks/useEditInvoice';
 import { useCategories } from '@/hooks/useCategories';
 import { FormField } from '@/components/ui/form-field';
-import {
-  InvoiceTags,
-  InvoiceItems,
-  AmountWarningBanner,
-} from '@/components/invoice';
+import { InvoiceItems, AmountWarningBanner } from '@/components/invoice';
 import {
   validateInvoice,
   invalidateInvoice,
@@ -143,6 +140,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     vendor_name: '',
     client_name: '',
     client_ice: '',
+    contact_id: null,
     invoice_number: '',
     ice: '',
     tva: '',
@@ -152,7 +150,6 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     currency: 'MAD',
     category: '',
     items: [],
-    tags: [],
     status: 'extracted',
   });
 
@@ -192,8 +189,8 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
               total: item.total || 0,
             }))
           : [],
-        tags: Array.isArray(invoice.tags) ? invoice.tags : [],
         status: invoice.status || 'extracted',
+        contact_id: invoice.contact_id || null,
       });
 
       setErrors({});
@@ -246,16 +243,6 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     setFormData((prev) => ({
       ...prev,
       items: processedItems,
-    }));
-  };
-
-  // ✅ Fonction pour mettre à jour les tags
-  const updateTags = (tags) => {
-    console.log('🏷️ Updating tags:', tags);
-
-    setFormData((prev) => ({
-      ...prev,
-      tags: Array.isArray(tags) ? tags : [],
     }));
   };
 
@@ -365,6 +352,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     // Préparer les données pour l'envoi
     const invoiceData = {
       ...formData,
+      contact_id: formData.contact_id || null,
       subtotal_ht: subtotalHT || null,
       amount_tva: computedAmountTva > 0 ? computedAmountTva : null,
       total_amount: computedTotal > 0 ? computedTotal : subtotalHT,
@@ -436,6 +424,26 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                   className="mb-4"
                 />
               )}
+              {invoice?.direction === 'incoming' && !formData.contact_id && (
+                <div
+                  className={`flex items-start gap-3 rounded-lg border px-4 py-3 mb-4 ${
+                    isDarkMode
+                      ? 'bg-amber-900/20 border-amber-700 text-amber-200'
+                      : 'bg-amber-50 border-amber-200 text-amber-900'
+                  }`}
+                  role="alert"
+                >
+                  <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">Fournisseur non lié</p>
+                    <p className="mt-1 text-sm opacity-90">
+                      Ce fournisseur n'est pas associé à un contact.
+                      Sélectionnez-en un dans le champ ci-dessous pour enrichir
+                      votre annuaire.
+                    </p>
+                  </div>
+                </div>
+              )}
               {allFieldsLocked && (
                 <div className="flex items-center gap-2 px-4 py-3 mb-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-300 text-sm">
                   <Lock className="w-4 h-4 flex-shrink-0" />
@@ -457,9 +465,10 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                       value={formData.client_name}
                       onChange={(val) => updateField('client_name', val)}
                       onIceChange={(ice) => updateField('client_ice', ice)}
-                      onContactSelect={(c) =>
-                        updateField('client_ice', c.ice || formData.client_ice)
-                      }
+                      onContactSelect={(c) => {
+                        updateField('client_ice', c.ice || formData.client_ice);
+                        updateField('contact_id', c._id || null);
+                      }}
                       contactType="client"
                       label="Nom du client"
                       placeholder="Saisir ou sélectionner un client"
@@ -506,9 +515,10 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                       value={formData.vendor_name}
                       onChange={(val) => updateField('vendor_name', val)}
                       onIceChange={(ice) => updateField('ice', ice)}
-                      onContactSelect={(c) =>
-                        updateField('ice', c.ice || formData.ice)
-                      }
+                      onContactSelect={(c) => {
+                        updateField('ice', c.ice || formData.ice);
+                        updateField('contact_id', c._id || null);
+                      }}
                       error={errors.vendor_name}
                       required
                       disabled={allFieldsLocked}
@@ -632,7 +642,6 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                     placeholder="Sélectionner une catégorie"
                     required
                     error={errors.category}
-                    disabled={allFieldsLocked}
                   />
                 </div>
 
@@ -831,10 +840,6 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
 
                 <Separator />
 
-                <InvoiceTags tags={formData.tags} onTagsChange={updateTags} />
-
-                <Separator />
-
                 {/* Historique (audit trail) */}
                 <div>
                   <button
@@ -951,7 +956,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
               form="edit-invoice-form"
               size="lg"
               className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 text-white font-medium px-6"
-              disabled={loading || allFieldsLocked}
+              disabled={loading}
             >
               <Save className="w-5 h-5 mr-2" />
               {loading ? 'Enregistrement...' : 'Enregistrer les modifications'}
