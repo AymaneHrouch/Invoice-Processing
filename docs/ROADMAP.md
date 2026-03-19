@@ -232,6 +232,11 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [x] **Frontend**: "Factures" column in contacts table showing invoice count + total amount (clickable to open modal)
 - [x] **Frontend**: "Historique" tab in contact edit modal — lists all invoices with number, date, direction badge, amount, status; rows clickable
 
+### Unlinked Supplier Warning & Auto-match
+- [x] **Frontend**: Amber warning icon on Achats listing rows where `contact_id` is null — disappears once the user links a contact via the edit modal
+- [x] **Frontend/Backend**: `contact_id` now saved when user selects a contact in the Achats edit modal (`SupplierCombobox.onContactSelect`)
+- [ ] **Backend** *(future)*: On invoice save/upload, auto-match `contact_id` by ICE — if a contact with the same ICE exists, silently set `contact_id`. Only show the warning icon when no ICE match is found. Note: ICE matching must handle slight formatting differences (spaces, leading zeros).
+
 ### Contact Enrichment
 - [ ] **Backend**: Add optional fields to `Contact` model: `email`, `phone`, `address`, `city`, `notes`
 - [ ] **Frontend**: Extend contact add/edit modal with the new fields

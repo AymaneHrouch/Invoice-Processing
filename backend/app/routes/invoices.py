@@ -5,6 +5,7 @@ from datetime import datetime
 from io import BytesIO
 import logging
 from typing import Literal
+import zipfile
 
 from bson import ObjectId
 from fastapi import (
@@ -33,7 +34,7 @@ from app.models.invoice import (
 from app.services import dashboard
 from app.services.invoices import extract_invoice_data, run_amount_checks
 from app.services.pdf import generate_invoice_pdf
-from app.utils.auth import get_current_user, require_admin
+from app.utils.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/invoices", tags=["invoices"])
@@ -537,6 +538,53 @@ def batch_update_invoices(body: InvoiceBatchUpdate = Body(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/batch-pdf", summary="Download multiple invoices as a ZIP of PDFs")
+def batch_download_pdf(
+    invoice_ids: list[str] = Body(..., embed=True),
+    current_user: dict = Depends(get_current_user),
+):
+    """Generate PDFs for the given invoice IDs and return them in a ZIP archive."""
+    company_id = current_user.get("company_id")
+    col = get_company_collection()
+    company = (
+        col.find_one({"_id": ObjectId(company_id)}) if company_id else col.find_one({})
+    ) or {}
+
+    contacts_col = get_contacts_collection()
+    zip_buffer = BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for invoice_id in invoice_ids:
+            try:
+                inv = InvoiceCRUD.get_invoice_by_id(invoice_id)
+                if not inv:
+                    continue
+                if inv.direction == "outgoing" and inv.contact_id:
+                    try:
+                        contact = contacts_col.find_one(
+                            {"_id": ObjectId(inv.contact_id)}
+                        )
+                        if contact:
+                            inv.client_address = contact.get("address")
+                            inv.client_city = contact.get("city")
+                            inv.client_phone = contact.get("phone")
+                            inv.client_email = contact.get("email")
+                    except Exception:
+                        pass
+                pdf_bytes = generate_invoice_pdf(inv, company)
+                zf.writestr(f"facture_{inv.invoice_number or invoice_id}.pdf", pdf_bytes)
+            except Exception as e:
+                logger.warning("Skipping invoice %s in batch PDF: %s", invoice_id, e)
+
+    zip_buffer.seek(0)
+    stamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="factures_{stamp}.zip"'},
+    )
+
+
 @router.patch("/{invoice_id}/status", response_model=InvoiceResponse, summary="Update invoice status by ID")
 def update_invoice_status_by_id(
         invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
@@ -631,7 +679,7 @@ def unmark_invoice_paid(
 @router.delete("/{invoice_id}", summary="Delete invoice by ID")
 def delete_invoice_by_id(
         invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
-        current_user = Depends(require_admin)
+        current_user = Depends(get_current_user)
 ):
     """
     Delete an invoice by its MongoDB ObjectId

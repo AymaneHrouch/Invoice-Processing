@@ -33,6 +33,11 @@ export const upsertCompanyProfile = (data) => {
   return getActiveCompany().then((c) => updateCompany(c._id, data));
 };
 
+export const deleteCompany = async (id) => {
+  const response = await api.delete(`/company/${id}`, getAuthConfig());
+  return response.data;
+};
+
 export const getCategories = async () => {
   const response = await api.get('/company/categories', getAuthConfig());
   return response.data;

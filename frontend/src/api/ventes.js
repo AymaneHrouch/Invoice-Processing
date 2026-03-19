@@ -104,7 +104,10 @@ export const exportVentes = async (filters = {}) => {
     });
 
     const now = new Date();
-    const stamp = now.toISOString().replace(/[-:T]/g, '').slice(0, 15);
+    const stamp = now
+      .toISOString()
+      .replace(/[-:T.]/g, '')
+      .slice(0, 14);
     const blob = new Blob([response.data], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });

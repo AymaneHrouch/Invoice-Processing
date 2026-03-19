@@ -160,7 +160,10 @@ export const exportInvoices = async (filters = {}) => {
     });
 
     const now = new Date();
-    const stamp = now.toISOString().replace(/[-:T]/g, '').slice(0, 15);
+    const stamp = now
+      .toISOString()
+      .replace(/[-:T.]/g, '')
+      .slice(0, 14);
     const blob = new Blob([response.data], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
@@ -199,7 +202,10 @@ export const exportAchats = async (filters = {}) => {
     });
 
     const now = new Date();
-    const stamp = now.toISOString().replace(/[-:T]/g, '').slice(0, 15);
+    const stamp = now
+      .toISOString()
+      .replace(/[-:T.]/g, '')
+      .slice(0, 14);
     const blob = new Blob([response.data], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
@@ -306,6 +312,26 @@ export const deleteInvoice = async (id) => {
     }
     throw new Error('Error while deleting the invoice.');
   }
+};
+
+export const batchDownloadPdf = async (invoiceIds) => {
+  const response = await api.post(
+    '/invoices/batch-pdf',
+    { invoice_ids: invoiceIds },
+    { responseType: 'blob' },
+  );
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[-:T.]/g, '')
+    .slice(0, 14);
+  const url = URL.createObjectURL(
+    new Blob([response.data], { type: 'application/zip' }),
+  );
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `factures_${stamp}.zip`;
+  a.click();
+  URL.revokeObjectURL(url);
 };
 
 export const downloadInvoicePdf = async (id, invoiceNumber) => {

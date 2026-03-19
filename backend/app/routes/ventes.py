@@ -12,7 +12,7 @@ from openpyxl import Workbook
 from pydantic import BaseModel
 
 from app.crud.invoice import InvoiceCRUD
-from app.database import get_company_collection, get_database
+from app.database import get_company_collection, get_contacts_collection, get_database
 from app.models.invoice import (
     InvoiceCreate,
     InvoiceHistoryEntry,
@@ -51,6 +51,28 @@ def _to_response(invoice) -> InvoiceResponse:
     payload = {k: data[k] for k in allowed if k in data}
     payload["amount_warnings"] = run_amount_checks(invoice)
     return InvoiceResponse(**payload)
+
+
+def _contacts_map(invoices: list) -> dict:
+    """Batch-fetch contacts for a list of invoices. Returns {contact_id: contact_doc}."""
+    ids = [inv.contact_id for inv in invoices if inv.contact_id]
+    if not ids:
+        return {}
+    col = get_contacts_collection()
+    return {
+        str(c["_id"]): c
+        for c in col.find({"_id": {"$in": [ObjectId(cid) for cid in ids]}})
+    }
+
+
+def _apply_contact(inv, contacts_map: dict):
+    """Override client name+ICE on the invoice object from the linked contact's current data."""
+    contact = contacts_map.get(inv.contact_id) if inv.contact_id else None
+    if not contact:
+        return inv
+    inv.client_name = contact.get("name") or inv.client_name
+    inv.client_ice = contact.get("ice") or inv.client_ice
+    return inv
 
 
 def _generate_next_number(col, company_id: str) -> str:
@@ -191,7 +213,8 @@ def list_ventes(
     response.headers["X-Page"] = str(page)
     response.headers["X-Has-Next"] = str(result["has_next"]).lower()
     response.headers["X-Has-Prev"] = str(result["has_prev"]).lower()
-    return [_to_response(inv) for inv in result["data"]]
+    contacts = _contacts_map(result["data"])
+    return [_to_response(_apply_contact(inv, contacts)) for inv in result["data"]]
 
 
 @router.get("/{vente_id}", response_model=InvoiceResponse)
@@ -205,7 +228,8 @@ def get_vente(
         raise HTTPException(status_code=400, detail="ID invalide.") from None
     if not inv or inv.direction != "outgoing":
         raise HTTPException(status_code=404, detail="Facture introuvable.")
-    return _to_response(inv)
+    contacts = _contacts_map([inv])
+    return _to_response(_apply_contact(inv, contacts))
 
 
 @router.put("/{vente_id}", response_model=InvoiceResponse)

@@ -63,6 +63,13 @@ const InvoiceItems = ({
     setEditingItem(null);
   };
 
+  const handleEditKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmEdit();
+    }
+  };
+
   const confirmEdit = () => {
     if (!editingItem.name.trim()) return;
     const total = calculateItemTotal(
@@ -146,6 +153,7 @@ const InvoiceItems = ({
                       quantity: parseInt(e.target.value) || 1,
                     }))
                   }
+                  onKeyPress={handleKeyPress}
                   placeholder="ex. 2"
                   min="1"
                   className="text-base"
@@ -163,6 +171,7 @@ const InvoiceItems = ({
                       unit_price: parseFloat(e.target.value) || 0,
                     }))
                   }
+                  onKeyPress={handleKeyPress}
                   placeholder="ex. 100.00"
                   className="text-base"
                 />
@@ -210,6 +219,7 @@ const InvoiceItems = ({
                           name: e.target.value,
                         }))
                       }
+                      onKeyPress={handleEditKeyPress}
                       placeholder="Nom de l'article"
                       className="text-sm"
                     />
@@ -221,6 +231,7 @@ const InvoiceItems = ({
                           description: e.target.value,
                         }))
                       }
+                      onKeyPress={handleEditKeyPress}
                       placeholder="Description"
                       className="text-sm"
                     />
@@ -236,6 +247,7 @@ const InvoiceItems = ({
                               quantity: parseInt(e.target.value) || 1,
                             }))
                           }
+                          onKeyPress={handleEditKeyPress}
                           min="1"
                           className="text-sm"
                         />
@@ -252,6 +264,7 @@ const InvoiceItems = ({
                               unit_price: parseFloat(e.target.value) || 0,
                             }))
                           }
+                          onKeyPress={handleEditKeyPress}
                           className="text-sm"
                         />
                       </div>

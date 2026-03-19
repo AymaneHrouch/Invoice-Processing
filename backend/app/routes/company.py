@@ -105,6 +105,24 @@ def get_company(
     return _serialize(_get_company_or_404(company_id))
 
 
+# ── Delete a specific company ─────────────────────────────────────────────────
+
+@router.delete("/{company_id}", status_code=200)
+def delete_company(
+    company_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    if current_user.get("role") not in ("FIRM_ADMIN", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Accès réservé aux administrateurs.")
+    doc = _get_company_or_404(company_id)
+    firm_id = current_user.get("firm_id")
+    if firm_id and str(doc.get("firm_id")) != firm_id:
+        raise HTTPException(status_code=403, detail="Accès refusé.")
+    get_company_collection().delete_one({"_id": doc["_id"]})
+    logger.info("Company %s deleted by user %s", company_id, current_user.get("user_id"))
+    return {"message": "Entreprise supprimée."}
+
+
 # ── Update a specific company ─────────────────────────────────────────────────
 
 @router.put("/{company_id}")

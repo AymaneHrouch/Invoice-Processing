@@ -11,12 +11,13 @@
 - **Manual invoice creation**: Form-based for both Achats and Ventes
 - **Ventes workflow**: Create → auto-number (FAC-YYYY-NNN) → validate → mark sent → mark paid
 - **Achats workflow**: Upload/manual → extract → validate
-- **Multi-company support**: Multiple `company_profile` documents per user; active company scoped via `company_id` in JWT. Sidebar company switcher issues a new scoped token (`POST /auth/switch-company/{id}`). Company CRUD: `GET /company` (list), `POST /company` (create), `GET /company/active`, `PUT /company/{id}`. All invoices, contacts, and dashboard data are filtered by `company_id`.
+- **Multi-company support**: Multiple `company_profile` documents per user; active company scoped via `company_id` in JWT. Sidebar company switcher issues a new scoped token (`POST /auth/switch-company/{id}`). Company CRUD: `GET /company` (list), `POST /company` (create), `GET /company/active`, `PUT /company/{id}`, `DELETE /company/{id}` (FIRM_ADMIN only). Sidebar shows trash icon on hover (FIRM_ADMIN only) with AlertDialog confirmation. All invoices, contacts, and dashboard data are filtered by `company_id`.
 - **Company profile**: Per-company document in `company_profile` collection — name, ICE, IF, RC, CNSS, address, bank, invoice prefix, categories, logo URL, primary color, custom footer
 - **Contact directory**: Clients + suppliers with full details (name, ICE, IF, RC, address, city, phone, email, notes, contact_type)
-- **Invoice listing**: Filterable, sortable, paginated — separate `/achats` and `/ventes` pages. `vendor_name` filter searches both `vendor_name` and `client_name` fields.
+- **Invoice listing**: Filterable, sortable, paginated — separate `/achats` and `/ventes` pages. `vendor_name` filter searches both `vendor_name` and `client_name` fields. Inline category editing: click the category badge in a row to open a dropdown and save immediately. Inline due date and amount editing also available.
 - **PDF generation**: Server-side via weasyprint + Jinja2 (`app/templates/invoice.html`) — both directions. Outgoing PDFs look up contact by `contact_id` to include client address/phone/email in the client block.
 - **Excel export**: Per-direction (`POST /ventes/export`, `POST /invoices/achats/export`) with post-download confirmation to mark as exported
+- **Batch PDF ZIP**: `POST /invoices/batch-pdf` accepts `{invoice_ids}`, generates all PDFs in memory, zips them, streams back a single `.zip` file. Frontend shows a `toast.loading` during generation, replaces it with success/error on completion.
 - **Dashboard**: PME KPI widgets (including `non_exportees` count), À encaisser / À payer finance widgets (clickable rows open invoice edit modal via location state), TVA balance with period selector, Top 5 clients/fournisseurs, "Dernières actions" activity feed. Additional widgets: CA Évolution (12-month bar chart), Délai moyen de paiement, Prévision de trésorerie (30/60/90 days), Factures en retard (3 overdue buckets), Échéances proches (7 and 15 days), Répartition par catégorie (donut chart with direction toggle)
 - **Multi-firm tenancy**: Three-tier role hierarchy — `ADMIN` (Super Admin, manages firms) → `FIRM_ADMIN` (cabinet owner, manages users/companies within firm) → `USER` (accountant). Firms stored in `firms` collection. Self-registration auto-creates a firm + sets user as `FIRM_ADMIN`. Super Admin creates firm+admin in one action via `POST /firms`, returning a temp password.
 - **Auth**: JWT-based — token carries `sub` (ObjectId), `role`, `username` (email), `firm_id`, and `company_id`
@@ -183,6 +184,14 @@ frontend/
 24. **`FormField` select disabled**: The `select` case in `form-field.jsx` requires `disabled` to be explicitly destructured and passed to the shadcn `<Select>` component — it is NOT picked up via `...props` (which spreads onto the wrapper div). Always pass `disabled` explicitly.
 
 25. **Tags feature removed**: Invoice tags were fully removed (frontend `InvoiceTags.jsx` deleted, all state/handlers/UI stripped; backend model fields, `get_invoices_by_tags` CRUD, `/search/tags` and `/tags/{tag}` endpoints, and MongoDB index all removed). Do not re-add without discussion.
+
+26. **Company delete**: `DELETE /company/{id}` — FIRM_ADMIN or ADMIN only, firm-scoped (FIRM_ADMIN can only delete companies in their own firm). Frontend: trash icon on each company entry in the sidebar, visible on group-hover, restricted to `FIRM_ADMIN` role, uses shadcn `AlertDialog` for confirmation. On success, reloads the page to refresh the token/company list.
+
+27. **Invoice delete permissions**: `DELETE /invoices/{id}` uses `get_current_user` (not `require_admin`) — any authenticated user can delete invoices. Removed the `require_admin` guard entirely.
+
+28. **Inline history refresh**: `InvoiceExpandedRow` accepts a `refreshKey` prop (default 0); the `useEffect` that fetches history includes `refreshKey` in its dependency array. `InvoiceListPage` maintains a `historyRefreshKey` counter incremented in `handleUpdateInvoice`, so the inline history timeline in the expanded row updates immediately after any status action without requiring the user to collapse and re-expand the row.
+
+29. **Batch actions — contextual flat pill toolbar**: `SplitPill` component (defined above `InvoiceListPage`) renders paired opposite actions as a joined split button. Counts derived from `invoiceData.data` filtered by `selectedIds` — each action shows how many invoices it will affect. Actions with count=0 are disabled (not hidden) in split pills; standalone actions (Valider, Invalider) are hidden entirely when count=0. Count badge `(N)` shown only when count < total selected. Two visual dividers separate clusters: state mutations (Valider, Invalider, Payé/Non payé) | utility (Exporté/Non exporté, Archiver/Désarchiver) | PDF. Toast uses actual MongoDB `modified_count` with a contextual French label and proper singular/plural (`facture` vs `factures`).
 
 ## Local Development
 

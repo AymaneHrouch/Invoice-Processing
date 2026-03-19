@@ -146,7 +146,7 @@ const SupplierCombobox = ({
         />
 
         {showDropdown && (
-          <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
+          <div className="absolute z-50 top-full left-0 mt-1 min-w-[280px] w-max max-w-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
             {loading && (
               <div className="px-3 py-2 text-sm text-gray-400">Recherche…</div>
             )}
@@ -175,24 +175,22 @@ const SupplierCombobox = ({
                   Créer «&nbsp;{inputValue}&nbsp;» comme{' '}
                   {contactType === 'client' ? 'client' : 'fournisseur'}
                 </p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={iceInput}
-                    onChange={(e) => setIceInput(e.target.value)}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    placeholder="ICE (optionnel)"
-                    className="flex-1 text-xs border border-gray-200 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 outline-none focus:border-blue-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddNew}
-                    disabled={adding}
-                    className="text-xs px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
-                  >
-                    {adding ? '…' : 'Créer'}
-                  </button>
-                </div>
+                <input
+                  type="text"
+                  value={iceInput}
+                  onChange={(e) => setIceInput(e.target.value)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  placeholder="ICE (optionnel)"
+                  className="w-full text-xs border border-gray-200 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 outline-none focus:border-blue-400"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddNew}
+                  disabled={adding}
+                  className="w-full text-xs px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                >
+                  {adding ? '…' : 'Créer'}
+                </button>
               </div>
             )}
 

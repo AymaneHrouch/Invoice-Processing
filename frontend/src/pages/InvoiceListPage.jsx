@@ -2,11 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { useTheme } from '@/contexts';
 import {
   fetchInvoices,
@@ -17,11 +12,11 @@ import {
   markInvoicePaid,
   unmarkInvoicePaid,
   batchUpdateInvoices,
+  batchDownloadPdf,
   exportInvoices,
   exportAchats,
   archiveInvoice,
   restoreInvoice,
-  downloadInvoicePdf,
 } from '@/api/invoice';
 import {
   validateVente,
@@ -34,7 +29,20 @@ import {
   exportVentes,
 } from '@/api/ventes';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, MoreHorizontal } from 'lucide-react';
+import { useCategories } from '@/hooks/useCategories';
+import {
+  Archive,
+  ArchiveRestore,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Banknote,
+  CheckCircle2,
+  CircleSlash,
+  FileCheck,
+  FileDown,
+  FileX,
+  RotateCcw,
+} from 'lucide-react';
 import {
   EditInvoice,
   InvoicePagination,
@@ -47,6 +55,39 @@ import {
 import ExportConfirmDialog from '@/components/invoice/invoice-listing/ExportConfirmDialog';
 import { useDeleteInvoice } from '@/hooks/useDeleteInvoice';
 import { toast } from 'sonner';
+
+const SplitPill = ({ left, right, total, disabled }) => {
+  if (left.count === 0 && right.count === 0) return null;
+  const badge = (count) => (count > 0 && count < total ? ` (${count})` : '');
+  const LeftIcon = left.icon;
+  const RightIcon = right.icon;
+  return (
+    <div className="flex">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={left.onClick}
+        disabled={disabled || left.count === 0}
+        className={`rounded-r-none border-r-0 ${left.className}`}
+      >
+        <LeftIcon className="w-3.5 h-3.5 mr-1.5" />
+        {left.label}
+        {badge(left.count)}
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={right.onClick}
+        disabled={disabled || right.count === 0}
+        className={`rounded-l-none ${right.className}`}
+      >
+        <RightIcon className="w-3.5 h-3.5 mr-1.5" />
+        {right.label}
+        {badge(right.count)}
+      </Button>
+    </div>
+  );
+};
 
 const InvoiceListPage = ({ direction = null }) => {
   const { isDarkMode } = useTheme();
@@ -100,6 +141,8 @@ const InvoiceListPage = ({ direction = null }) => {
     setPage(1);
   }, [direction]);
 
+  const { categories } = useCategories();
+
   // Separate state for the vendor input to prevent immediate API calls
   const [vendorSearchInput, setVendorSearchInput] = useState(initialVendorName);
 
@@ -107,9 +150,10 @@ const InvoiceListPage = ({ direction = null }) => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchLoading, setBatchLoading] = useState(false);
+  const [pdfBatchLoading, setPdfBatchLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
-  const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
   const [exportConfirm, setExportConfirm] = useState({ open: false, ids: [] });
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   const handleEdit = (invoice) => {
     setSelectedInvoice(invoice);
@@ -176,20 +220,35 @@ const InvoiceListPage = ({ direction = null }) => {
     return updated;
   };
 
-  const handleBatchUpdate = async (updates) => {
+  const handleBatchUpdate = async (updates, label = 'mise(s) à jour') => {
     if (selectedIds.size === 0) return;
     setBatchLoading(true);
     try {
       const result = await batchUpdateInvoices([...selectedIds], updates);
-      toast.success(
-        result.message || `${result.updated_count} facture(s) mise(s) à jour`,
-      );
+      const n = result.updated_count;
+      toast.success(`${n} facture${n > 1 ? 's' : ''} ${label}`);
       setSelectedIds(new Set());
       handleFetchInvoices(page, sortBy, order, filters);
     } catch (err) {
       toast.error(err.message || 'Mise à jour groupée échouée');
     } finally {
       setBatchLoading(false);
+    }
+  };
+
+  const handleBatchDownloadPdf = async () => {
+    if (selectedIds.size === 0) return;
+    setPdfBatchLoading(true);
+    const toastId = toast.loading(
+      `Génération du ZIP (${selectedIds.size} facture(s))...`,
+    );
+    try {
+      await batchDownloadPdf([...selectedIds]);
+      toast.success('ZIP téléchargé', { id: toastId });
+    } catch (err) {
+      toast.error(err.message || 'Échec du téléchargement', { id: toastId });
+    } finally {
+      setPdfBatchLoading(false);
     }
   };
 
@@ -235,6 +294,7 @@ const InvoiceListPage = ({ direction = null }) => {
   // ✅ FONCTION: Mise à jour d'une facture spécifique (utilisée par InvoiceRow)
   const handleUpdateInvoice = (updatedInvoice) => {
     console.log('🔄 Updating invoice locally from row:', updatedInvoice);
+    setHistoryRefreshKey((k) => k + 1);
 
     setInvoiceData((prevData) => ({
       ...prevData,
@@ -534,6 +594,36 @@ const InvoiceListPage = ({ direction = null }) => {
     />
   );
 
+  // Contextual batch action counts — derived from current selection
+  const batchTotal = selectedIds.size;
+  const selectedInvoices = (invoiceData?.data || []).filter((inv) =>
+    selectedIds.has(inv.id || inv._id),
+  );
+  const canValidate = selectedInvoices.filter((inv) =>
+    ['extracted', 'draft'].includes(inv.status),
+  ).length;
+  const canInvalidate = selectedInvoices.filter(
+    (inv) => !['extracted', 'draft'].includes(inv.status),
+  ).length;
+  const canMarkPaid = selectedInvoices.filter(
+    (inv) => !inv.is_paid && ['validated', 'sent'].includes(inv.status),
+  ).length;
+  const canUnmarkPaid = selectedInvoices.filter((inv) => inv.is_paid).length;
+  const canArchive = selectedInvoices.filter((inv) => !inv.is_archived).length;
+  const canRestore = selectedInvoices.filter((inv) => inv.is_archived).length;
+  const canMarkExported = selectedInvoices.filter(
+    (inv) => !inv.is_exported,
+  ).length;
+  const canUnmarkExported = selectedInvoices.filter(
+    (inv) => inv.is_exported,
+  ).length;
+  const canSetIncoming = selectedInvoices.filter(
+    (inv) => inv.direction !== 'incoming',
+  ).length;
+  const canSetOutgoing = selectedInvoices.filter(
+    (inv) => inv.direction !== 'outgoing',
+  ).length;
+
   // editModal and exportConfirmDialog are always the last two children of the
   // root fragment — same tree position regardless of which branch renders —
   // so React never unmounts/remounts the modal, preventing double animation.
@@ -674,149 +764,181 @@ const InvoiceListPage = ({ direction = null }) => {
                   {selectedIds.size} facture(s) sélectionnée(s)
                 </span>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleBatchUpdate({ status: 'validated' })}
-                    disabled={batchLoading}
-                    className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
-                  >
-                    Valider
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      handleBatchUpdate({
-                        status:
-                          direction === 'outgoing' ? 'draft' : 'extracted',
-                      })
-                    }
-                    disabled={batchLoading}
-                    className="border-gray-500 text-gray-600 hover:bg-gray-50 dark:border-gray-400 dark:text-gray-400 dark:hover:bg-gray-800"
-                  >
-                    Invalider
-                  </Button>
-                  {direction !== 'outgoing' && (
+                  {/* Left cluster: state mutations */}
+                  {canValidate > 0 && (
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleBatchUpdate({ is_paid: true })}
+                      onClick={() =>
+                        handleBatchUpdate({ status: 'validated' }, 'validée(s)')
+                      }
                       disabled={batchLoading}
-                      className="border-green-500 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-900/20"
+                      className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
                     >
-                      Marquer payé
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                      Valider{canValidate < batchTotal && ` (${canValidate})`}
                     </Button>
                   )}
-                  <Popover
-                    open={moreDropdownOpen}
-                    onOpenChange={setMoreDropdownOpen}
+                  {canInvalidate > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        handleBatchUpdate(
+                          {
+                            status:
+                              direction === 'outgoing' ? 'draft' : 'extracted',
+                          },
+                          'invalidée(s)',
+                        )
+                      }
+                      disabled={batchLoading}
+                      className="border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-500 dark:text-gray-400 dark:hover:bg-gray-800"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                      Invalider
+                      {canInvalidate < batchTotal && ` (${canInvalidate})`}
+                    </Button>
+                  )}
+                  <SplitPill
+                    total={batchTotal}
+                    disabled={batchLoading}
+                    left={{
+                      label: 'Marquer payé',
+                      icon: Banknote,
+                      count: canMarkPaid,
+                      onClick: () =>
+                        handleBatchUpdate(
+                          direction === 'outgoing'
+                            ? { is_paid: true, status: 'paid' }
+                            : { is_paid: true },
+                          'marquée(s) payée(s)',
+                        ),
+                      className:
+                        'border-green-400 text-green-600 hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-900/20',
+                    }}
+                    right={{
+                      label: 'Non payé',
+                      icon: CircleSlash,
+                      count: canUnmarkPaid,
+                      onClick: () =>
+                        handleBatchUpdate(
+                          { is_paid: false },
+                          'marquée(s) non payée(s)',
+                        ),
+                      className:
+                        'border-gray-400 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                    }}
+                  />
+
+                  {/* Divider */}
+                  <div
+                    className={`w-px h-5 self-center ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'}`}
+                  />
+
+                  {/* Right cluster: utility */}
+                  <SplitPill
+                    total={batchTotal}
+                    disabled={batchLoading}
+                    left={{
+                      label: 'Exporté',
+                      icon: FileCheck,
+                      count: canMarkExported,
+                      onClick: () =>
+                        handleBatchUpdate(
+                          { is_exported: true },
+                          'marquée(s) exportée(s)',
+                        ),
+                      className:
+                        'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                    }}
+                    right={{
+                      label: 'Non exporté',
+                      icon: FileX,
+                      count: canUnmarkExported,
+                      onClick: () =>
+                        handleBatchUpdate(
+                          { is_exported: false },
+                          'marquée(s) non exportée(s)',
+                        ),
+                      className:
+                        'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                    }}
+                  />
+                  <SplitPill
+                    total={batchTotal}
+                    disabled={batchLoading}
+                    left={{
+                      label: 'Archiver',
+                      icon: Archive,
+                      count: canArchive,
+                      onClick: () =>
+                        handleBatchUpdate({ is_archived: true }, 'archivée(s)'),
+                      className:
+                        'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                    }}
+                    right={{
+                      label: 'Désarchiver',
+                      icon: ArchiveRestore,
+                      count: canRestore,
+                      onClick: () =>
+                        handleBatchUpdate(
+                          { is_archived: false },
+                          'désarchivée(s)',
+                        ),
+                      className:
+                        'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                    }}
+                  />
+                  {!direction && (
+                    <SplitPill
+                      total={batchTotal}
+                      disabled={batchLoading}
+                      left={{
+                        label: 'Achat',
+                        icon: ArrowDownToLine,
+                        count: canSetIncoming,
+                        onClick: () =>
+                          handleBatchUpdate(
+                            { direction: 'incoming' },
+                            'définie(s) comme achat',
+                          ),
+                        className:
+                          'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                      }}
+                      right={{
+                        label: 'Vente',
+                        icon: ArrowUpFromLine,
+                        count: canSetOutgoing,
+                        onClick: () =>
+                          handleBatchUpdate(
+                            { direction: 'outgoing' },
+                            'définie(s) comme vente',
+                          ),
+                        className:
+                          'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                      }}
+                    />
+                  )}
+
+                  {/* Divider */}
+                  <div
+                    className={`w-px h-5 self-center ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'}`}
+                  />
+
+                  {/* PDF */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleBatchDownloadPdf}
+                    disabled={pdfBatchLoading}
+                    className="border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-500 dark:text-gray-400 dark:hover:bg-gray-800"
                   >
-                    <PopoverTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={batchLoading}
-                        className="border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-500 dark:text-gray-400 dark:hover:bg-gray-800"
-                      >
-                        <MoreHorizontal className="w-4 h-4 mr-1" />
-                        Plus
-                        <ChevronDown className="w-3.5 h-3.5 ml-1" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-56 p-2" align="start">
-                      <div className="flex flex-col gap-0.5">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="justify-start font-normal"
-                          onClick={() => {
-                            setMoreDropdownOpen(false);
-                            handleBatchUpdate({ is_paid: false });
-                          }}
-                          disabled={batchLoading}
-                        >
-                          Marquer non payé
-                        </Button>
-                        {!direction && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="justify-start font-normal"
-                              onClick={() => {
-                                setMoreDropdownOpen(false);
-                                handleBatchUpdate({ direction: 'incoming' });
-                              }}
-                              disabled={batchLoading}
-                            >
-                              Définir comme achat
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="justify-start font-normal"
-                              onClick={() => {
-                                setMoreDropdownOpen(false);
-                                handleBatchUpdate({ direction: 'outgoing' });
-                              }}
-                              disabled={batchLoading}
-                            >
-                              Définir comme vente
-                            </Button>
-                          </>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="justify-start font-normal"
-                          onClick={() => {
-                            setMoreDropdownOpen(false);
-                            handleBatchUpdate({ is_exported: true });
-                          }}
-                          disabled={batchLoading}
-                        >
-                          Marquer exporté
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="justify-start font-normal"
-                          onClick={() => {
-                            setMoreDropdownOpen(false);
-                            handleBatchUpdate({ is_exported: false });
-                          }}
-                          disabled={batchLoading}
-                        >
-                          Marquer non exporté
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="justify-start font-normal"
-                          onClick={() => {
-                            setMoreDropdownOpen(false);
-                            handleBatchUpdate({ is_archived: true });
-                          }}
-                          disabled={batchLoading}
-                        >
-                          Archiver
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="justify-start font-normal"
-                          onClick={() => {
-                            setMoreDropdownOpen(false);
-                            handleBatchUpdate({ is_archived: false });
-                          }}
-                          disabled={batchLoading}
-                        >
-                          Désarchiver
-                        </Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                    <FileDown
+                      className={`w-3.5 h-3.5 mr-1.5 ${pdfBatchLoading ? '' : 'text-purple-500 dark:text-purple-400'}`}
+                    />
+                    {pdfBatchLoading ? 'Génération...' : 'Télécharger PDF'}
+                  </Button>
                 </div>
                 <Button
                   size="sm"
@@ -872,6 +994,7 @@ const InvoiceListPage = ({ direction = null }) => {
                       onEdit={handleEdit}
                       onUpdate={handleUpdateInvoice}
                       onUpdateField={handleUpdateField}
+                      categories={categories}
                       onStatusTransition={handleStatusTransition}
                       isSelected={selectedIds.has(invoice.id || invoice._id)}
                       onSelect={handleSelect}
@@ -883,6 +1006,7 @@ const InvoiceListPage = ({ direction = null }) => {
                             key={`${invoice.id || invoice._id}-expanded`}
                             invoice={invoice}
                             colSpan={12}
+                            refreshKey={historyRefreshKey}
                           />,
                         ]
                       : []),

@@ -26,11 +26,12 @@ def list_contacts(
     current_user: dict = Depends(get_current_user),
 ):
     collection = get_contacts_collection()
-    query: dict = {}
 
     company_id = current_user.get("company_id")
-    if company_id:
-        query["company_id"] = company_id
+    if not company_id:
+        return []
+
+    query: dict = {"company_id": company_id}
 
     if type in ("client", "supplier"):
         query["contact_type"] = type
@@ -52,11 +53,13 @@ def create_contact(
     current_user: dict = Depends(get_current_user),
 ):
     collection = get_contacts_collection()
+    company_id = current_user.get("company_id")
+    if not company_id:
+        raise HTTPException(status_code=400, detail="Aucune entreprise active. Configurez votre entreprise d'abord.")
+
     doc = data.model_dump()
     doc["created_at"] = datetime.now(UTC)
-    company_id = current_user.get("company_id")
-    if company_id:
-        doc["company_id"] = company_id
+    doc["company_id"] = company_id
     result = collection.insert_one(doc)
     created = collection.find_one({"_id": result.inserted_id})
     logger.info("Contact created: %s by user %s", data.name, current_user.get("user_id"))

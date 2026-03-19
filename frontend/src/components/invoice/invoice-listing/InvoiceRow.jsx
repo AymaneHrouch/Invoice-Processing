@@ -61,6 +61,7 @@ const InvoiceRow = ({
   isSelected,
   onSelect,
   showDirection = true,
+  categories = [],
 }) => {
   const { isDarkMode } = useTheme();
 
@@ -240,7 +241,7 @@ const InvoiceRow = ({
   if (isArchived) {
     actions.push({
       key: 'restore',
-      label: 'Restaurer',
+      label: 'Désarchiver',
       icon: ArchiveRestore,
       color: 'text-green-600 dark:text-green-400',
     });
@@ -306,17 +307,17 @@ const InvoiceRow = ({
       >
         {onSelect && (
           <td
-            className={`px-3 py-4 border-b align-middle text-center w-10 ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
+            className={`px-3 py-4 border-b align-middle text-center w-10 cursor-pointer ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
+            onClick={() => onSelect(invoice.id || invoice._id, !isSelected)}
           >
             <input
               type="checkbox"
               checked={isSelected}
-              onChange={(e) => {
-                e.stopPropagation();
-                onSelect(invoice.id || invoice._id, e.target.checked);
-              }}
+              onChange={(e) =>
+                onSelect(invoice.id || invoice._id, e.target.checked)
+              }
               onClick={(e) => e.stopPropagation()}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none"
             />
           </td>
         )}
@@ -344,12 +345,22 @@ const InvoiceRow = ({
         <td
           className={`px-3 py-4 border-b align-middle ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
-          <span
-            className={`font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
-          >
-            {invoice.direction === 'outgoing'
-              ? invoice.client_name
-              : invoice.vendor_name}
+          <span className="flex items-center gap-1.5">
+            <span
+              className={`font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+            >
+              {invoice.direction === 'outgoing'
+                ? invoice.client_name
+                : invoice.vendor_name}
+            </span>
+            {invoice.direction === 'incoming' && !invoice.contact_id && (
+              <span className="relative group flex-shrink-0">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-400 cursor-default" />
+                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-max max-w-[200px] rounded bg-gray-900 px-2 py-1 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity z-50 text-center">
+                  Fournisseur non lié à un contact
+                </span>
+              </span>
+            )}
           </span>
         </td>
         <td
@@ -504,16 +515,39 @@ const InvoiceRow = ({
         <td
           className={`px-3 py-4 border-b align-middle w-32 ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
         >
-          <Badge
-            variant="secondary"
-            style={{
-              backgroundColor: getCategoryColor(invoice.category),
-              color: 'white',
-            }}
-            className="text-white font-medium text-xs uppercase tracking-wide min-w-[90px] text-center justify-center"
-          >
-            {invoice.category}
-          </Badge>
+          {editingField === 'category' ? (
+            <select
+              autoFocus
+              value={editValue}
+              onChange={(e) => {
+                const val = e.target.value;
+                setEditingField(null);
+                setEditValue('');
+                handleToggleField('category', val);
+              }}
+              onBlur={cancelEdit}
+              className={`text-xs rounded px-1 py-0.5 border cursor-pointer ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-800'}`}
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <Badge
+              variant="secondary"
+              style={{
+                backgroundColor: getCategoryColor(invoice.category),
+                color: 'white',
+              }}
+              className="text-white font-medium text-xs uppercase tracking-wide min-w-[90px] text-center justify-center cursor-pointer"
+              onClick={() => startEdit('category', invoice.category)}
+              title="Cliquer pour modifier"
+            >
+              {invoice.category}
+            </Badge>
+          )}
         </td>
         <td
           className={`px-3 py-4 border-b align-middle ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}

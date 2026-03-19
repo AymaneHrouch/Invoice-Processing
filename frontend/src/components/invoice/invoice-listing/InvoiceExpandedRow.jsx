@@ -64,7 +64,7 @@ const HISTORY_CFG = {
   },
 };
 
-const InvoiceExpandedRow = ({ invoice, colSpan = 13 }) => {
+const InvoiceExpandedRow = ({ invoice, colSpan = 13, refreshKey = 0 }) => {
   const { isDarkMode } = useTheme();
   const isArchived = invoice?.is_archived === true;
   const [history, setHistory] = useState([]);
@@ -75,7 +75,7 @@ const InvoiceExpandedRow = ({ invoice, colSpan = 13 }) => {
     fetchInvoiceHistory(id)
       .then(setHistory)
       .catch(() => {});
-  }, [invoice?._id, invoice?.id]);
+  }, [invoice?._id, invoice?.id, refreshKey]);
   const amountWarnings =
     invoice?.status === 'extracted' ? (invoice?.amount_warnings ?? []) : [];
 
