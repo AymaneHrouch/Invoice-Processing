@@ -2,16 +2,47 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { useTheme } from '@/contexts';
-import { exportToPDF } from '@/constants/exportToPDF';
-import { fetchInvoices, getInvoiceById, updateInvoice, batchUpdateInvoices, exportInvoices, archiveInvoice, restoreInvoice } from '@/api/invoice';
+import {
+  fetchInvoices,
+  getInvoiceById,
+  updateInvoice,
+  validateInvoice,
+  invalidateInvoice,
+  markInvoicePaid,
+  unmarkInvoicePaid,
+  batchUpdateInvoices,
+  batchDownloadPdf,
+  exportInvoices,
+  exportAchats,
+  archiveInvoice,
+  restoreInvoice,
+} from '@/api/invoice';
+import {
+  validateVente,
+  invalidateVente,
+  markVenteSent,
+  markVentePaid,
+  unmarkVenteSent,
+  unmarkVentePaid,
+  downloadVentePdf,
+  exportVentes,
+} from '@/api/ventes';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, MoreHorizontal } from 'lucide-react';
+import { useCategories } from '@/hooks/useCategories';
+import {
+  Archive,
+  ArchiveRestore,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Banknote,
+  CheckCircle2,
+  CircleSlash,
+  FileCheck,
+  FileDown,
+  FileX,
+  RotateCcw,
+} from 'lucide-react';
 import {
   EditInvoice,
   InvoicePagination,
@@ -21,10 +52,44 @@ import {
   InvoiceRow,
   InvoiceExpandedRow,
 } from '@/components';
+import ExportConfirmDialog from '@/components/invoice/invoice-listing/ExportConfirmDialog';
 import { useDeleteInvoice } from '@/hooks/useDeleteInvoice';
 import { toast } from 'sonner';
 
-const InvoiceListPage = () => {
+const SplitPill = ({ left, right, total, disabled }) => {
+  if (left.count === 0 && right.count === 0) return null;
+  const badge = (count) => (count > 0 && count < total ? ` (${count})` : '');
+  const LeftIcon = left.icon;
+  const RightIcon = right.icon;
+  return (
+    <div className="flex">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={left.onClick}
+        disabled={disabled || left.count === 0}
+        className={`rounded-r-none border-r-0 ${left.className}`}
+      >
+        <LeftIcon className="w-3.5 h-3.5 mr-1.5" />
+        {left.label}
+        {badge(left.count)}
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={right.onClick}
+        disabled={disabled || right.count === 0}
+        className={`rounded-l-none ${right.className}`}
+      >
+        <RightIcon className="w-3.5 h-3.5 mr-1.5" />
+        {right.label}
+        {badge(right.count)}
+      </Button>
+    </div>
+  );
+};
+
+const InvoiceListPage = ({ direction = null }) => {
   const { isDarkMode } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
@@ -32,11 +97,16 @@ const InvoiceListPage = () => {
 
   const initialStatus = searchParams.get('status') || 'all';
   const initialIsExported = searchParams.get('is_exported') ?? 'all';
-  const initialIncludeArchived = searchParams.get('include_archived') === 'true';
+  const initialIncludeArchived =
+    searchParams.get('include_archived') === 'true';
   const initialVendorName = searchParams.get('vendor_name') || '';
   const initialCategory = searchParams.get('category') || 'all';
   const initialIsPaid = searchParams.get('is_paid') ?? 'all';
-  const editInvoiceId = searchParams.get('edit');
+  const initialStartDate = searchParams.get('start_date') || undefined;
+  const initialEndDate = searchParams.get('end_date') || undefined;
+  const initialOverdue = searchParams.get('overdue') === 'true';
+  const editInvoiceId =
+    searchParams.get('edit') || location.state?.editId || null;
   const initialSortBy = searchParams.get('sort_by') || 'created_at';
   const initialOrder = searchParams.get('order') || 'desc';
   const initialPage = parseInt(searchParams.get('page'), 10) || 1;
@@ -44,7 +114,9 @@ const InvoiceListPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(initialPage);
-  const [perPage] = useState(10);
+  const [perPage, setPerPage] = useState(
+    parseInt(searchParams.get('per_page'), 10) || 10,
+  );
   const [sortBy, setSortBy] = useState(initialSortBy);
   const [order, setOrder] = useState(initialOrder);
   const [expandedRows, setExpandedRows] = useState(new Set());
@@ -57,7 +129,19 @@ const InvoiceListPage = () => {
     vendor_name: initialVendorName,
     category: initialCategory,
     is_paid: initialIsPaid,
+    start_date: initialStartDate,
+    end_date: initialEndDate,
+    overdue: initialOverdue,
+    direction: direction ?? undefined,
   });
+
+  // Keep direction filter in sync if the prop changes (e.g. navigating between /achats and /ventes)
+  useEffect(() => {
+    setFilters((prev) => ({ ...prev, direction: direction ?? undefined }));
+    setPage(1);
+  }, [direction]);
+
+  const { categories } = useCategories();
 
   // Separate state for the vendor input to prevent immediate API calls
   const [vendorSearchInput, setVendorSearchInput] = useState(initialVendorName);
@@ -66,8 +150,10 @@ const InvoiceListPage = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchLoading, setBatchLoading] = useState(false);
+  const [pdfBatchLoading, setPdfBatchLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
-  const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
+  const [exportConfirm, setExportConfirm] = useState({ open: false, ids: [] });
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   const handleEdit = (invoice) => {
     setSelectedInvoice(invoice);
@@ -101,7 +187,10 @@ const InvoiceListPage = () => {
       ),
     }));
 
-    if (selectedInvoice && (selectedInvoice._id || selectedInvoice.id) === updatedId) {
+    if (
+      selectedInvoice &&
+      (selectedInvoice._id || selectedInvoice.id) === updatedId
+    ) {
       setSelectedInvoice(updatedInvoice);
     }
 
@@ -120,9 +209,7 @@ const InvoiceListPage = () => {
   const handleSelectAll = (checked) => {
     if (!invoiceData?.data) return;
     if (checked) {
-      setSelectedIds(
-        new Set(invoiceData.data.map((inv) => inv.id || inv._id)),
-      );
+      setSelectedIds(new Set(invoiceData.data.map((inv) => inv.id || inv._id)));
     } else {
       setSelectedIds(new Set());
     }
@@ -133,18 +220,35 @@ const InvoiceListPage = () => {
     return updated;
   };
 
-  const handleBatchUpdate = async (updates) => {
+  const handleBatchUpdate = async (updates, label = 'mise(s) à jour') => {
     if (selectedIds.size === 0) return;
     setBatchLoading(true);
     try {
       const result = await batchUpdateInvoices([...selectedIds], updates);
-      toast.success(result.message || `Updated ${result.updated_count} invoice(s)`);
+      const n = result.updated_count;
+      toast.success(`${n} facture${n > 1 ? 's' : ''} ${label}`);
       setSelectedIds(new Set());
       handleFetchInvoices(page, sortBy, order, filters);
     } catch (err) {
-      toast.error(err.message || 'Batch update failed');
+      toast.error(err.message || 'Mise à jour groupée échouée');
     } finally {
       setBatchLoading(false);
+    }
+  };
+
+  const handleBatchDownloadPdf = async () => {
+    if (selectedIds.size === 0) return;
+    setPdfBatchLoading(true);
+    const toastId = toast.loading(
+      `Génération du ZIP (${selectedIds.size} facture(s))...`,
+    );
+    try {
+      await batchDownloadPdf([...selectedIds]);
+      toast.success('ZIP téléchargé', { id: toastId });
+    } catch (err) {
+      toast.error(err.message || 'Échec du téléchargement', { id: toastId });
+    } finally {
+      setPdfBatchLoading(false);
     }
   };
 
@@ -180,21 +284,23 @@ const InvoiceListPage = () => {
     const success = await removeInvoice(invoiceId);
 
     if (success) {
-      toast.success(deleteMessage || 'Invoice deleted successfully!');
+      toast.success(deleteMessage || 'Facture supprimée avec succès !');
       handleDeleteSuccess(invoiceId); // ✅ Mise à jour locale
     } else {
-      toast.error(deleteError || 'Admin Access Required');
+      toast.error(deleteError || 'Accès administrateur requis');
     }
   };
 
   // ✅ FONCTION: Mise à jour d'une facture spécifique (utilisée par InvoiceRow)
   const handleUpdateInvoice = (updatedInvoice) => {
     console.log('🔄 Updating invoice locally from row:', updatedInvoice);
+    setHistoryRefreshKey((k) => k + 1);
 
     setInvoiceData((prevData) => ({
       ...prevData,
       data: prevData.data.map((invoice) =>
-        (invoice._id || invoice.id) === (updatedInvoice._id || updatedInvoice.id)
+        (invoice._id || invoice.id) ===
+        (updatedInvoice._id || updatedInvoice.id)
           ? updatedInvoice
           : invoice,
       ),
@@ -242,14 +348,18 @@ const InvoiceListPage = () => {
       params.set('category', filters.category);
     if (filters.is_paid && filters.is_paid !== 'all')
       params.set('is_paid', filters.is_paid);
+    if (filters.start_date) params.set('start_date', filters.start_date);
+    if (filters.end_date) params.set('end_date', filters.end_date);
+    if (filters.overdue) params.set('overdue', 'true');
     if (sortBy && sortBy !== 'created_at') params.set('sort_by', sortBy);
     if (order && order !== 'desc') params.set('order', order);
     if (page && page !== 1) params.set('page', page);
+    if (perPage && perPage !== 10) params.set('per_page', perPage);
     // Only push if different
     if (params.toString() !== location.search.replace(/^\?/, '')) {
       navigate({ search: params.toString() }, { replace: false });
     }
-  }, [filters, sortBy, order, page]);
+  }, [filters, sortBy, order, page, perPage]);
 
   const toggleRowExpansion = (invoiceId) => {
     const newExpandedRows = new Set(expandedRows);
@@ -290,11 +400,18 @@ const InvoiceListPage = () => {
 
   useEffect(() => {
     handleFetchInvoices(page, sortBy, order, filters);
-  }, [page, sortBy, order, filters]);
+  }, [page, perPage, sortBy, order, filters]);
 
-  // Open edit modal when navigating from dashboard with ?edit=invoice_id
+  // Open edit modal when navigating with a target invoice id (URL ?edit= or location state)
   useEffect(() => {
     if (!editInvoiceId) return;
+    // Clear location state so the modal doesn't reopen on manual refresh
+    if (location.state?.editId) {
+      navigate(location.pathname + location.search, {
+        replace: true,
+        state: {},
+      });
+    }
     const openInvoiceForEdit = async () => {
       try {
         const invoice = await getInvoiceById(editInvoiceId);
@@ -334,7 +451,17 @@ const InvoiceListPage = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ status: 'all', is_exported: 'all', include_archived: false, vendor_name: '', category: 'all', is_paid: 'all' });
+    setFilters({
+      status: 'all',
+      is_exported: 'all',
+      include_archived: false,
+      vendor_name: '',
+      category: 'all',
+      is_paid: 'all',
+      start_date: undefined,
+      end_date: undefined,
+      overdue: false,
+    });
     setVendorSearchInput('');
     setPage(1);
   };
@@ -357,9 +484,9 @@ const InvoiceListPage = () => {
           return next;
         });
       }
-      toast.success('Invoice archived');
+      toast.success('Facture archivée');
     } catch (err) {
-      toast.error(err.message || 'Archive failed');
+      toast.error(err.message || 'Archivage échoué');
     }
   };
 
@@ -368,24 +495,95 @@ const InvoiceListPage = () => {
     try {
       const updated = await restoreInvoice(id);
       handleUpdateInvoice(updated);
-      toast.success('Invoice restored');
+      toast.success('Facture restaurée');
     } catch (err) {
-      toast.error(err.message || 'Restore failed');
+      toast.error(err.message || 'Restauration échouée');
+    }
+  };
+
+  const handleStatusTransition = async (invoice, action) => {
+    const id = invoice._id || invoice.id;
+    const isOutgoing = invoice.direction === 'outgoing';
+    const labels = {
+      validate: 'validée',
+      invalidate: 'invalidée',
+      'mark-sent': 'marquée envoyée',
+      'mark-paid': 'marquée payée',
+      'unmark-sent': 'repassée en validé',
+      'unmark-paid': 'repassée en envoyé',
+    };
+    try {
+      let updated;
+      if (action === 'validate') {
+        updated = isOutgoing
+          ? await validateVente(id)
+          : await validateInvoice(id);
+      } else if (action === 'invalidate') {
+        updated = isOutgoing
+          ? await invalidateVente(id)
+          : await invalidateInvoice(id);
+      } else if (action === 'mark-sent') {
+        updated = await markVenteSent(id);
+      } else if (action === 'mark-paid') {
+        updated = isOutgoing
+          ? await markVentePaid(id)
+          : await markInvoicePaid(id);
+      } else if (action === 'unmark-sent') {
+        updated = await unmarkVenteSent(id);
+      } else if (action === 'unmark-paid') {
+        updated = isOutgoing
+          ? await unmarkVentePaid(id)
+          : await unmarkInvoicePaid(id);
+      }
+      if (updated) handleUpdateInvoice(updated);
+      toast.success(`Facture ${labels[action] || 'mise à jour'}.`);
+    } catch (err) {
+      toast.error(
+        err.response?.data?.detail || err.message || 'Action échouée.',
+      );
     }
   };
 
   const handleExport = async () => {
     setExportLoading(true);
     try {
-      await exportInvoices(filters);
-      toast.success('Invoices exported successfully');
-      handleFetchInvoices(page, sortBy, order, filters);
+      let ids;
+      if (direction === 'outgoing') ids = await exportVentes(filters);
+      else if (direction === 'incoming') ids = await exportAchats(filters);
+      else ids = await exportInvoices(filters);
+      toast.success('Factures exportées avec succès');
+      if (ids && ids.length > 0) {
+        setExportConfirm({ open: true, ids });
+      }
     } catch (err) {
-      toast.error(err.message || 'Export failed');
+      toast.error(err.message || 'Exportation échouée');
     } finally {
       setExportLoading(false);
     }
   };
+
+  const handleExportConfirm = async () => {
+    try {
+      await batchUpdateInvoices(exportConfirm.ids, { is_exported: true });
+      toast.success(
+        `${exportConfirm.ids.length} facture(s) marquée(s) comme exportées.`,
+      );
+      handleFetchInvoices(page, sortBy, order, filters);
+    } catch (err) {
+      toast.error(err.message || 'Marquage échoué');
+    } finally {
+      setExportConfirm({ open: false, ids: [] });
+    }
+  };
+
+  const exportConfirmDialog = (
+    <ExportConfirmDialog
+      open={exportConfirm.open}
+      count={exportConfirm.ids.length}
+      onConfirm={handleExportConfirm}
+      onCancel={() => setExportConfirm({ open: false, ids: [] })}
+    />
+  );
 
   const editModal = editModalOpen && selectedInvoice && (
     <EditInvoice
@@ -396,10 +594,43 @@ const InvoiceListPage = () => {
     />
   );
 
-  if (loading) {
-    return (
-      <>
-        <div className="max-w-full mx-auto my-8 px-6">
+  // Contextual batch action counts — derived from current selection
+  const batchTotal = selectedIds.size;
+  const selectedInvoices = (invoiceData?.data || []).filter((inv) =>
+    selectedIds.has(inv.id || inv._id),
+  );
+  const canValidate = selectedInvoices.filter((inv) =>
+    ['extracted', 'draft'].includes(inv.status),
+  ).length;
+  const canInvalidate = selectedInvoices.filter(
+    (inv) => !['extracted', 'draft'].includes(inv.status),
+  ).length;
+  const canMarkPaid = selectedInvoices.filter(
+    (inv) => !inv.is_paid && ['validated', 'sent'].includes(inv.status),
+  ).length;
+  const canUnmarkPaid = selectedInvoices.filter((inv) => inv.is_paid).length;
+  const canArchive = selectedInvoices.filter((inv) => !inv.is_archived).length;
+  const canRestore = selectedInvoices.filter((inv) => inv.is_archived).length;
+  const canMarkExported = selectedInvoices.filter(
+    (inv) => !inv.is_exported,
+  ).length;
+  const canUnmarkExported = selectedInvoices.filter(
+    (inv) => inv.is_exported,
+  ).length;
+  const canSetIncoming = selectedInvoices.filter(
+    (inv) => inv.direction !== 'incoming',
+  ).length;
+  const canSetOutgoing = selectedInvoices.filter(
+    (inv) => inv.direction !== 'outgoing',
+  ).length;
+
+  // editModal and exportConfirmDialog are always the last two children of the
+  // root fragment — same tree position regardless of which branch renders —
+  // so React never unmounts/remounts the modal, preventing double animation.
+  return (
+    <>
+      <div className="max-w-full mx-auto my-8 px-6">
+        {loading ? (
           <Card
             className={`border-0 shadow-lg ${
               isDarkMode ? 'bg-gray-800/50' : 'bg-white/80'
@@ -408,304 +639,399 @@ const InvoiceListPage = () => {
             <CardContent className="flex flex-col items-center justify-center py-12">
               <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
               <p className={isDarkMode ? 'text-gray-300' : 'text-gray-600'}>
-                Loading invoices...
+                Chargement des factures...
               </p>
             </CardContent>
           </Card>
-        </div>
-        {editModal}
-      </>
-    );
-  }
-
-  if (error) {
-    return (
-      <>
-        <div className="max-w-full mx-auto my-8 px-6">
-          <Alert variant="destructive" className="mb-4">
-            <AlertTitle>Error loading invoices</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-          <Button onClick={() => handleFetchInvoices()} className="mt-4">
-            Retry
-          </Button>
-        </div>
-        {editModal}
-      </>
-    );
-  }
-
-  if (!invoiceData || !invoiceData.data || invoiceData.data.length === 0) {
-    return (
-      <>
-        <div className="max-w-full mx-auto my-8 px-6">
-        <InvoiceHeader
-          invoiceData={invoiceData}
-          sortBy={sortBy}
-          order={order}
-          onSort={handleSort}
-          onExport={handleExport}
-          exportLoading={exportLoading}
-          searchValue={vendorSearchInput}
-          onSearchChange={(value) => handleFilterChange('vendor_name', value)}
-        />
-        <InvoiceFilters
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onClearFilters={clearFilters}
-        />
-        <Alert
-          className={
-            isDarkMode
-              ? 'border-blue-900 bg-gray-800'
-              : 'border-blue-200 bg-blue-50'
-          }
-        >
-          <AlertTitle
-            className={isDarkMode ? 'text-blue-300' : 'text-blue-800'}
-          >
-            No invoices found
-          </AlertTitle>
-          <AlertDescription
-            className={isDarkMode ? 'text-blue-400' : 'text-blue-600'}
-          >
-            {(filters.status && filters.status !== 'all') ||
-            filters.vendor_name ||
-            (filters.category && filters.category !== 'all')
-              ? 'No invoices match the current filters. Try adjusting your search criteria.'
-              : 'There are no invoices to display.'}
-          </AlertDescription>
-        </Alert>
-      </div>
-        {editModal}
-      </>
-    );
-  }
-
-  return (
-    <div className="max-w-full mx-auto my-8 px-6">
-      <InvoiceHeader
-        invoiceData={invoiceData}
-        sortBy={sortBy}
-        order={order}
-        onSort={handleSort}
-        onExport={handleExport}
-        exportLoading={exportLoading}
-        searchValue={vendorSearchInput}
-        onSearchChange={(value) => handleFilterChange('vendor_name', value)}
-      />
-
-      <InvoiceFilters
-        filters={filters}
-        onFilterChange={handleFilterChange}
-        onClearFilters={clearFilters}
-      />
-
-      {selectedIds.size > 0 && (
-        <div
-          className={`mb-4 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 ${
-            isDarkMode
-              ? 'border-blue-700 bg-blue-900/20'
-              : 'border-blue-200 bg-blue-50'
-          }`}
-        >
-          <span
-            className={`font-medium ${
-              isDarkMode ? 'text-blue-200' : 'text-blue-800'
-            }`}
-          >
-            {selectedIds.size} invoice(s) selected
-          </span>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleBatchUpdate({ status: 'validated' })}
-              disabled={batchLoading}
-              className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
-            >
-              Validate
+        ) : error ? (
+          <>
+            <Alert variant="destructive" className="mb-4">
+              <AlertTitle>Erreur de chargement</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+            <Button onClick={() => handleFetchInvoices()} className="mt-4">
+              Réessayer
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleBatchUpdate({ is_paid: true })}
-              disabled={batchLoading}
-              className="border-green-500 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-900/20"
+          </>
+        ) : !invoiceData ||
+          !invoiceData.data ||
+          invoiceData.data.length === 0 ? (
+          <>
+            <InvoiceHeader
+              invoiceData={invoiceData}
+              sortBy={sortBy}
+              order={order}
+              onSort={handleSort}
+              onExport={handleExport}
+              exportLoading={exportLoading}
+              searchValue={vendorSearchInput}
+              onSearchChange={(value) =>
+                handleFilterChange('vendor_name', value)
+              }
+              direction={direction}
+            />
+            <InvoiceFilters
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              onClearFilters={clearFilters}
+              direction={direction}
+            />
+            <Alert
+              className={
+                isDarkMode
+                  ? 'border-blue-900 bg-gray-800'
+                  : 'border-blue-200 bg-blue-50'
+              }
             >
-              Mark as Paid
-            </Button>
-            <Popover open={moreDropdownOpen} onOpenChange={setMoreDropdownOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={batchLoading}
-                  className="border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-500 dark:text-gray-400 dark:hover:bg-gray-800"
+              <AlertTitle
+                className={isDarkMode ? 'text-blue-300' : 'text-blue-800'}
+              >
+                {direction === 'incoming'
+                  ? "Aucune facture d'achat"
+                  : direction === 'outgoing'
+                    ? 'Aucune facture de vente'
+                    : 'No invoices found'}
+              </AlertTitle>
+              <AlertDescription
+                className={isDarkMode ? 'text-blue-400' : 'text-blue-600'}
+              >
+                {(filters.status && filters.status !== 'all') ||
+                filters.vendor_name ||
+                (filters.category && filters.category !== 'all') ? (
+                  "Aucune facture ne correspond aux filtres actuels. Essayez d'ajuster vos critères de recherche."
+                ) : direction === 'incoming' ? (
+                  <>
+                    Aucune facture d&apos;achat pour le moment.{' '}
+                    <button
+                      onClick={() => navigate('/achats/import')}
+                      className="underline hover:no-underline"
+                    >
+                      Importer une facture
+                    </button>
+                  </>
+                ) : direction === 'outgoing' ? (
+                  <>
+                    Aucune facture de vente pour le moment.{' '}
+                    <button
+                      onClick={() => navigate('/ventes/new')}
+                      className="underline hover:no-underline"
+                    >
+                      Créer une facture
+                    </button>
+                  </>
+                ) : (
+                  'Aucune facture à afficher.'
+                )}
+              </AlertDescription>
+            </Alert>
+          </>
+        ) : (
+          <>
+            <InvoiceHeader
+              invoiceData={invoiceData}
+              sortBy={sortBy}
+              order={order}
+              onSort={handleSort}
+              onExport={handleExport}
+              exportLoading={exportLoading}
+              searchValue={vendorSearchInput}
+              onSearchChange={(value) =>
+                handleFilterChange('vendor_name', value)
+              }
+              direction={direction}
+            />
+
+            <InvoiceFilters
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              onClearFilters={clearFilters}
+              direction={direction}
+            />
+
+            {selectedIds.size > 0 && (
+              <div
+                className={`mb-4 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 ${
+                  isDarkMode
+                    ? 'border-blue-700 bg-blue-900/20'
+                    : 'border-blue-200 bg-blue-50'
+                }`}
+              >
+                <span
+                  className={`font-medium ${
+                    isDarkMode ? 'text-blue-200' : 'text-blue-800'
+                  }`}
                 >
-                  <MoreHorizontal className="w-4 h-4 mr-1" />
-                  More
-                  <ChevronDown className="w-3.5 h-3.5 ml-1" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56 p-2" align="start">
-                <div className="flex flex-col gap-0.5">
+                  {selectedIds.size} facture(s) sélectionnée(s)
+                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Left cluster: state mutations */}
+                  {canValidate > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        handleBatchUpdate({ status: 'validated' }, 'validée(s)')
+                      }
+                      disabled={batchLoading}
+                      className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                      Valider{canValidate < batchTotal && ` (${canValidate})`}
+                    </Button>
+                  )}
+                  {canInvalidate > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        handleBatchUpdate(
+                          {
+                            status:
+                              direction === 'outgoing' ? 'draft' : 'extracted',
+                          },
+                          'invalidée(s)',
+                        )
+                      }
+                      disabled={batchLoading}
+                      className="border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-500 dark:text-gray-400 dark:hover:bg-gray-800"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                      Invalider
+                      {canInvalidate < batchTotal && ` (${canInvalidate})`}
+                    </Button>
+                  )}
+                  <SplitPill
+                    total={batchTotal}
+                    disabled={batchLoading}
+                    left={{
+                      label: 'Marquer payé',
+                      icon: Banknote,
+                      count: canMarkPaid,
+                      onClick: () =>
+                        handleBatchUpdate(
+                          direction === 'outgoing'
+                            ? { is_paid: true, status: 'paid' }
+                            : { is_paid: true },
+                          'marquée(s) payée(s)',
+                        ),
+                      className:
+                        'border-green-400 text-green-600 hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-900/20',
+                    }}
+                    right={{
+                      label: 'Non payé',
+                      icon: CircleSlash,
+                      count: canUnmarkPaid,
+                      onClick: () =>
+                        handleBatchUpdate(
+                          { is_paid: false },
+                          'marquée(s) non payée(s)',
+                        ),
+                      className:
+                        'border-gray-400 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                    }}
+                  />
+
+                  {/* Divider */}
+                  <div
+                    className={`w-px h-5 self-center ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'}`}
+                  />
+
+                  {/* Right cluster: utility */}
+                  <SplitPill
+                    total={batchTotal}
+                    disabled={batchLoading}
+                    left={{
+                      label: 'Exporté',
+                      icon: FileCheck,
+                      count: canMarkExported,
+                      onClick: () =>
+                        handleBatchUpdate(
+                          { is_exported: true },
+                          'marquée(s) exportée(s)',
+                        ),
+                      className:
+                        'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                    }}
+                    right={{
+                      label: 'Non exporté',
+                      icon: FileX,
+                      count: canUnmarkExported,
+                      onClick: () =>
+                        handleBatchUpdate(
+                          { is_exported: false },
+                          'marquée(s) non exportée(s)',
+                        ),
+                      className:
+                        'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                    }}
+                  />
+                  <SplitPill
+                    total={batchTotal}
+                    disabled={batchLoading}
+                    left={{
+                      label: 'Archiver',
+                      icon: Archive,
+                      count: canArchive,
+                      onClick: () =>
+                        handleBatchUpdate({ is_archived: true }, 'archivée(s)'),
+                      className:
+                        'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                    }}
+                    right={{
+                      label: 'Désarchiver',
+                      icon: ArchiveRestore,
+                      count: canRestore,
+                      onClick: () =>
+                        handleBatchUpdate(
+                          { is_archived: false },
+                          'désarchivée(s)',
+                        ),
+                      className:
+                        'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                    }}
+                  />
+                  {!direction && (
+                    <SplitPill
+                      total={batchTotal}
+                      disabled={batchLoading}
+                      left={{
+                        label: 'Achat',
+                        icon: ArrowDownToLine,
+                        count: canSetIncoming,
+                        onClick: () =>
+                          handleBatchUpdate(
+                            { direction: 'incoming' },
+                            'définie(s) comme achat',
+                          ),
+                        className:
+                          'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                      }}
+                      right={{
+                        label: 'Vente',
+                        icon: ArrowUpFromLine,
+                        count: canSetOutgoing,
+                        onClick: () =>
+                          handleBatchUpdate(
+                            { direction: 'outgoing' },
+                            'définie(s) comme vente',
+                          ),
+                        className:
+                          'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                      }}
+                    />
+                  )}
+
+                  {/* Divider */}
+                  <div
+                    className={`w-px h-5 self-center ${isDarkMode ? 'bg-gray-600' : 'bg-gray-300'}`}
+                  />
+
+                  {/* PDF */}
                   <Button
                     size="sm"
-                    variant="ghost"
-                    className="justify-start font-normal"
-                    onClick={() => {
-                      setMoreDropdownOpen(false);
-                      handleBatchUpdate({ is_paid: false });
-                    }}
-                    disabled={batchLoading}
+                    variant="outline"
+                    onClick={handleBatchDownloadPdf}
+                    disabled={pdfBatchLoading}
+                    className="border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-500 dark:text-gray-400 dark:hover:bg-gray-800"
                   >
-                    Mark as Unpaid
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="justify-start font-normal"
-                    onClick={() => {
-                      setMoreDropdownOpen(false);
-                      handleBatchUpdate({ direction: 'incoming' });
-                    }}
-                    disabled={batchLoading}
-                  >
-                    Set Incoming
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="justify-start font-normal"
-                    onClick={() => {
-                      setMoreDropdownOpen(false);
-                      handleBatchUpdate({ direction: 'outgoing' });
-                    }}
-                    disabled={batchLoading}
-                  >
-                    Set Outgoing
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="justify-start font-normal"
-                    onClick={() => {
-                      setMoreDropdownOpen(false);
-                      handleBatchUpdate({ is_exported: false });
-                    }}
-                    disabled={batchLoading}
-                  >
-                    Mark Unexported
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="justify-start font-normal"
-                    onClick={() => {
-                      setMoreDropdownOpen(false);
-                      handleBatchUpdate({ is_archived: true });
-                    }}
-                    disabled={batchLoading}
-                  >
-                    Archive
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="justify-start font-normal"
-                    onClick={() => {
-                      setMoreDropdownOpen(false);
-                      handleBatchUpdate({ is_archived: false });
-                    }}
-                    disabled={batchLoading}
-                  >
-                    Unarchive
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="justify-start font-normal"
-                    onClick={() => {
-                      setMoreDropdownOpen(false);
-                      handleBatchUpdate({ status: 'extracted' });
-                    }}
-                    disabled={batchLoading}
-                  >
-                    Unvalidate
+                    <FileDown
+                      className={`w-3.5 h-3.5 mr-1.5 ${pdfBatchLoading ? '' : 'text-purple-500 dark:text-purple-400'}`}
+                    />
+                    {pdfBatchLoading ? 'Génération...' : 'Télécharger PDF'}
                   </Button>
                 </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setSelectedIds(new Set())}
-            className="ml-auto"
-          >
-            Clear selection
-          </Button>
-        </div>
-      )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="ml-auto"
+                >
+                  Effacer la sélection
+                </Button>
+              </div>
+            )}
 
-      <div
-        className={`overflow-x-auto rounded-lg border shadow-lg ${
-          isDarkMode
-            ? 'border-gray-700 bg-gray-800'
-            : 'border-gray-200 bg-white'
-        }`}
-      >
-        <table className="w-full border-collapse text-sm">
-          <InvoiceTableHeader
-            showSelect
-            allSelected={
-              invoiceData.data.length > 0 &&
-              invoiceData.data.every((inv) =>
-                selectedIds.has(inv.id || inv._id),
-              )
-            }
-            onSelectAll={handleSelectAll}
-          />
-          <tbody>
-            {invoiceData.data.flatMap((invoice) => [
-              <InvoiceRow
-                key={`${invoice.id || invoice._id}-main`}
-                invoice={invoice}
-                isExpanded={expandedRows.has(invoice.id || invoice._id)}
-                onToggleExpand={toggleRowExpansion}
-                onExportPDF={exportToPDF}
-                onDelete={handleDeleteInvoice}
-                onArchive={handleArchive}
-                onRestore={handleRestore}
-                onEdit={handleEdit}
-                onUpdate={handleUpdateInvoice}
-                onUpdateField={handleUpdateField}
-                isSelected={selectedIds.has(invoice.id || invoice._id)}
-                onSelect={handleSelect}
-              />,
-              ...(expandedRows.has(invoice.id || invoice._id)
-                ? [
-                    <InvoiceExpandedRow
-                      key={`${invoice.id || invoice._id}-expanded`}
+            <div
+              className={`overflow-x-auto rounded-lg border shadow-lg ${
+                isDarkMode
+                  ? 'border-gray-700 bg-gray-800'
+                  : 'border-gray-200 bg-white'
+              }`}
+            >
+              <table className="w-full border-collapse text-sm">
+                <InvoiceTableHeader
+                  showSelect
+                  allSelected={
+                    invoiceData.data.length > 0 &&
+                    invoiceData.data.every((inv) =>
+                      selectedIds.has(inv.id || inv._id),
+                    )
+                  }
+                  onSelectAll={handleSelectAll}
+                  showDirection={!direction}
+                />
+                <tbody>
+                  {invoiceData.data.flatMap((invoice) => [
+                    <InvoiceRow
+                      key={`${invoice.id || invoice._id}-main`}
                       invoice={invoice}
-                      colSpan={13}
+                      isExpanded={expandedRows.has(invoice.id || invoice._id)}
+                      onToggleExpand={toggleRowExpansion}
+                      onExportPDF={(inv) =>
+                        inv.direction === 'outgoing'
+                          ? downloadVentePdf(
+                              inv.id || inv._id,
+                              inv.invoice_number,
+                            )
+                          : downloadInvoicePdf(
+                              inv.id || inv._id,
+                              inv.invoice_number,
+                            )
+                      }
+                      onDelete={handleDeleteInvoice}
+                      onArchive={handleArchive}
+                      onRestore={handleRestore}
+                      onEdit={handleEdit}
+                      onUpdate={handleUpdateInvoice}
+                      onUpdateField={handleUpdateField}
+                      categories={categories}
+                      onStatusTransition={handleStatusTransition}
+                      isSelected={selectedIds.has(invoice.id || invoice._id)}
+                      onSelect={handleSelect}
+                      showDirection={!direction}
                     />,
-                  ]
-                : []),
-            ])}
-          </tbody>
-        </table>
+                    ...(expandedRows.has(invoice.id || invoice._id)
+                      ? [
+                          <InvoiceExpandedRow
+                            key={`${invoice.id || invoice._id}-expanded`}
+                            invoice={invoice}
+                            colSpan={12}
+                            refreshKey={historyRefreshKey}
+                          />,
+                        ]
+                      : []),
+                  ])}
+                </tbody>
+              </table>
+            </div>
+
+            <InvoicePagination
+              invoiceData={invoiceData}
+              loading={loading}
+              onPageChange={handlePageChange}
+              perPage={perPage}
+              onPerPageChange={(n) => {
+                setPerPage(n);
+                setPage(1);
+                setExpandedRows(new Set());
+              }}
+            />
+          </>
+        )}
       </div>
-
-      <InvoicePagination
-        invoiceData={invoiceData}
-        loading={loading}
-        onPageChange={handlePageChange}
-      />
-
       {editModal}
-    </div>
+      {exportConfirmDialog}
+    </>
   );
 };
 

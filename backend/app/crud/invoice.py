@@ -12,7 +12,12 @@ from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import DuplicateKeyError
 
 from app.database import get_invoices_collection
-from app.models.invoice import Invoice, InvoiceCreate, InvoiceUpdate
+from app.models.invoice import (
+    Invoice,
+    InvoiceCreate,
+    InvoiceHistoryEntry,
+    InvoiceUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +48,9 @@ class InvoiceCRUD:
             invoice_dict.setdefault("is_paid", False)
             invoice_dict.setdefault("is_archived", False)
             invoice_dict.setdefault("direction", "incoming")
+            # Backward compat: populate vendor_ice from ice if missing
+            if not invoice_dict.get("vendor_ice") and invoice_dict.get("ice"):
+                invoice_dict["vendor_ice"] = invoice_dict["ice"]
 
             if invoice_dict.get("invoice_date"):
                 if isinstance(invoice_dict["invoice_date"], date):
@@ -116,24 +124,45 @@ class InvoiceCRUD:
             is_exported: bool | None = None,
             is_paid: bool | None = None,
             include_archived: bool = False,
+            direction: str | None = None,
+            start_date: datetime | None = None,
+            end_date: datetime | None = None,
+            overdue: bool | None = None,
+            company_id: str | None = None,
     ):
         """Get all invoices with optional filtering. Excludes archived by default."""
         try:
             collection = get_invoices_collection()
             # Build filter query
-            filter_query = {}
+            filter_query: dict = {}
+            if company_id:
+                filter_query["company_id"] = company_id
             if not include_archived:
                 filter_query["is_archived"] = {"$ne": True}
             if status:
                 filter_query["status"] = status
             if vendor_name:
-                filter_query["vendor_name"] = {"$regex": vendor_name, "$options": "i"}
+                name_regex = {"$regex": vendor_name, "$options": "i"}
+                filter_query["$or"] = [{"vendor_name": name_regex}, {"client_name": name_regex}]
             if category:
                 filter_query["category"] = category
             if is_exported is not None:
                 filter_query["is_exported"] = is_exported
             if is_paid is not None:
                 filter_query["is_paid"] = is_paid
+            if direction is not None:
+                filter_query["direction"] = direction
+            if start_date or end_date:
+                date_filter: dict = {}
+                if start_date:
+                    date_filter["$gte"] = start_date
+                if end_date:
+                    date_filter["$lte"] = end_date
+                filter_query["invoice_date"] = date_filter
+            if overdue:
+                today = datetime.utcnow()
+                filter_query["invoice_due_date"] = {"$lt": today}
+                filter_query["is_paid"] = {"$ne": True}
 
             total = collection.count_documents(filter_query)
             total_pages = (total + per_page - 1) // per_page
@@ -168,23 +197,30 @@ class InvoiceCRUD:
             category: str | None = None,
             is_exported: bool | None = None,
             include_archived: bool = False,
+            direction: str | None = None,
             sort_by: str = "created_at",
             order: Literal["asc", "desc"] = "desc",
+            company_id: str | None = None,
     ) -> list[Invoice]:
         """Get all invoices matching filters for export (no pagination)."""
         try:
             collection = get_invoices_collection()
             filter_query = {}
+            if company_id:
+                filter_query["company_id"] = company_id
             if not include_archived:
                 filter_query["is_archived"] = {"$ne": True}
             if status:
                 filter_query["status"] = status
             if vendor_name:
-                filter_query["vendor_name"] = {"$regex": vendor_name, "$options": "i"}
+                name_regex = {"$regex": vendor_name, "$options": "i"}
+                filter_query["$or"] = [{"vendor_name": name_regex}, {"client_name": name_regex}]
             if category:
                 filter_query["category"] = category
             if is_exported is not None:
                 filter_query["is_exported"] = is_exported
+            if direction:
+                filter_query["direction"] = direction
 
             order_by = ASCENDING if order == "asc" else DESCENDING
             cursor = collection.find(filter_query).sort(sort_by, order_by)
@@ -225,21 +261,6 @@ class InvoiceCRUD:
             return invoices
         except Exception as e:
             raise Exception(f"Failed to retrieve invoices for vendor {vendor_name}: {e!s}")
-
-    @staticmethod
-    def get_invoices_by_tags(tags: list[str]) -> list[Invoice]:
-        """Get invoices that have any of the specified tags"""
-        try:
-            collection = get_invoices_collection()
-            cursor = collection.find({"tags": {"$in": tags}}).sort("created_at", DESCENDING)
-
-            invoices = []
-            for invoice_data in cursor:
-                invoices.append(Invoice(**invoice_data))
-
-            return invoices
-        except Exception as e:
-            raise Exception(f"Failed to retrieve invoices by tags: {e!s}")
 
     @staticmethod
     def get_invoices_by_date_range(start_date: datetime, end_date: datetime) -> list[Invoice]:
@@ -312,8 +333,10 @@ class InvoiceCRUD:
             set_op["is_paid"] = is_paid
             if is_paid:
                 set_op["paid_at"] = datetime.utcnow()
+                set_op["status"] = "paid"
             else:
                 unset_op["paid_at"] = ""
+                set_op["status"] = "validated"
         if direction is not None:
             set_op["direction"] = direction
         if status is not None:
@@ -334,10 +357,12 @@ class InvoiceCRUD:
             update = {"$set": set_op}
             if unset_op:
                 update["$unset"] = unset_op
-            result = collection.update_many(
-                {"_id": {"$in": object_ids}},
-                update,
-            )
+            query: dict = {"_id": {"$in": object_ids}}
+            if is_paid is True:
+                query["status"] = "validated"
+            elif is_paid is False:
+                query["status"] = "paid"
+            result = collection.update_many(query, update)
             return result.modified_count
         except Exception as e:
             logger.exception("Batch update failed: %s", e)
@@ -361,6 +386,51 @@ class InvoiceCRUD:
 
         except Exception as e:
             raise Exception(f"Failed to update invoice status: {e!s}")
+
+    @staticmethod
+    def append_history(invoice_id: str, entry: InvoiceHistoryEntry) -> None:
+        """Push a history entry to the invoice's history array."""
+        try:
+            collection = get_invoices_collection()
+            collection.update_one(
+                {"_id": ObjectId(invoice_id)},
+                {"$push": {"history": entry.model_dump()}},
+            )
+        except Exception as e:
+            logger.warning("Failed to append history to invoice %s: %s", invoice_id, e)
+
+    @staticmethod
+    def get_history(invoice_id: str) -> list:
+        """Return the history array for an invoice, newest first.
+        ObjectId user values (legacy) are resolved to emails."""
+        import re
+        objectid_re = re.compile(r"^[a-f0-9]{24}$")
+        try:
+            collection = get_invoices_collection()
+            doc = collection.find_one(
+                {"_id": ObjectId(invoice_id)},
+                {"history": 1},
+            )
+            if doc is None:
+                return []
+            entries = list(reversed(doc.get("history") or []))
+
+            raw_ids = {e["user"] for e in entries if objectid_re.match(e.get("user") or "")}
+            if raw_ids:
+                from app.database import get_database
+                users_col = get_database()["users"]
+                user_map = {
+                    str(u["_id"]): u.get("email") or u.get("full_name") or str(u["_id"])
+                    for u in users_col.find({"_id": {"$in": [ObjectId(uid) for uid in raw_ids]}})
+                }
+                for e in entries:
+                    if e.get("user") in user_map:
+                        e["user"] = user_map[e["user"]]
+
+            return entries
+        except Exception as e:
+            logger.warning("Failed to get history for invoice %s: %s", invoice_id, e)
+            return []
 
     @staticmethod
     def delete_invoice(invoice_id: str) -> bool:
@@ -470,7 +540,6 @@ class InvoiceCRUD:
                     {"invoice_number": {"$regex": search_term, "$options": "i"}},
                     {"vendor_name": {"$regex": search_term, "$options": "i"}},
                     {"category": {"$regex": search_term, "$options": "i"}},
-                    {"tags": {"$regex": search_term, "$options": "i"}},
                     {"items.description": {"$regex": search_term, "$options": "i"}}
                 ]
             }

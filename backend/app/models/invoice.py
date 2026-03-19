@@ -2,7 +2,18 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from bson import ObjectId
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+class InvoiceHistoryEntry(BaseModel):
+    """A single audit-trail entry recorded on every status transition."""
+    action: str
+    status_from: str | None = None
+    status_to: str | None = None
+    user: str = "système"
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+    model_config = ConfigDict(json_encoders={datetime: lambda v: v.isoformat()})
 
 
 class InvoiceItem(BaseModel):
@@ -35,11 +46,18 @@ class Invoice(BaseModel):
 
     # Vendor information
     vendor_name: str = Field(..., description="Vendor name")
-    ice: str | None = Field(default=None, description="ICE (Moroccan tax ID)")
+    ice: str | None = Field(default=None, description="Vendor ICE — legacy field, prefer vendor_ice")
+    vendor_ice: str | None = Field(default=None, description="Vendor ICE (Moroccan tax ID)")
     tva: float | None = Field(default=None, description="TVA rate (e.g. 20 for 20%)")
     amount_tva: float | None = Field(default=None, description="TVA amount (monetary)")
 
+    # Client information (for outgoing invoices)
+    client_name: str | None = Field(default=None, description="Client name")
+    client_ice: str | None = Field(default=None, description="Client ICE (Moroccan tax ID)")
+    contact_id: str | None = Field(default=None, description="Reference to contact _id")
+
     # Financial information
+    subtotal_ht: Decimal | None = Field(default=None, description="Subtotal before tax (HT)")
     total_amount: Decimal = Field(..., gt=0, description="Total invoice amount")
     currency: str = Field(default="MAD", description="Currency code")
 
@@ -48,7 +66,6 @@ class Invoice(BaseModel):
 
     # Categorization
     category: str = Field(..., description="Invoice category")
-    tags: list[str] = Field(default_factory=list, description="Invoice tags")
 
     # Processing information
     source_type: str = Field(..., description="Source type (pdf/image)")
@@ -61,6 +78,9 @@ class Invoice(BaseModel):
     direction: str = Field(default="incoming", description="incoming or outgoing")
     paid_at: datetime | None = None
     exported_at: datetime | None = None
+
+    # Multi-company scoping
+    company_id: str | None = Field(default=None, description="Company this invoice belongs to")
 
     @field_validator("id", mode="before")
     @classmethod
@@ -100,14 +120,18 @@ class InvoiceCreate(BaseModel):
     invoice_date: datetime | None = None
     invoice_due_date: datetime | None = None
     vendor_name: str = Field(..., min_length=1, description="Vendor name")
-    ice: str | None = Field(default=None, description="ICE (Moroccan tax ID)")
+    ice: str | None = Field(default=None, description="Vendor ICE — legacy field, prefer vendor_ice")
+    vendor_ice: str | None = Field(default=None, description="Vendor ICE (Moroccan tax ID)")
     tva: float | None = Field(default=None, description="TVA rate (e.g. 20 for 20%)")
     amount_tva: float | None = Field(default=None, description="TVA amount (monetary)")
+    client_name: str | None = Field(default=None, description="Client name (for outgoing invoices)")
+    client_ice: str | None = Field(default=None, description="Client ICE")
+    contact_id: str | None = Field(default=None, description="Reference to contact _id")
+    subtotal_ht: Decimal | None = Field(default=None, description="Subtotal before tax (HT)")
     total_amount: Decimal = Field(..., gt=0, description="Total invoice amount")
     currency: str = Field(default="MAD", description="Currency code")
     items: list[InvoiceItem] = Field(default_factory=list, description="List of invoice items")
     category: str = Field(..., min_length=1, description="Invoice category")
-    tags: list[str] = Field(default_factory=list, description="Invoice tags")
     source_type: str = Field(..., description="Source type (manual/pdf/image)")
     status: str = Field(default="extracted", description="Processing status")
 
@@ -116,6 +140,16 @@ class InvoiceCreate(BaseModel):
     is_paid: bool = Field(default=False, description="Payment confirmed")
     is_archived: bool = Field(default=False, description="Hidden from main list")
     direction: str = Field(default="incoming", description="incoming or outgoing")
+
+    # Multi-company scoping
+    company_id: str | None = Field(default=None, description="Company this invoice belongs to")
+
+    @model_validator(mode="after")
+    def sync_vendor_ice(self):
+        """Backward compat: if vendor_ice not set but ice is, copy ice → vendor_ice."""
+        if self.vendor_ice is None and self.ice is not None:
+            self.vendor_ice = self.ice
+        return self
 
     @field_validator("invoice_number")
     @classmethod
@@ -189,13 +223,17 @@ class InvoiceUpdate(BaseModel):
     invoice_due_date: datetime | None = None
     vendor_name: str | None = None
     ice: str | None = None
+    vendor_ice: str | None = None
     tva: float | None = None
     amount_tva: float | None = None
+    client_name: str | None = None
+    client_ice: str | None = None
+    contact_id: str | None = None
+    subtotal_ht: Decimal | None = None
     total_amount: Decimal | None = None
     currency: str | None = None
     items: list[InvoiceItem] | None = None
     category: str | None = None
-    tags: list[str] | None = None
     source_type: str | None = None
     status: str | None = None
     is_exported: bool | None = None
@@ -224,13 +262,17 @@ class InvoiceResponse(BaseModel):
     invoice_due_date: datetime | None = None
     vendor_name: str | None = None
     ice: str | None = None
+    vendor_ice: str | None = None
     tva: float | None = None
     amount_tva: float | None = None
+    client_name: str | None = None
+    client_ice: str | None = None
+    contact_id: str | None = None
+    subtotal_ht: Decimal | None = None
     total_amount: Decimal | None = None
     currency: str | None = None
     items: list[InvoiceItem] | None = None
     category: str | None = None
-    tags: list[str] | None = None
     source_type: str | None = None
     status: str | None = None
     is_exported: bool | None = None
@@ -243,3 +285,9 @@ class InvoiceResponse(BaseModel):
     updated_at: datetime | None = None
     # Computed by backend when status is 'extracted' (amount verification warnings)
     amount_warnings: list[str] | None = None
+    # Computed: true when invoice_due_date < today AND is_paid is false
+    is_overdue: bool | None = None
+    # Audit trail — only populated by the /history endpoint
+    history: list[dict] | None = None
+    # Multi-company scoping
+    company_id: str | None = None

@@ -1,14 +1,29 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useLocation,
+} from 'react-router-dom';
 import { NavBar, Sidebar, AdminOnly } from '@/components';
-import { InvoiceAddPage, InvoiceListPage, DashboardPage } from '@/pages';
+import {
+  InvoiceAddPage,
+  InvoiceListPage,
+  DashboardPage,
+  CompanyProfilePage,
+  ContactsPage,
+  VenteCreatePage,
+} from '@/pages';
 import { useTheme, useAuth } from '@/contexts';
+import { getCompanyProfile } from '@/api/company';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import UserManagement from './components/admin/UserManagement';
-// Protected route component
+import FirmsPage from './pages/FirmsPage';
+
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -16,23 +31,41 @@ const ProtectedRoute = ({ children }) => {
       </div>
     );
   }
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   return children;
 };
 
 function App() {
   const { isDarkMode } = useTheme();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [profileComplete, setProfileComplete] = useState(true);
+
+  const isSuperAdmin = user?.role === 'ADMIN';
+  const defaultHome = isSuperAdmin ? '/firms' : '/dashboard';
+
+  useEffect(() => {
+    if (!isAuthenticated || isSuperAdmin) return;
+
+    getCompanyProfile()
+      .then(() => setProfileComplete(true))
+      .catch((err) => {
+        if (err.response?.status === 404) {
+          setProfileComplete(false);
+          const exempt = ['/company', '/company/new', '/users'];
+          if (!exempt.includes(location.pathname)) {
+            navigate('/company/new', { state: { onboarding: true } });
+          }
+        }
+      });
+  }, [isAuthenticated, isSuperAdmin, location.pathname]);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {isAuthenticated && <NavBar />}
       <div className="flex flex-row flex-1 overflow-hidden">
-        {isAuthenticated && <Sidebar />}
+        {isAuthenticated && <Sidebar profileComplete={profileComplete} />}
         <main
           className={`flex-1 overflow-auto ${isDarkMode ? 'dark bg-gray-900' : 'bg-gray-100'} ${!isAuthenticated ? 'p-0' : 'p-6'}`}
         >
@@ -43,7 +76,7 @@ function App() {
                 !isAuthenticated ? (
                   <LoginPage />
                 ) : (
-                  <Navigate to="/dashboard" replace />
+                  <Navigate to={defaultHome} replace />
                 )
               }
             />
@@ -53,27 +86,67 @@ function App() {
                 !isAuthenticated ? (
                   <RegisterPage />
                 ) : (
-                  <Navigate to="/dashboard" replace />
+                  <Navigate to={defaultHome} replace />
                 )
               }
             />
 
+            {/* Legacy redirects */}
             <Route
               path="/invoices/add"
-              element={
-                <ProtectedRoute>
-                  <InvoiceAddPage />
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/achats/import" replace />}
             />
             <Route
               path="/invoices/list"
+              element={<Navigate to="/achats" replace />}
+            />
+
+            {/* Super Admin */}
+            <Route
+              path="/firms"
               element={
                 <ProtectedRoute>
-                  <InvoiceListPage />
+                  <FirmsPage />
                 </ProtectedRoute>
               }
             />
+
+            {/* Achats */}
+            <Route
+              path="/achats"
+              element={
+                <ProtectedRoute>
+                  <InvoiceListPage direction="incoming" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/achats/import"
+              element={
+                <ProtectedRoute>
+                  <InvoiceAddPage direction="incoming" />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Ventes */}
+            <Route
+              path="/ventes"
+              element={
+                <ProtectedRoute>
+                  <InvoiceListPage direction="outgoing" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ventes/new"
+              element={
+                <ProtectedRoute>
+                  <VenteCreatePage />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/dashboard"
               element={
@@ -83,23 +156,30 @@ function App() {
               }
             />
             <Route
-              path="/"
+              path="/company"
               element={
-                <Navigate
-                  to={isAuthenticated ? '/dashboard' : '/login'}
-                  replace
-                />
+                <ProtectedRoute>
+                  <CompanyProfilePage />
+                </ProtectedRoute>
               }
             />
             <Route
-              path="*"
+              path="/company/new"
               element={
-                <Navigate
-                  to={isAuthenticated ? '/dashboard' : '/login'}
-                  replace
-                />
+                <ProtectedRoute>
+                  <CompanyProfilePage createMode />
+                </ProtectedRoute>
               }
             />
+            <Route
+              path="/contacts"
+              element={
+                <ProtectedRoute>
+                  <ContactsPage />
+                </ProtectedRoute>
+              }
+            />
+
             <Route
               path="/users"
               element={
@@ -108,6 +188,25 @@ function App() {
                     <UserManagement />
                   </AdminOnly>
                 </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/"
+              element={
+                <Navigate
+                  to={isAuthenticated ? defaultHome : '/login'}
+                  replace
+                />
+              }
+            />
+            <Route
+              path="*"
+              element={
+                <Navigate
+                  to={isAuthenticated ? defaultHome : '/login'}
+                  replace
+                />
               }
             />
           </Routes>

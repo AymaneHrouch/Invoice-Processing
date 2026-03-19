@@ -1,7 +1,7 @@
-import os
-from pymongo import MongoClient
-
 from decimal import Decimal
+import os
+
+from pymongo import MongoClient
 
 _AMOUNT_TOLERANCE = Decimal("0.01")
 
@@ -37,20 +37,20 @@ def get_amount_tva(text: str) -> float | None:
         # Handles "Montant TVA DH ( 20% )\n83.33"
         # Handles "Montant TVA ( Taux de 20% ) : \n74.67"
         # Handles "Montant TVA : 83.33"
-        r'MONTANT\s+TVA\b(?:[^(\n]*)?(?:\([^)]*\))?\s*[:\-]?\s*\n?\s*([\d]+[.,]\d+)',
+        r"MONTANT\s+TVA\b(?:[^(\n]*)?(?:\([^)]*\))?\s*[:\-]?\s*\n?\s*([\d]+[.,]\d+)",
         # "T.V.A 381,67"
-        r'T\.V\.A\.?\s*[:\-]?\s*([\d,.]+)',
+        r"T\.V\.A\.?\s*[:\-]?\s*([\d,.]+)",
         # "TVA 20% 381,67"
-        r'TVA\s*[\(\d%\)]*\s*[:\-]?\s*([\d,.]+)',
+        r"TVA\s*[\(\d%\)]*\s*[:\-]?\s*([\d,.]+)",
         # "Taxes 131.89" — ONEE style
-        r'(?:^|\n)\s*Taxes?\s*[:\-]?\s*([\d,.]+)',
+        r"(?:^|\n)\s*Taxes?\s*[:\-]?\s*([\d,.]+)",
     ]
 
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE | re.MULTILINE)
         if match:
             raw = match.group(1).strip()
-            normalized = raw.replace(' ', '').replace(',', '.')
+            normalized = raw.replace(" ", "").replace(",", ".")
             try:
                 return float(normalized)
             except ValueError:
@@ -98,7 +98,7 @@ def run_amount_checks(invoice, all_info) -> list[str]:
 
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     text = """
 Montant HT :
 373.34

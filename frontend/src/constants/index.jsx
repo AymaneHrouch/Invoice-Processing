@@ -1,13 +1,21 @@
 import {
+  Building2,
   File,
+  FilePlus,
   FileText,
   Image,
   LayoutDashboard,
   List,
   Mail,
   Plus,
+  ShoppingCart,
+  TrendingUp,
+  Truck,
+  Upload,
   UserPen,
+  UserRound,
   Users,
+  Briefcase,
 } from 'lucide-react';
 
 export const currencies = [
@@ -37,8 +45,38 @@ export const InvoiceStatus = {
 };
 
 export const statusConfig = {
-  extracted: { label: 'Extracted', variant: 'outline', className: 'border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400' },
-  validated: { label: 'Validated', variant: 'default', className: 'border-green-500 text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' },
+  // Achats statuses
+  extracted: {
+    label: 'Extrait',
+    variant: 'outline',
+    className:
+      'border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400',
+  },
+  validated: {
+    label: 'Validé',
+    variant: 'default',
+    className:
+      'border-green-500 text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400',
+  },
+  // Ventes statuses
+  draft: {
+    label: 'Brouillon',
+    variant: 'outline',
+    className:
+      'border-gray-400 text-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-gray-400',
+  },
+  sent: {
+    label: 'Envoyé',
+    variant: 'outline',
+    className:
+      'border-indigo-500 text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 dark:text-indigo-400',
+  },
+  paid: {
+    label: 'Payé',
+    variant: 'default',
+    className:
+      'border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400',
+  },
 };
 
 export const calculateItemTotal = (quantity, unitPrice) => {
@@ -48,40 +86,94 @@ export const calculateItemTotal = (quantity, unitPrice) => {
 export const sidebarItems = [
   {
     id: 'dashboard',
-    label: 'Dashboard',
+    label: 'Tableau de bord',
     icon: LayoutDashboard,
     path: '/dashboard',
   },
   {
-    id: 'invoices',
-    label: 'Invoices',
-    icon: FileText,
+    id: 'achats',
+    label: 'Achats',
+    icon: ShoppingCart,
+    path: '/achats',
     hasChildren: true,
     children: [
       {
-        id: 'list-invoices',
-        label: 'List',
+        id: 'achats-list',
+        label: 'Liste',
         icon: List,
-        path: '/invoices/list',
+        path: '/achats',
       },
       {
-        id: 'add-invoice',
-        label: 'Add',
-        icon: Plus,
-        path: '/invoices/add',
+        id: 'achats-import',
+        label: 'Importer',
+        icon: Upload,
+        path: '/achats/import',
+      },
+      {
+        id: 'achats-suppliers',
+        label: 'Fournisseurs',
+        icon: Truck,
+        path: '/contacts?type=supplier',
       },
     ],
   },
   {
+    id: 'ventes',
+    label: 'Ventes',
+    icon: TrendingUp,
+    path: '/ventes',
+    hasChildren: true,
+    children: [
+      {
+        id: 'ventes-list',
+        label: 'Liste',
+        icon: List,
+        path: '/ventes',
+      },
+      {
+        id: 'ventes-new',
+        label: 'Nouvelle',
+        icon: FilePlus,
+        path: '/ventes/new',
+      },
+      {
+        id: 'ventes-clients',
+        label: 'Clients',
+        icon: UserRound,
+        path: '/contacts?type=client',
+      },
+    ],
+  },
+  {
+    id: 'company',
+    label: 'Mon Entreprise',
+    icon: Building2,
+    path: '/company',
+  },
+  {
+    id: 'contacts',
+    label: 'Contacts',
+    icon: UserRound,
+    path: '/contacts',
+  },
+  // Super Admin only
+  {
     id: 'users',
-    label: 'User Management',
+    label: 'Utilisateurs',
     icon: Users,
     path: '/users',
-    adminOnly: true,
+    superAdminOnly: true,
+  },
+  {
+    id: 'firms',
+    label: 'Cabinets',
+    icon: Briefcase,
+    path: '/firms',
+    superAdminOnly: true,
   },
 ];
 export const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
+  return new Date(dateString).toLocaleDateString('fr-FR', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

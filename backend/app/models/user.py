@@ -17,6 +17,7 @@ class UserCreate(BaseModel):
     full_name: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=8)
     role: str = "USER"
+    firm_id: str | None = None
 
 class UserUpdate(BaseModel):
     full_name: str = Field(..., min_length=3, max_length=50)

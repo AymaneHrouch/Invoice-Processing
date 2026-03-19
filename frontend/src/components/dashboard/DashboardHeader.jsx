@@ -10,12 +10,12 @@ const DashboardHeader = () => {
         <h1
           className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
         >
-          Invoice Dashboard
+          Tableau de bord
         </h1>
         <p
           className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
         >
-          Overview of your invoice processing system
+          Vue d&apos;ensemble de votre système de traitement des factures
         </p>
       </div>
     </div>

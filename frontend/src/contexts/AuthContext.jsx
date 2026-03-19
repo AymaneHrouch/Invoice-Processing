@@ -4,7 +4,10 @@ import {
   login as apiLogin,
   register as apiRegister,
   getCurrentUser,
+  switchCompany as apiSwitchCompany,
 } from '@/api';
+import { listCompanies } from '@/api/company';
+import { getMyFirm } from '@/api/firms';
 import { getAuthToken, removeAuthToken, setAuthToken } from '@/utils/auth';
 
 const AuthContext = createContext();
@@ -19,6 +22,10 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [firmId, setFirmId] = useState(null);
+  const [firmName, setFirmName] = useState(null);
+  const [companies, setCompanies] = useState([]);
+  const [activeCompany, setActiveCompany] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -39,6 +46,27 @@ export const AuthProvider = ({ children }) => {
       const userData = await getCurrentUser();
       setUser(userData);
       setError(null);
+      // Decode JWT to get firm_id + company_id, then load companies
+      try {
+        const token = getAuthToken();
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          setFirmId(payload.firm_id || null);
+          if (payload.firm_id) {
+            getMyFirm()
+              .then((f) => setFirmName(f.name))
+              .catch(() => {});
+          }
+          const allCompanies = await listCompanies();
+          setCompanies(allCompanies);
+          const cid = payload.company_id;
+          const found =
+            allCompanies.find((c) => c._id === cid) || allCompanies[0] || null;
+          setActiveCompany(found);
+        }
+      } catch {
+        // Non-fatal — companies may not exist yet
+      }
     } catch (err) {
       console.error('Failed to fetch user:', err);
       logout();
@@ -93,8 +121,26 @@ export const AuthProvider = ({ children }) => {
     navigate('/login');
   };
 
+  const switchCompany = async (companyId) => {
+    try {
+      const { access_token } = await apiSwitchCompany(companyId);
+      setAuthToken(access_token);
+      const found = companies.find((c) => c._id === companyId) || null;
+      setActiveCompany(found);
+      // Reload the page so all data re-fetches with the new company scope
+      window.location.reload();
+    } catch (err) {
+      console.error('Failed to switch company:', err);
+    }
+  };
+
   const value = {
     user,
+    firmId,
+    firmName,
+    companies,
+    activeCompany,
+    switchCompany,
     loading,
     error,
     login,

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import UploadCard from './UploadCard';
 
-const AutoInvoice = () => {
+const AutoInvoice = ({ direction = 'incoming' }) => {
   const [files, setFiles] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState({
@@ -55,6 +55,7 @@ const AutoInvoice = () => {
         setIsProcessing={setIsProcessing}
         processingProgress={processingProgress}
         setProcessingProgress={setProcessingProgress}
+        direction={direction}
       />
     </div>
   );

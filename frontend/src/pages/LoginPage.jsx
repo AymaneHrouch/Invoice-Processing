@@ -43,7 +43,7 @@ export default function LoginPage() {
                 isDarkMode ? 'text-white' : 'text-gray-900'
               }`}
             >
-              Welcome back
+              Bon retour
             </CardTitle>
           </div>
           <p
@@ -51,7 +51,7 @@ export default function LoginPage() {
               isDarkMode ? 'text-gray-400' : 'text-gray-600'
             } text-sm`}
           >
-            Log in to manage and process your invoices easily.
+            Connectez-vous pour gérer vos factures facilement.
           </p>
         </CardHeader>
         <CardContent>
@@ -63,7 +63,7 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="your email"
+                  placeholder="votre e-mail"
                   className="pl-9"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -73,7 +73,7 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Mot de passe</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
                 <Input
@@ -93,7 +93,7 @@ export default function LoginPage() {
               className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:opacity-90 transition"
               disabled={loading}
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? 'Connexion...' : 'Se connecter'}
             </Button>
           </form>
         </CardContent>

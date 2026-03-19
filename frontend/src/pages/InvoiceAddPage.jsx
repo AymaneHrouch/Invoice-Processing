@@ -8,7 +8,7 @@ import { useTheme } from '@/contexts';
 
 const TAB_COOKIE_KEY = 'lastInvoiceTab';
 
-const InvoiceAddPage = () => {
+const InvoiceAddPage = ({ direction = 'incoming' }) => {
   const { isDarkMode } = useTheme();
   const [activeTab, setActiveTab] = useState('manual');
 
@@ -43,12 +43,12 @@ const InvoiceAddPage = () => {
             <h1
               className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
             >
-              Add an invoice
+              Ajouter une facture
             </h1>
             <p
               className={`text-lg ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
             >
-              Manage your invoices with a modern and intuitive interface.
+              Gérez vos factures avec une interface moderne et intuitive.
             </p>
           </div>
         </div>
@@ -68,25 +68,25 @@ const InvoiceAddPage = () => {
             className={`flex items-center gap-2 py-3 px-6 ${isDarkMode ? 'data-[state=active]:bg-gray-700' : 'data-[state=active]:bg-white'} data-[state=active]:shadow-sm`}
           >
             <Edit className="w-4 h-4" />
-            Manual addition
+            Saisie manuelle
           </TabsTrigger>
           <TabsTrigger
             value="file"
             className={`flex items-center gap-2 py-3 px-6 ${isDarkMode ? 'data-[state=active]:bg-gray-700' : 'data-[state=active]:bg-white'} data-[state=active]:shadow-sm`}
           >
             <Upload className="w-4 h-4" />
-            AI processing
+            Traitement IA
           </TabsTrigger>
         </TabsList>
 
         {/* Manual Invoice Tab Content */}
         <TabsContent value="manual">
-          <ManualInvoice />
+          <ManualInvoice direction={direction} />
         </TabsContent>
 
         {/* Auto Invoice Tab Content */}
         <TabsContent value="file">
-          <AutoInvoice />
+          <AutoInvoice direction={direction} />
         </TabsContent>
       </Tabs>
     </main>

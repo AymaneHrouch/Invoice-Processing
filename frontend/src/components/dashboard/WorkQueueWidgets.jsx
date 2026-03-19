@@ -1,8 +1,16 @@
 import React from 'react';
-import { FiFileText, FiCheckCircle, FiUpload, FiDownload } from 'react-icons/fi';
+import { TrendingUp, TrendingDown, FileText, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useTheme } from '@/contexts';
 import { Link } from 'react-router-dom';
+
+const formatAmount = (amount) => {
+  if (!amount && amount !== 0) return '—';
+  return new Intl.NumberFormat('fr-MA', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
 
 const WorkQueueWidgets = ({ stats }) => {
   const { isDarkMode } = useTheme();
@@ -11,63 +19,59 @@ const WorkQueueWidgets = ({ stats }) => {
 
   const widgets = [
     {
-      key: 'all_invoices',
-      title: 'All Invoices',
-      value: stats.all_invoices ?? 0,
-      icon: FiFileText,
-      color: 'slate',
-      href: '/invoices/list',
-      clickable: true,
-    },
-    {
-      key: 'to_validate',
-      title: 'To Validate',
-      value: stats.to_validate ?? 0,
-      icon: FiCheckCircle,
-      color: 'blue',
-      href: '/invoices/list?status=extracted',
-      clickable: true,
-    },
-    {
-      key: 'ready_to_export',
-      title: 'Ready to Export',
-      value: stats.ready_to_export ?? 0,
-      icon: FiUpload,
+      key: 'ca_ventes',
+      title: 'CA Ventes ce mois',
+      value: formatAmount(stats.ca_ventes_ce_mois) + ' MAD',
+      icon: TrendingUp,
       color: 'green',
-      href: '/invoices/list?status=validated&is_exported=false',
-      clickable: true,
+      href: '/ventes?status=validated',
     },
     {
-      key: 'exported_this_month',
-      title: 'Exported This Month',
-      value: stats.exported_this_month ?? 0,
-      icon: FiDownload,
-      color: 'gray',
-      href: '/invoices/list?is_exported=true',
-      clickable: true,
+      key: 'depenses_achats',
+      title: 'Dépenses Achats ce mois',
+      value: formatAmount(stats.depenses_achats_ce_mois) + ' MAD',
+      icon: TrendingDown,
+      color: 'orange',
+      href: '/achats',
+    },
+    {
+      key: 'ventes_brouillons',
+      title: 'Ventes brouillons',
+      value: stats.ventes_brouillons ?? 0,
+      icon: FileText,
+      color: 'blue',
+      href: '/ventes?status=draft',
+    },
+    {
+      key: 'achats_a_valider',
+      title: 'Achats à valider',
+      value: stats.achats_a_valider ?? 0,
+      icon: AlertCircle,
+      color: 'amber',
+      href: '/achats?status=extracted',
     },
   ];
 
   const colorClasses = {
-    slate: {
-      icon: 'text-slate-600 dark:text-slate-400',
-      bg: 'bg-slate-100 dark:bg-slate-900',
-      border: 'border-slate-200 dark:border-slate-700',
+    green: {
+      icon: 'text-green-600 dark:text-green-400',
+      bg: 'bg-green-100 dark:bg-green-900/40',
+      border: 'border-green-200 dark:border-green-800',
+    },
+    orange: {
+      icon: 'text-orange-600 dark:text-orange-400',
+      bg: 'bg-orange-100 dark:bg-orange-900/40',
+      border: 'border-orange-200 dark:border-orange-800',
     },
     blue: {
       icon: 'text-blue-600 dark:text-blue-400',
-      bg: 'bg-blue-100 dark:bg-blue-900',
+      bg: 'bg-blue-100 dark:bg-blue-900/40',
       border: 'border-blue-200 dark:border-blue-800',
     },
-    green: {
-      icon: 'text-green-600 dark:text-green-400',
-      bg: 'bg-green-100 dark:bg-green-900',
-      border: 'border-green-200 dark:border-green-800',
-    },
-    gray: {
-      icon: 'text-gray-600 dark:text-gray-400',
-      bg: 'bg-gray-100 dark:bg-gray-900',
-      border: 'border-gray-200 dark:border-gray-700',
+    amber: {
+      icon: 'text-amber-600 dark:text-amber-400',
+      bg: 'bg-amber-100 dark:bg-amber-900/40',
+      border: 'border-amber-200 dark:border-amber-800',
     },
   };
 
@@ -76,44 +80,36 @@ const WorkQueueWidgets = ({ stats }) => {
       {widgets.map((w) => {
         const Icon = w.icon;
         const colors = colorClasses[w.color];
-        const content = (
-          <Card
-            className={`bg-white dark:bg-slate-800 border ${colors.border} ${
-              w.clickable ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''
-            }`}
-          >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p
-                    className={`text-sm font-medium ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}
-                  >
-                    {w.title}
-                  </p>
-                  <p
-                    className={`text-2xl font-bold ${
-                      isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}
-                  >
-                    {w.value}
-                  </p>
-                </div>
-                <div className={`p-3 ${colors.bg} rounded-full`}>
-                  <Icon className={`w-6 h-6 ${colors.icon}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-
-        return w.clickable ? (
+        return (
           <Link key={w.key} to={w.href}>
-            {content}
+            <Card
+              className={`bg-white dark:bg-slate-800 border ${colors.border} cursor-pointer hover:shadow-lg transition-shadow`}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p
+                      className={`text-sm font-medium ${
+                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}
+                    >
+                      {w.title}
+                    </p>
+                    <p
+                      className={`text-2xl font-bold mt-1 ${
+                        isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}
+                    >
+                      {w.value}
+                    </p>
+                  </div>
+                  <div className={`p-3 ${colors.bg} rounded-full`}>
+                    <Icon className={`w-6 h-6 ${colors.icon}`} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </Link>
-        ) : (
-          <div key={w.key}>{content}</div>
         );
       })}
     </div>

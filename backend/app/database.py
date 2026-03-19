@@ -43,7 +43,6 @@ def init_database():
             invoices_collection.create_index("status")
             invoices_collection.create_index("category")
             invoices_collection.create_index("created_at")
-            invoices_collection.create_index("tags")
         except Exception:
             pass
 
@@ -84,3 +83,18 @@ def get_invoices_collection():
 def get_cache_collection():
     """Get extraction cache collection (file_hash -> result)"""
     return get_database()["cache"]
+
+
+def get_company_collection():
+    """Get company_profile collection (single document)"""
+    return get_database()["company_profile"]
+
+
+def get_contacts_collection():
+    """Get contacts collection (clients + suppliers)"""
+    return get_database()["contacts"]
+
+
+def get_firm_collection():
+    """Get firms collection (one doc per accounting firm/tenant)"""
+    return get_database()["firms"]

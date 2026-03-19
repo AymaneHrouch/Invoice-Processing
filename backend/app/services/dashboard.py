@@ -99,19 +99,31 @@ def get_amount_growth(currency: Literal["MAD", "USD", "EUR"] = "MAD"):
         "growth_rate_percent": round(growth, 2),
         "currency": currency
     }
-def get_top_vendors(limit=5, currency: Literal["MAD", "USD", "EUR"] = "MAD"):
+def get_top_vendors(limit=5, currency: Literal["MAD", "USD", "EUR"] = "MAD", direction: str | None = None, company_id: str | None = None):
     if currency not in EXCHANGE_RATES:
         raise ValueError(f"Unsupported currency: {currency}")
 
-    invoices = invoice_collection.find({
+    query: dict = {
         "total_amount": {"$ne": None},
         "currency": {"$in": list(EXCHANGE_RATES.keys())}
-    })
+    }
+    if direction:
+        query["direction"] = direction
+    if company_id:
+        query["company_id"] = company_id
+
+    invoices = invoice_collection.find(query)
 
     vendor_data = {}
 
     for invoice in invoices:
-        vendor = invoice.get("vendor_name")
+        # For outgoing invoices (clients), prefer client_name; otherwise use vendor_name
+        if direction == "outgoing":
+            vendor = invoice.get("client_name") or invoice.get("vendor_name")
+        else:
+            vendor = invoice.get("vendor_name")
+        if not vendor:
+            continue
         amount = invoice.get("total_amount")
         invoice_currency = invoice.get("currency")
 
@@ -119,7 +131,6 @@ def get_top_vendors(limit=5, currency: Literal["MAD", "USD", "EUR"] = "MAD"):
 
         invoice_rate = EXCHANGE_RATES.get(invoice_currency)
         output_rate = EXCHANGE_RATES.get(currency)
-
 
         amount_in_output_currency = amount * invoice_rate / output_rate
 
@@ -140,7 +151,7 @@ def get_top_vendors(limit=5, currency: Literal["MAD", "USD", "EUR"] = "MAD"):
             "vendor": vendor,
             "total_amount": round(data["total_amount"], 2),
             "total_invoices": data["total_invoices"],
-            "currency":currency
+            "currency": currency
         }
         for vendor, data in sorted_vendors[:limit]
     ]
@@ -401,6 +412,211 @@ def get_monthly_chart_data(currency: Literal["MAD", "USD", "EUR"] = "MAD", perio
 
     return months_data
 
+def get_a_encaisser(limit: int = 10, company_id: str | None = None):
+    """Unpaid outgoing invoices (Ventes) — what clients owe us."""
+    today = datetime.now()
+    query: dict = {
+        "direction": "outgoing",
+        "is_paid": {"$ne": True},
+        "status": {"$nin": ["draft"]},
+        "is_archived": {"$ne": True},
+    }
+    if company_id:
+        query["company_id"] = company_id
+    cursor = invoice_collection.find(query).sort("invoice_due_date", 1).limit(limit)
+
+    items = []
+    total_amount = 0.0
+    overdue_count = 0
+
+    for doc in cursor:
+        due_date = doc.get("invoice_due_date")
+        days_overdue = None
+        if due_date:
+            delta = (today - due_date).days
+            if delta > 0:
+                days_overdue = delta
+                overdue_count += 1
+        amount = float(doc.get("total_amount") or 0)
+        total_amount += amount
+        items.append({
+            "id": str(doc["_id"]),
+            "invoice_number": doc.get("invoice_number", "—"),
+            "client_name": doc.get("client_name", "—"),
+            "total_amount": amount,
+            "currency": doc.get("currency", "MAD"),
+            "due_date": due_date,
+            "days_overdue": days_overdue,
+            "status": doc.get("status"),
+        })
+
+    return {
+        "items": items,
+        "total_amount": round(total_amount, 2),
+        "count": len(items),
+        "overdue_count": overdue_count,
+    }
+
+
+def get_a_payer(limit: int = 10, company_id: str | None = None):
+    """Unpaid incoming invoices (Achats) — what we owe suppliers."""
+    today = datetime.now()
+    query: dict = {
+        "direction": "incoming",
+        "is_paid": {"$ne": True},
+        "status": {"$in": ["validated", "sent", "extracted"]},
+        "is_archived": {"$ne": True},
+    }
+    if company_id:
+        query["company_id"] = company_id
+    cursor = invoice_collection.find(query).sort("invoice_due_date", 1).limit(limit)
+
+    items = []
+    total_amount = 0.0
+    overdue_count = 0
+
+    for doc in cursor:
+        due_date = doc.get("invoice_due_date")
+        days_overdue = None
+        if due_date:
+            delta = (today - due_date).days
+            if delta > 0:
+                days_overdue = delta
+                overdue_count += 1
+        amount = float(doc.get("total_amount") or 0)
+        total_amount += amount
+        items.append({
+            "id": str(doc["_id"]),
+            "invoice_number": doc.get("invoice_number", "—"),
+            "vendor_name": doc.get("vendor_name", "—"),
+            "total_amount": amount,
+            "currency": doc.get("currency", "MAD"),
+            "due_date": due_date,
+            "days_overdue": days_overdue,
+        })
+
+    return {
+        "items": items,
+        "total_amount": round(total_amount, 2),
+        "count": len(items),
+        "overdue_count": overdue_count,
+    }
+
+
+def get_pme_kpis(company_id: str | None = None):
+    """PME KPIs: CA Ventes ce mois, Dépenses Achats ce mois, Ventes brouillons, Achats à valider."""
+    now = datetime.now()
+    this_month = datetime(now.year, now.month, 1)
+    next_month = datetime(now.year + (now.month == 12), (now.month % 12) + 1, 1)
+    base_filter: dict = {"is_archived": {"$ne": True}}
+    if company_id:
+        base_filter["company_id"] = company_id
+
+    pipeline_ventes = [
+        {"$match": {
+            **base_filter,
+            "direction": "outgoing",
+            "status": {"$nin": ["draft"]},
+            "invoice_date": {"$gte": this_month, "$lt": next_month},
+            "total_amount": {"$ne": None},
+        }},
+        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+    ]
+    result = list(invoice_collection.aggregate(pipeline_ventes))
+    ca_ventes = round(float(result[0]["total"]) if result else 0.0, 2)
+
+    pipeline_achats = [
+        {"$match": {
+            **base_filter,
+            "direction": "incoming",
+            "invoice_date": {"$gte": this_month, "$lt": next_month},
+            "total_amount": {"$ne": None},
+        }},
+        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+    ]
+    result = list(invoice_collection.aggregate(pipeline_achats))
+    depenses_achats = round(float(result[0]["total"]) if result else 0.0, 2)
+
+    ventes_brouillons = invoice_collection.count_documents({
+        **base_filter,
+        "direction": "outgoing",
+        "status": "draft",
+    })
+
+    achats_a_valider = invoice_collection.count_documents({
+        **base_filter,
+        "direction": "incoming",
+        "status": "extracted",
+    })
+
+    non_exportees = invoice_collection.count_documents({
+        **base_filter,
+        "status": {"$in": ["validated", "sent", "paid"]},
+        "is_exported": {"$ne": True},
+    })
+
+    return {
+        "ca_ventes_ce_mois": ca_ventes,
+        "depenses_achats_ce_mois": depenses_achats,
+        "ventes_brouillons": ventes_brouillons,
+        "achats_a_valider": achats_a_valider,
+        "non_exportees": non_exportees,
+    }
+
+
+def get_tva_balance(year: int | None = None, quarter: int | None = None, company_id: str | None = None):
+    """TVA collectée (Ventes) vs TVA déductible (Achats).
+
+    - year + quarter (0-based): single quarter
+    - year only: full year
+    - no params: current quarter
+    """
+    today = datetime.now()
+    if year is None:
+        year = today.year
+        if quarter is None:
+            quarter = (today.month - 1) // 3
+
+    if quarter is not None:
+        quarter_start = datetime(year, quarter * 3 + 1, 1)
+        # End of this quarter = start of next quarter
+        next_quarter_month = (quarter * 3 + 4) % 12 or 12
+        next_quarter_year = year + (1 if quarter == 3 else 0)
+        quarter_end = datetime(next_quarter_year, next_quarter_month, 1)
+        period_label = f"T{quarter + 1} {year}"
+    else:
+        quarter_start = datetime(year, 1, 1)
+        quarter_end = datetime(year + 1, 1, 1)
+        period_label = f"Année {year}"
+
+    def sum_tva(direction, statuses):
+        match: dict = {
+            "direction": direction,
+            "status": {"$in": statuses},
+            "invoice_date": {"$gte": quarter_start, "$lt": quarter_end},
+            "amount_tva": {"$ne": None},
+        }
+        if company_id:
+            match["company_id"] = company_id
+        pipeline = [
+            {"$match": match},
+            {"$group": {"_id": None, "total": {"$sum": "$amount_tva"}}},
+        ]
+        result = list(invoice_collection.aggregate(pipeline))
+        return round(float(result[0]["total"]) if result else 0.0, 2)
+
+    collectee = sum_tva("outgoing", ["validated", "sent", "paid"])
+    deductible = sum_tva("incoming", ["validated", "paid"])
+    net = round(collectee - deductible, 2)
+
+    return {
+        "collectee": collectee,
+        "deductible": deductible,
+        "net": net,
+        "quarter_label": period_label,
+    }
+
+
 def get_weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: str = "8weeks", start_date: datetime = None, end_date: datetime = None):
     """
     Get weekly activity pattern showing average invoices and amounts per day of week
@@ -493,3 +709,254 @@ def get_weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: s
         })
 
     return result
+
+
+def get_ca_evolution(company_id: str | None = None):
+    """Monthly CA (Ventes) vs Achats totals for the past 12 months."""
+    now = datetime.now()
+    MONTHS_FR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
+    result = []
+    for i in range(11, -1, -1):
+        month = now.month - i
+        year = now.year
+        while month <= 0:
+            month += 12
+            year -= 1
+        month_start = datetime(year, month, 1)
+        month_end = datetime(year + (month == 12), month % 12 + 1, 1)
+
+        def month_total(direction, extra=None):
+            match: dict = {
+                "direction": direction,
+                "invoice_date": {"$gte": month_start, "$lt": month_end},
+                "total_amount": {"$ne": None},
+                "is_archived": {"$ne": True},
+            }
+            if extra:
+                match.update(extra)
+            if company_id:
+                match["company_id"] = company_id
+            res = list(invoice_collection.aggregate([
+                {"$match": match},
+                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+            ]))
+            return round(float(res[0]["total"]) if res else 0.0, 2)
+
+        result.append({
+            "month": f"{MONTHS_FR[month - 1]} {year}",
+            "ventes": month_total("outgoing", {"status": {"$nin": ["draft"]}}),
+            "achats": month_total("incoming"),
+        })
+    return result
+
+
+def get_delai_paiement(company_id: str | None = None):
+    """Average payment delay in days: encaissement (ventes) and règlement (achats)."""
+    base: dict = {"is_paid": True, "paid_at": {"$ne": None}, "invoice_date": {"$ne": None}}
+    if company_id:
+        base["company_id"] = company_id
+
+    def avg_days(direction):
+        docs = list(invoice_collection.find(
+            {**base, "direction": direction},
+            {"invoice_date": 1, "paid_at": 1},
+        ))
+        days_list = [
+            (doc["paid_at"] - doc["invoice_date"]).days
+            for doc in docs
+            if doc.get("paid_at") and doc.get("invoice_date")
+            and (doc["paid_at"] - doc["invoice_date"]).days >= 0
+        ]
+        return round(sum(days_list) / len(days_list)) if days_list else None
+
+    return {
+        "delai_encaissement": avg_days("outgoing"),
+        "delai_reglement": avg_days("incoming"),
+    }
+
+
+def get_tresorerie_prevision(company_id: str | None = None):
+    """Projected inflows and outflows for the next 30, 60, 90 days."""
+    now = datetime.now()
+
+    def window_total(direction, days):
+        match: dict = {
+            "direction": direction,
+            "is_paid": {"$ne": True},
+            "invoice_due_date": {"$gte": now, "$lte": now + timedelta(days=days)},
+            "status": {"$nin": ["draft"]},
+            "is_archived": {"$ne": True},
+            "total_amount": {"$ne": None},
+        }
+        if company_id:
+            match["company_id"] = company_id
+        res = list(invoice_collection.aggregate([
+            {"$match": match},
+            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}},
+        ]))
+        return {
+            "total": round(float(res[0]["total"]) if res else 0.0, 2),
+            "count": int(res[0]["count"]) if res else 0,
+        }
+
+    return {
+        "30j": {"encaissements": window_total("outgoing", 30), "decaissements": window_total("incoming", 30)},
+        "60j": {"encaissements": window_total("outgoing", 60), "decaissements": window_total("incoming", 60)},
+        "90j": {"encaissements": window_total("outgoing", 90), "decaissements": window_total("incoming", 90)},
+    }
+
+
+def get_factures_retard(company_id: str | None = None):
+    """Overdue invoices grouped by delay bucket: 1-30d, 31-60d, 60+d."""
+    now = datetime.now()
+    match: dict = {
+        "is_paid": {"$ne": True},
+        "is_archived": {"$ne": True},
+        "invoice_due_date": {"$lt": now},
+        "status": {"$nin": ["draft"]},
+    }
+    if company_id:
+        match["company_id"] = company_id
+    docs = list(invoice_collection.find(match, {"invoice_due_date": 1, "total_amount": 1}))
+
+    buckets = {
+        "1_30":  {"label": "1 – 30 jours",  "count": 0, "total": 0.0},
+        "31_60": {"label": "31 – 60 jours", "count": 0, "total": 0.0},
+        "60p":   {"label": "60+ jours",     "count": 0, "total": 0.0},
+    }
+    for doc in docs:
+        days = (now - doc["invoice_due_date"]).days
+        amount = float(doc.get("total_amount") or 0)
+        key = "1_30" if days <= 30 else "31_60" if days <= 60 else "60p"
+        buckets[key]["count"] += 1
+        buckets[key]["total"] += amount
+
+    for b in buckets.values():
+        b["total"] = round(b["total"], 2)
+
+    return {
+        "buckets": list(buckets.values()),
+        "total_count": len(docs),
+        "total_amount": round(sum(float(d.get("total_amount") or 0) for d in docs), 2),
+    }
+
+
+def get_echeances_proches(company_id: str | None = None):
+    """Invoices due within 7 and 15 days (not yet overdue, not paid)."""
+    now = datetime.now()
+
+    def due_in(days):
+        match: dict = {
+            "is_paid": {"$ne": True},
+            "is_archived": {"$ne": True},
+            "invoice_due_date": {"$gte": now, "$lte": now + timedelta(days=days)},
+            "status": {"$nin": ["draft"]},
+            "total_amount": {"$ne": None},
+        }
+        if company_id:
+            match["company_id"] = company_id
+        res = list(invoice_collection.aggregate([
+            {"$match": match},
+            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}},
+        ]))
+        return {
+            "total": round(float(res[0]["total"]) if res else 0.0, 2),
+            "count": int(res[0]["count"]) if res else 0,
+        }
+
+    return {"7j": due_in(7), "15j": due_in(15)}
+
+
+def get_category_breakdown(company_id: str | None = None, direction: str | None = None):
+    """Amount by category for the current year, sorted by total descending."""
+    now = datetime.now()
+    match: dict = {
+        "invoice_date": {"$gte": datetime(now.year, 1, 1)},
+        "total_amount": {"$ne": None},
+        "is_archived": {"$ne": True},
+        "status": {"$nin": ["draft"]},
+    }
+    if direction:
+        match["direction"] = direction
+    if company_id:
+        match["company_id"] = company_id
+
+    pipeline = [
+        {"$match": match},
+        {"$group": {"_id": "$category", "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}},
+        {"$sort": {"total": -1}},
+    ]
+    results = list(invoice_collection.aggregate(pipeline))
+    grand_total = sum(r["total"] for r in results)
+    return [
+        {
+            "category": r["_id"] or "Non catégorisé",
+            "total": round(float(r["total"]), 2),
+            "count": r["count"],
+            "percentage": round(float(r["total"]) / grand_total * 100, 1) if grand_total else 0.0,
+        }
+        for r in results
+    ]
+
+
+_OBJECTID_RE = __import__("re").compile(r"^[a-f0-9]{24}$")
+
+
+def get_recent_activity(limit: int = 15, company_id: str | None = None) -> list:
+    """
+    Return the most recent audit-trail events across all invoices by
+    unwinding each invoice's history array and sorting newest-first.
+    ObjectId user values (from entries recorded before username was added
+    to the JWT) are resolved to emails via a batch users lookup.
+    """
+    match: dict = {"is_archived": {"$ne": True}, "history": {"$exists": True, "$ne": []}}
+    if company_id:
+        match["company_id"] = company_id
+    pipeline = [
+        {"$match": match},
+        {"$project": {
+            "invoice_number": 1,
+            "vendor_name": 1,
+            "client_name": 1,
+            "direction": 1,
+            "history": 1,
+        }},
+        {"$unwind": "$history"},
+        {"$sort": {"history.timestamp": -1}},
+        {"$limit": limit},
+        {"$project": {
+            "_id": 0,
+            "invoice_id": {"$toString": "$_id"},
+            "invoice_number": 1,
+            "vendor_name": 1,
+            "client_name": 1,
+            "direction": 1,
+            "action": "$history.action",
+            "status_from": "$history.status_from",
+            "status_to": "$history.status_to",
+            "user": "$history.user",
+            "timestamp": "$history.timestamp",
+        }},
+    ]
+    try:
+        results = list(invoice_collection.aggregate(pipeline))
+
+        # Resolve any legacy ObjectId user values to email/full_name
+        raw_ids = {r["user"] for r in results if _OBJECTID_RE.match(r.get("user") or "")}
+        if raw_ids:
+            from bson import ObjectId
+
+            from app.database import get_database
+            users_col = get_database()["users"]
+            user_map = {
+                str(u["_id"]): u.get("email") or u.get("full_name") or str(u["_id"])
+                for u in users_col.find({"_id": {"$in": [ObjectId(uid) for uid in raw_ids]}})
+            }
+            for r in results:
+                if r.get("user") in user_map:
+                    r["user"] = user_map[r["user"]]
+
+        return results
+    except Exception as e:
+        logger.exception("get_recent_activity failed: %s", e)
+        return []

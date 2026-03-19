@@ -19,11 +19,14 @@ import {
 } from '@/components/ui/card';
 import { TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { categories, currencies } from '@/constants';
+import { currencies } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useAddInvoice } from '@/hooks/useAddInvoice';
+import { useCategories } from '@/hooks/useCategories';
 import { FormField } from '@/components/ui/form-field';
-import { InvoiceTags, InvoiceItems, AmountWarningBanner } from '@/components/invoice';
+import SupplierCombobox from '@/components/ui/SupplierCombobox';
+import TvaRateField from '@/components/ui/TvaRateField';
+import { InvoiceItems, AmountWarningBanner } from '@/components/invoice';
 import { runAmountChecks } from '@/utils/invoiceCalculations';
 
 // ✅ Fonction utilitaire pour formater les dates
@@ -39,14 +42,16 @@ const formatDateForInput = (dateString) => {
   }
 };
 
-const ManualInvoice = () => {
+const ManualInvoice = ({ direction = 'incoming' }) => {
   const { isDarkMode } = useTheme();
   const { addInvoice, loading, error, success, message, reset } =
     useAddInvoice();
+  const { categories } = useCategories();
 
   // ✅ État local direct
   const [formData, setFormData] = useState({
     vendor_name: '',
+    contact_id: null,
     invoice_number: '',
     ice: '',
     tva: '',
@@ -57,9 +62,9 @@ const ManualInvoice = () => {
     currency: 'MAD',
     category: '',
     items: [],
-    tags: [],
     source_type: 'manual',
     status: 'extracted',
+    direction,
   });
 
   const [errors, setErrors] = useState({});
@@ -97,29 +102,21 @@ const ManualInvoice = () => {
     }));
   };
 
-  // ✅ Fonction pour mettre à jour les tags
-  const updateTags = (tags) => {
-    setFormData((prev) => ({
-      ...prev,
-      tags: Array.isArray(tags) ? tags : [],
-    }));
-  };
-
   // ✅ Validation du formulaire
   const validateForm = () => {
     const newErrors = {};
 
     if (!formData.vendor_name?.trim()) {
-      newErrors.vendor_name = 'Supplier name is required!';
+      newErrors.vendor_name = 'Le nom du fournisseur est requis !';
     }
     if (!formData.invoice_number?.trim()) {
-      newErrors.invoice_number = 'Invoice number is required!';
+      newErrors.invoice_number = 'Le numéro de facture est requis !';
     }
     if (!formData.total_amount || parseFloat(formData.total_amount) <= 0) {
-      newErrors.total_amount = 'Amount must be greater than 0!';
+      newErrors.total_amount = 'Le montant doit être supérieur à 0 !';
     }
     if (!formData.category?.trim()) {
-      newErrors.category = 'Category is required!';
+      newErrors.category = 'La catégorie est requise !';
     }
 
     setErrors(newErrors);
@@ -130,6 +127,7 @@ const ManualInvoice = () => {
   const resetForm = () => {
     setFormData({
       vendor_name: '',
+      contact_id: null,
       invoice_number: '',
       ice: '',
       tva: '',
@@ -140,7 +138,6 @@ const ManualInvoice = () => {
       currency: 'MAD',
       category: '',
       items: [],
-      tags: [],
       source_type: 'manual',
       status: 'extracted',
     });
@@ -152,7 +149,7 @@ const ManualInvoice = () => {
     e.preventDefault();
 
     if (!validateForm()) {
-      toast.error('Please correct the errors in the form.');
+      toast.error('Veuillez corriger les erreurs dans le formulaire.');
       return;
     }
 
@@ -163,14 +160,20 @@ const ManualInvoice = () => {
       invoice_date: formData.invoice_date?.trim() || null,
       invoice_due_date: formData.invoice_due_date?.trim() || null,
       ice: formData.ice?.trim() || null,
-      tva: formData.tva !== '' && formData.tva != null ? parseFloat(formData.tva) : null,
-      amount_tva: formData.amount_tva !== '' && formData.amount_tva != null ? parseFloat(formData.amount_tva) : null,
+      tva:
+        formData.tva !== '' && formData.tva != null
+          ? parseFloat(formData.tva)
+          : null,
+      amount_tva:
+        formData.amount_tva !== '' && formData.amount_tva != null
+          ? parseFloat(formData.amount_tva)
+          : null,
     };
 
     const result = await addInvoice(invoiceData);
 
     if (result) {
-      toast.success(message || 'Invoice added successfully!');
+      toast.success(message || 'Facture ajoutée avec succès !');
       resetForm();
       reset();
     } else if (error) {
@@ -189,19 +192,19 @@ const ManualInvoice = () => {
             className={`flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
           >
             <Building className="w-5 h-5 text-blue-600" />
-            Invoice Information
+            Informations de la facture
           </CardTitle>
           <CardDescription
             className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}
           >
-            Enter your invoice details manually
+            Saisissez les détails de votre facture manuellement
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {(() => {
             const warnings = runAmountChecks(
               { total_amount: formData.total_amount, items: formData.items },
-              formData.currency
+              formData.currency,
             );
             return warnings.length > 0 ? (
               <AmountWarningBanner warnings={warnings} />
@@ -209,60 +212,73 @@ const ManualInvoice = () => {
           })()}
           {/* Form fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <FormField
-              id="vendor_name"
-              label="Supplier"
+            <SupplierCombobox
               value={formData.vendor_name}
-              onChange={(e) => updateField('vendor_name', e.target.value)}
-              placeholder="Enter supplier name"
+              onChange={(val) => updateField('vendor_name', val)}
+              onIceChange={(ice) => updateField('ice', ice)}
+              onContactSelect={(c) => updateField('contact_id', c._id || null)}
               error={errors.vendor_name}
-              icon={Building}
+              placeholder="Saisir le nom du fournisseur"
               required
             />
             <FormField
               id="invoice_number"
-              label="Invoice Number"
+              label="Numéro de facture"
               value={formData.invoice_number}
               onChange={(e) => updateField('invoice_number', e.target.value)}
-              placeholder="Enter invoice number"
+              placeholder="Saisir le numéro de facture"
               error={errors.invoice_number}
               icon={Hash}
               required
             />
-            <FormField
-              id="ice"
-              label="ICE"
-              value={formData.ice}
-              onChange={(e) => updateField('ice', e.target.value)}
-              placeholder="15-digit ICE (optional)"
-            />
-            <FormField
-              id="tva"
-              type="number"
-              label="TVA (%)"
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                ICE
+              </label>
+              <div
+                className={`flex items-center h-10 px-3 rounded-md border text-sm font-mono ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+              >
+                {formData.ice || (
+                  <span className="text-gray-400 font-sans">—</span>
+                )}
+              </div>
+            </div>
+            <TvaRateField
               value={formData.tva}
-              onChange={(e) => updateField('tva', e.target.value)}
-              placeholder="e.g. 20"
-              step="0.01"
-              min="0"
+              onChange={(v) => updateField('tva', v)}
+              allowCustom={true}
+              isDarkMode={isDarkMode}
             />
-            <FormField
-              id="amount_tva"
-              type="number"
-              label="Amount TVA"
-              value={formData.amount_tva}
-              onChange={(e) => updateField('amount_tva', e.target.value)}
-              placeholder="TVA amount (optional)"
-              step="0.01"
-              min="0"
-            />
+            <div className="space-y-1">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Montant TVA
+              </label>
+              <div
+                className={`flex items-center h-10 px-3 rounded-md border text-sm ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+              >
+                {(() => {
+                  const ht = parseFloat(formData.total_amount) || 0;
+                  const rate = parseFloat(formData.tva) || 0;
+                  const amt =
+                    ht > 0 && rate > 0 ? ((ht * rate) / 100).toFixed(2) : null;
+                  return amt ? (
+                    `${amt} ${formData.currency}`
+                  ) : (
+                    <span className="text-gray-400">—</span>
+                  );
+                })()}
+              </div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                HT × TVA%
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             <FormField
               id="total_amount"
               type="number"
-              label="Amount"
+              label="Montant"
               value={formData.total_amount}
               onChange={(e) => updateField('total_amount', e.target.value)}
               placeholder="0.00"
@@ -273,11 +289,11 @@ const ManualInvoice = () => {
             />
             <FormField
               type="select"
-              label="Currency"
+              label="Devise"
               value={formData.currency}
               onChange={(value) => updateField('currency', value)}
               options={currencies}
-              placeholder="Select currency"
+              placeholder="Sélectionner une devise"
               icon={CircleDollarSign}
             />
             <FormField
@@ -290,17 +306,17 @@ const ManualInvoice = () => {
             <FormField
               id="invoice_due_date"
               type="date"
-              label="Due Date"
+              label="Date d'échéance"
               value={formData.invoice_due_date}
               onChange={(e) => updateField('invoice_due_date', e.target.value)}
             />
             <FormField
               type="select"
-              label="Category"
+              label="Catégorie"
               value={formData.category}
               onChange={(value) => updateField('category', value)}
               options={categories}
-              placeholder="Select a category"
+              placeholder="Sélectionner une catégorie"
               error={errors.category}
               icon={Package}
               required
@@ -314,10 +330,6 @@ const ManualInvoice = () => {
             currency={formData.currency}
             onItemsChange={updateItems}
           />
-
-          <Separator className={isDarkMode ? 'bg-gray-700' : 'bg-gray-200'} />
-
-          <InvoiceTags tags={formData.tags} onTagsChange={updateTags} />
         </CardContent>
       </Card>
 
@@ -329,7 +341,7 @@ const ManualInvoice = () => {
           disabled={loading}
         >
           <Save className="w-5 h-5 mr-2" />
-          {loading ? 'Saving...' : 'Save Invoice'}
+          {loading ? 'Enregistrement...' : 'Enregistrer la facture'}
         </Button>
       </div>
     </TabsContent>

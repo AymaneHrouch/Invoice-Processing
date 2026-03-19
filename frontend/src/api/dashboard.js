@@ -1,13 +1,19 @@
 import api from './baseApi';
 
-export const getTopVendors = async (limit = 5) => {
+export const getTopVendors = async (limit = 5, direction = null) => {
   try {
-    const response = await api.get(`/dashboard/top_vendors?limit=${limit}`);
-    // With axios, the data is already parsed JSON in response.data
+    const params = { limit };
+    if (direction) params.direction = direction;
+    const response = await api.get('/dashboard/top_vendors', { params });
     return response.data;
   } catch (error) {
     throw new Error(`Failed to fetch top vendors: ${error.message}`);
   }
+};
+
+export const getPmeKpis = async () => {
+  const response = await api.get('/dashboard/pme-kpis');
+  return response.data;
 };
 
 // Additional dashboard API functions
@@ -45,6 +51,63 @@ export const getInvoiceMetrics = async (period = '30') => {
   } catch (error) {
     throw new Error(`Failed to fetch invoice metrics: ${error.message}`);
   }
+};
+
+export const getAEncaisser = async (limit = 10) => {
+  const response = await api.get(`/dashboard/a-encaisser?limit=${limit}`);
+  return response.data;
+};
+
+export const getAPayer = async (limit = 10) => {
+  const response = await api.get(`/dashboard/a-payer?limit=${limit}`);
+  return response.data;
+};
+
+export const getRecentActivity = async (limit = 15) => {
+  const response = await api.get('/dashboard/recent-activity', {
+    params: { limit },
+  });
+  return response.data;
+};
+
+export const getTvaBalance = async ({ year, quarter } = {}) => {
+  const params = {};
+  if (year !== undefined) params.year = year;
+  if (quarter !== undefined) params.quarter = quarter;
+  const response = await api.get('/dashboard/tva-balance', { params });
+  return response.data;
+};
+
+export const getCAEvolution = async () => {
+  const response = await api.get('/dashboard/ca-evolution');
+  return response.data;
+};
+
+export const getDelaiPaiement = async () => {
+  const response = await api.get('/dashboard/delai-paiement');
+  return response.data;
+};
+
+export const getTresoreriePrevision = async () => {
+  const response = await api.get('/dashboard/tresorerie-prevision');
+  return response.data;
+};
+
+export const getFacturesRetard = async () => {
+  const response = await api.get('/dashboard/factures-retard');
+  return response.data;
+};
+
+export const getEcheancesProches = async () => {
+  const response = await api.get('/dashboard/echeances-proches');
+  return response.data;
+};
+
+export const getCategoryBreakdown = async (direction = null) => {
+  const params = {};
+  if (direction) params.direction = direction;
+  const response = await api.get('/dashboard/category-breakdown', { params });
+  return response.data;
 };
 
 // Get dashboard overview with all stats

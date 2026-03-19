@@ -1,6 +1,22 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Save, CheckCircle } from 'lucide-react';
+import {
+  AlertTriangle,
+  BadgeCheck,
+  Banknote,
+  ChevronDown,
+  ChevronUp,
+  CheckCircle,
+  CircleDollarSign,
+  History,
+  Lock,
+  RotateCcw,
+  Save,
+  Send,
+  ShieldCheck,
+  ShieldOff,
+  Undo2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -9,12 +25,30 @@ import {
   CardTitle as CardTitleUI,
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { categories, currencies } from '@/constants';
+import { currencies, statusConfig } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useEditInvoice } from '@/hooks/useEditInvoice';
+import { useCategories } from '@/hooks/useCategories';
 import { FormField } from '@/components/ui/form-field';
-import { InvoiceTags, InvoiceItems, AmountWarningBanner } from '@/components/invoice';
-import { validateInvoice } from '@/api';
+import { InvoiceItems, AmountWarningBanner } from '@/components/invoice';
+import {
+  validateInvoice,
+  invalidateInvoice,
+  markInvoicePaid,
+  unmarkInvoicePaid,
+  fetchInvoiceHistory,
+} from '@/api/invoice';
+import {
+  validateVente,
+  invalidateVente,
+  markVenteSent,
+  markVentePaid,
+  unmarkVenteSent,
+  unmarkVentePaid,
+} from '@/api/ventes';
+import { Badge } from '@/components/ui/badge';
+import SupplierCombobox from '@/components/ui/SupplierCombobox';
+import TvaRateField from '@/components/ui/TvaRateField';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +58,57 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+
+const HISTORY_CONFIG = {
+  validated: {
+    label: 'Validée',
+    icon: ShieldCheck,
+    color: 'text-indigo-600',
+    bg: 'bg-indigo-50 dark:bg-indigo-900/30',
+  },
+  invalidated: {
+    label: 'Invalidée',
+    icon: ShieldOff,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+  sent: {
+    label: 'Marquée envoyée',
+    icon: Send,
+    color: 'text-blue-600',
+    bg: 'bg-blue-50 dark:bg-blue-900/30',
+  },
+  unmark_sent: {
+    label: 'Envoi annulé',
+    icon: RotateCcw,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+  paid: {
+    label: 'Marquée payée',
+    icon: CircleDollarSign,
+    color: 'text-emerald-600',
+    bg: 'bg-emerald-50 dark:bg-emerald-900/30',
+  },
+  unmark_paid: {
+    label: 'Paiement annulé',
+    icon: RotateCcw,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+  created: {
+    label: 'Créée',
+    icon: BadgeCheck,
+    color: 'text-violet-600',
+    bg: 'bg-violet-50 dark:bg-violet-900/30',
+  },
+  _default: {
+    label: 'Mis à jour',
+    icon: History,
+    color: 'text-gray-500',
+    bg: 'bg-gray-100 dark:bg-gray-700',
+  },
+};
 
 // ✅ Fonction utilitaire pour formater les dates
 const formatDateForInput = (dateString) => {
@@ -47,26 +132,30 @@ const formatDateForInput = (dateString) => {
 const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   const { isDarkMode } = useTheme();
   const { editInvoice, loading, error, message, reset } = useEditInvoice();
-  const [validating, setValidating] = useState(false);
+  const { categories } = useCategories();
+  const [actionLoading, setActionLoading] = useState(null);
 
   // ✅ État local direct - plus simple et plus fiable
   const [formData, setFormData] = useState({
     vendor_name: '',
+    client_name: '',
+    client_ice: '',
+    contact_id: null,
     invoice_number: '',
     ice: '',
     tva: '',
-    amount_tva: '',
     invoice_date: '',
     invoice_due_date: '',
-    total_amount: '',
+    subtotal_ht: '',
     currency: 'MAD',
     category: '',
     items: [],
-    tags: [],
     status: 'extracted',
   });
 
   const [errors, setErrors] = useState({});
+  const [history, setHistory] = useState([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // ✅ Effet pour charger les données de la facture
   useEffect(() => {
@@ -77,13 +166,18 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
 
       setFormData({
         vendor_name: invoice.vendor_name || '',
+        client_name: invoice.client_name || '',
+        client_ice: invoice.client_ice || '',
         invoice_number: invoice.invoice_number || '',
         ice: invoice.ice ?? '',
-        tva: invoice.tva != null && invoice.tva !== '' ? String(invoice.tva) : '',
-        amount_tva: invoice.amount_tva != null && invoice.amount_tva !== '' ? String(invoice.amount_tva) : '',
+        tva:
+          invoice.tva != null && invoice.tva !== '' ? String(invoice.tva) : '',
         invoice_date: formatDateForInput(invoice.invoice_date),
         invoice_due_date: formatDateForInput(invoice.invoice_due_date),
-        total_amount: invoice.total_amount?.toString() || '',
+        subtotal_ht:
+          invoice.subtotal_ht?.toString() ||
+          invoice.total_amount?.toString() ||
+          '',
         currency: invoice.currency || 'MAD',
         category: invoice.category || '',
         items: Array.isArray(invoice.items)
@@ -95,16 +189,25 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
               total: item.total || 0,
             }))
           : [],
-        tags: Array.isArray(invoice.tags) ? invoice.tags : [],
         status: invoice.status || 'extracted',
+        contact_id: invoice.contact_id || null,
       });
 
-      // Reset des erreurs
       setErrors({});
 
       console.log('✅ Invoice data loaded successfully');
     }
   }, [invoice, open]); // ✅ Dépend aussi de 'open' pour recharger à chaque ouverture
+
+  useEffect(() => {
+    if (!invoice || !open) return;
+    const id = invoice._id || invoice.id;
+    if (!id) return;
+    setHistory([]);
+    fetchInvoiceHistory(id)
+      .then(setHistory)
+      .catch(() => {});
+  }, [invoice, open]);
 
   // ✅ Fonction pour mettre à jour un champ
   const updateField = (field, value) => {
@@ -143,54 +246,95 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     }));
   };
 
-  // ✅ Fonction pour mettre à jour les tags
-  const updateTags = (tags) => {
-    console.log('🏷️ Updating tags:', tags);
-
-    setFormData((prev) => ({
-      ...prev,
-      tags: Array.isArray(tags) ? tags : [],
-    }));
-  };
-
   // ✅ Validation du formulaire
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.vendor_name?.trim()) {
-      newErrors.vendor_name = 'Supplier name is required!';
+    if (invoice?.direction === 'outgoing') {
+      if (!formData.client_name?.trim())
+        newErrors.client_name = 'Le nom du client est requis !';
+    } else {
+      if (!formData.vendor_name?.trim())
+        newErrors.vendor_name = 'Le nom du fournisseur est requis !';
     }
     if (!formData.invoice_number?.trim()) {
-      newErrors.invoice_number = 'Invoice number is required!';
+      newErrors.invoice_number = 'Le numéro de facture est requis !';
     }
-    if (!formData.total_amount || parseFloat(formData.total_amount) <= 0) {
-      newErrors.total_amount = 'Amount must be greater than 0!';
+    if (
+      invoice?.direction !== 'outgoing' &&
+      (!formData.subtotal_ht || parseFloat(formData.subtotal_ht) <= 0)
+    ) {
+      newErrors.subtotal_ht = 'Le montant HT doit être supérieur à 0 !';
     }
     if (!formData.category?.trim()) {
-      newErrors.category = 'Category is required!';
+      newErrors.category = 'La catégorie est requise !';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // Derived: HT → TVA → TTC
+  const tvaRate = parseFloat(formData.tva) || 0;
+  const subtotalHT =
+    invoice?.direction === 'outgoing'
+      ? formData.items.reduce((sum, item) => sum + (Number(item.total) || 0), 0)
+      : parseFloat(formData.subtotal_ht) || 0;
+  const computedAmountTva = parseFloat(
+    ((subtotalHT * tvaRate) / 100).toFixed(2),
+  );
+  const computedTotal = parseFloat((subtotalHT + computedAmountTva).toFixed(2));
+
   const amountWarnings =
     invoice?.status === 'extracted' ? (invoice?.amount_warnings ?? []) : [];
 
-  const handleValidate = async () => {
-    if (!invoice?._id && !invoice?.id) return;
-    setValidating(true);
+  // Lock all fields: outgoing when not draft, incoming when validated/paid
+  const allFieldsLocked =
+    invoice?.direction === 'outgoing'
+      ? formData.status !== 'draft'
+      : ['validated', 'paid'].includes(formData.status);
+
+  const financialLocked = allFieldsLocked;
+
+  const handleStatusAction = async (action) => {
+    const id = invoice?._id || invoice?.id;
+    if (!id) return;
+    const isOutgoing = invoice.direction === 'outgoing';
+    setActionLoading(action);
     try {
-      await validateInvoice(invoice._id || invoice.id);
-      toast.success('Invoice validated successfully');
-      if (onSuccess) {
-        onSuccess({ ...invoice, status: 'validated' });
+      let updated;
+      if (action === 'validate')
+        updated = isOutgoing
+          ? await validateVente(id)
+          : await validateInvoice(id);
+      else if (action === 'invalidate')
+        updated = isOutgoing
+          ? await invalidateVente(id)
+          : await invalidateInvoice(id);
+      else if (action === 'mark-sent') updated = await markVenteSent(id);
+      else if (action === 'mark-paid')
+        updated = isOutgoing
+          ? await markVentePaid(id)
+          : await markInvoicePaid(id);
+      else if (action === 'unmark-sent') updated = await unmarkVenteSent(id);
+      else if (action === 'unmark-paid')
+        updated = isOutgoing
+          ? await unmarkVentePaid(id)
+          : await unmarkInvoicePaid(id);
+      if (updated) {
+        toast.success('Statut mis à jour');
+        if (onSuccess) onSuccess(updated);
+        const id = invoice?._id || invoice?.id;
+        if (id)
+          fetchInvoiceHistory(id)
+            .then(setHistory)
+            .catch(() => {});
+        onClose();
       }
-      onClose();
     } catch (e) {
-      toast.error(e.message || 'Failed to validate invoice');
+      toast.error(e.message || 'Erreur lors du changement de statut');
     } finally {
-      setValidating(false);
+      setActionLoading(null);
     }
   };
 
@@ -201,20 +345,25 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     console.log('📤 Form submission - formData:', formData);
 
     if (!validateForm()) {
-      toast.error('Please correct the errors in the form.');
+      toast.error('Veuillez corriger les erreurs dans le formulaire.');
       return;
     }
 
     // Préparer les données pour l'envoi
     const invoiceData = {
       ...formData,
-      total_amount: parseFloat(formData.total_amount),
+      contact_id: formData.contact_id || null,
+      subtotal_ht: subtotalHT || null,
+      amount_tva: computedAmountTva > 0 ? computedAmountTva : null,
+      total_amount: computedTotal > 0 ? computedTotal : subtotalHT,
       invoice_date: formData.invoice_date?.trim() || null,
       invoice_due_date: formData.invoice_due_date?.trim() || null,
       status: formData.status,
       ice: formData.ice?.trim() || null,
-      tva: formData.tva !== '' && formData.tva != null ? parseFloat(formData.tva) : null,
-      amount_tva: formData.amount_tva !== '' && formData.amount_tva != null ? parseFloat(formData.amount_tva) : null,
+      tva:
+        formData.tva !== '' && formData.tva != null
+          ? parseFloat(formData.tva)
+          : null,
     };
 
     console.log('🚀 Submitting invoice data:', invoiceData);
@@ -222,16 +371,11 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     const result = await editInvoice(invoice._id || invoice.id, invoiceData);
 
     if (result) {
-      toast.success(message || 'Invoice modified successfully!');
+      toast.success(message || 'Facture modifiée avec succès !');
       reset();
 
-      // ✅ SOLUTION: Passer les données mises à jour au parent
       if (onSuccess) {
-        // Appeler onSuccess avec les nouvelles données
-        onSuccess({
-          ...invoice, // Garder l'ID et autres données non modifiées
-          ...invoiceData, // Nouvelles données
-        });
+        onSuccess(result);
       }
       onClose();
     } else if (error) {
@@ -257,10 +401,11 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
         <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
           <DialogHeader className="px-8 py-5">
             <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">
-              Edit Invoice
+              Modifier la facture
             </DialogTitle>
             <DialogDescription className="text-gray-600 dark:text-gray-400">
-              Modify the details of your invoice and save your changes.
+              Modifiez les détails de votre facture et enregistrez vos
+              modifications.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -274,95 +419,227 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
           >
             <Card className="border-0 shadow-none bg-transparent">
               {amountWarnings.length > 0 && (
-                <AmountWarningBanner warnings={amountWarnings} className="mb-4" />
+                <AmountWarningBanner
+                  warnings={amountWarnings}
+                  className="mb-4"
+                />
+              )}
+              {invoice?.direction === 'incoming' && !formData.contact_id && (
+                <div
+                  className={`flex items-start gap-3 rounded-lg border px-4 py-3 mb-4 ${
+                    isDarkMode
+                      ? 'bg-amber-900/20 border-amber-700 text-amber-200'
+                      : 'bg-amber-50 border-amber-200 text-amber-900'
+                  }`}
+                  role="alert"
+                >
+                  <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">Fournisseur non lié</p>
+                    <p className="mt-1 text-sm opacity-90">
+                      Ce fournisseur n'est pas associé à un contact.
+                      Sélectionnez-en un dans le champ ci-dessous pour enrichir
+                      votre annuaire.
+                    </p>
+                  </div>
+                </div>
+              )}
+              {allFieldsLocked && (
+                <div className="flex items-center gap-2 px-4 py-3 mb-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-amber-800 dark:text-amber-300 text-sm">
+                  <Lock className="w-4 h-4 flex-shrink-0" />
+                  Facture validée — non modifiable
+                </div>
               )}
               <CardHeaderUI className="px-0 pb-4">
                 <CardTitleUI
                   className={`flex items-center gap-2 text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
                 >
-                  Invoice Details
+                  Détails de la facture
                 </CardTitleUI>
               </CardHeaderUI>
               <CardContent className="px-0 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <FormField
-                    id="vendor_name"
-                    label="Supplier"
-                    value={formData.vendor_name}
-                    onChange={(e) => updateField('vendor_name', e.target.value)}
-                    placeholder="Supplier name"
-                    required
-                    error={errors.vendor_name}
-                  />
-                  <FormField
-                    id="invoice_number"
-                    label="Number"
-                    value={formData.invoice_number}
-                    onChange={(e) =>
-                      updateField('invoice_number', e.target.value)
-                    }
-                    placeholder="INV-2024-001"
-                    required
-                    error={errors.invoice_number}
-                  />
-                  <FormField
-                    id="ice"
-                    label="ICE"
-                    value={formData.ice}
-                    onChange={(e) => updateField('ice', e.target.value)}
-                    placeholder="15-digit ICE (optional)"
-                  />
-                  <FormField
-                    id="tva"
-                    type="number"
-                    label="TVA (%)"
-                    value={formData.tva}
-                    onChange={(e) => updateField('tva', e.target.value)}
-                    placeholder="e.g. 20"
-                    step="0.01"
-                    min="0"
-                  />
-                  <FormField
-                    id="amount_tva"
-                    type="number"
-                    label="Amount TVA"
-                    value={formData.amount_tva}
-                    onChange={(e) => updateField('amount_tva', e.target.value)}
-                    placeholder="TVA amount (optional)"
-                    step="0.01"
-                    min="0"
-                  />
-                </div>
+                {invoice?.direction === 'outgoing' ? (
+                  /* Vente: client fields + tva% + computed amount_tva */
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <SupplierCombobox
+                      value={formData.client_name}
+                      onChange={(val) => updateField('client_name', val)}
+                      onIceChange={(ice) => updateField('client_ice', ice)}
+                      onContactSelect={(c) => {
+                        updateField('client_ice', c.ice || formData.client_ice);
+                        updateField('contact_id', c._id || null);
+                      }}
+                      contactType="client"
+                      label="Nom du client"
+                      placeholder="Saisir ou sélectionner un client"
+                      error={errors.client_name}
+                      required
+                      disabled={allFieldsLocked}
+                    />
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        ICE client
+                      </label>
+                      <div
+                        className={`block w-full h-10 px-3 leading-10 rounded-md border text-sm font-mono truncate ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                      >
+                        {formData.client_ice || (
+                          <span className="text-gray-400 font-sans">—</span>
+                        )}
+                      </div>
+                    </div>
+                    <FormField
+                      id="invoice_number"
+                      label="Numéro"
+                      value={formData.invoice_number}
+                      onChange={(e) =>
+                        updateField('invoice_number', e.target.value)
+                      }
+                      placeholder="FAC-2025-001"
+                      required
+                      error={errors.invoice_number}
+                      disabled={allFieldsLocked}
+                    />
+                    <TvaRateField
+                      value={formData.tva}
+                      onChange={(v) => updateField('tva', v)}
+                      allowCustom={false}
+                      disabled={financialLocked}
+                      isDarkMode={isDarkMode}
+                    />
+                  </div>
+                ) : (
+                  /* Achat: vendor/supplier fields */
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <SupplierCombobox
+                      value={formData.vendor_name}
+                      onChange={(val) => updateField('vendor_name', val)}
+                      onIceChange={(ice) => updateField('ice', ice)}
+                      onContactSelect={(c) => {
+                        updateField('ice', c.ice || formData.ice);
+                        updateField('contact_id', c._id || null);
+                      }}
+                      error={errors.vendor_name}
+                      required
+                      disabled={allFieldsLocked}
+                    />
+                    <FormField
+                      id="invoice_number"
+                      label="Numéro"
+                      value={formData.invoice_number}
+                      onChange={(e) =>
+                        updateField('invoice_number', e.target.value)
+                      }
+                      placeholder="INV-2024-001"
+                      required
+                      error={errors.invoice_number}
+                      disabled={allFieldsLocked}
+                    />
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        ICE
+                      </label>
+                      <div
+                        className={`block w-full h-10 px-3 leading-10 rounded-md border text-sm font-mono truncate ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                      >
+                        {formData.ice || (
+                          <span className="text-gray-400 font-sans">—</span>
+                        )}
+                      </div>
+                    </div>
+                    <TvaRateField
+                      value={formData.tva}
+                      onChange={(v) => updateField('tva', v)}
+                      allowCustom={true}
+                      disabled={financialLocked}
+                      isDarkMode={isDarkMode}
+                    />
+                  </div>
+                )}
 
-                {/* Première ligne: Amount, Currency, Category */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <FormField
-                    id="total_amount"
-                    type="number"
-                    label="Amount"
-                    value={formData.total_amount}
-                    onChange={(e) =>
-                      updateField('total_amount', e.target.value)
-                    }
-                    placeholder="0.00"
-                    step="0.01"
-                    required
-                    error={errors.total_amount}
-                  />
+                {/* Montants: HT, TVA, TTC */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {invoice?.direction === 'outgoing' ? (
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Montant HT
+                      </label>
+                      <div
+                        className={`flex items-center h-10 px-3 rounded-md border text-sm ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                      >
+                        {subtotalHT > 0
+                          ? `${subtotalHT.toFixed(2)} ${formData.currency}`
+                          : '—'}
+                      </div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                        Calculé depuis les articles
+                      </p>
+                    </div>
+                  ) : (
+                    <FormField
+                      id="subtotal_ht"
+                      type="number"
+                      label="Montant HT"
+                      value={formData.subtotal_ht}
+                      onChange={(e) =>
+                        updateField('subtotal_ht', e.target.value)
+                      }
+                      placeholder="0.00"
+                      step="0.01"
+                      required
+                      error={errors.subtotal_ht}
+                      disabled={financialLocked}
+                    />
+                  )}
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Montant TVA
+                    </label>
+                    <div
+                      className={`flex items-center h-10 px-3 rounded-md border text-sm ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                    >
+                      {computedAmountTva > 0
+                        ? `${computedAmountTva.toFixed(2)} ${formData.currency}`
+                        : '—'}
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                      HT × TVA%
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Total TTC
+                    </label>
+                    <div
+                      className={`flex items-center h-10 px-3 rounded-md border text-sm font-semibold text-green-700 dark:text-green-400 ${isDarkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}
+                    >
+                      {computedTotal > 0
+                        ? `${computedTotal.toFixed(2)} ${formData.currency}`
+                        : '—'}
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                      HT + TVA
+                    </p>
+                  </div>
                   <FormField
                     type="select"
-                    label="Currency"
+                    label="Devise"
                     value={formData.currency}
                     onChange={(value) => updateField('currency', value)}
                     options={currencies}
+                    disabled={allFieldsLocked}
                   />
+                </div>
+
+                {/* Catégorie */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     type="select"
-                    label="Category"
+                    label="Catégorie"
                     value={formData.category}
                     onChange={(value) => updateField('category', value)}
                     options={categories}
-                    placeholder="Select a category"
+                    placeholder="Sélectionner une catégorie"
                     required
                     error={errors.category}
                   />
@@ -373,20 +650,22 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                   <FormField
                     id="invoice_date"
                     type="date"
-                    label="Invoice Date"
+                    label="Date de facture"
                     value={formData.invoice_date}
                     onChange={(e) =>
                       updateField('invoice_date', e.target.value)
                     }
+                    disabled={allFieldsLocked}
                   />
                   <FormField
                     id="invoice_due_date"
                     type="date"
-                    label="Due Date"
+                    label="Date d'échéance"
                     value={formData.invoice_due_date}
                     onChange={(e) =>
                       updateField('invoice_due_date', e.target.value)
                     }
+                    disabled={allFieldsLocked}
                   />
                 </div>
 
@@ -396,36 +675,262 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                   items={formData.items}
                   currency={formData.currency}
                   onItemsChange={updateItems}
+                  disabled={financialLocked}
                 />
 
                 <Separator />
 
-                {/* Status + Valider button */}
-                <div className="flex flex-wrap items-center gap-4">
-                  <FormField
-                    type="select"
-                    label="Status"
-                    value={formData.status}
-                    onChange={(value) => updateField('status', value)}
-                    options={['extracted', 'validated']}
-                    placeholder="Select status"
-                  />
-                  {formData.status === 'extracted' && (
-                    <Button
-                      type="button"
-                      onClick={handleValidate}
-                      disabled={validating}
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                {/* Statut + actions */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Statut
+                    </span>
+                    <Badge
+                      variant={
+                        statusConfig[invoice?.status]?.variant || 'outline'
+                      }
+                      className={`w-fit ${statusConfig[invoice?.status]?.className || ''}`}
                     >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      {validating ? 'Validating...' : 'Validate'}
-                    </Button>
-                  )}
+                      {statusConfig[invoice?.status]?.label || invoice?.status}
+                    </Badge>
+                  </div>
+                  {/* Transitions — incoming */}
+                  {invoice?.direction === 'incoming' &&
+                    invoice?.status === 'extracted' && (
+                      <Button
+                        type="button"
+                        onClick={() => handleStatusAction('validate')}
+                        disabled={!!actionLoading}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        {actionLoading === 'validate' ? '…' : 'Valider'}
+                      </Button>
+                    )}
+                  {invoice?.direction === 'incoming' &&
+                    invoice?.status === 'validated' && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleStatusAction('invalidate')}
+                          disabled={!!actionLoading}
+                          className="text-gray-600"
+                        >
+                          <Undo2 className="w-4 h-4 mr-2" />
+                          {actionLoading === 'invalidate' ? '…' : 'Invalider'}
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleStatusAction('mark-paid')}
+                          disabled={!!actionLoading}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        >
+                          <Banknote className="w-4 h-4 mr-2" />
+                          {actionLoading === 'mark-paid' ? '…' : 'Marquer payé'}
+                        </Button>
+                      </>
+                    )}
+                  {invoice?.direction === 'incoming' &&
+                    invoice?.status === 'paid' && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleStatusAction('unmark-paid')}
+                        disabled={!!actionLoading}
+                        className="text-gray-600"
+                      >
+                        <Undo2 className="w-4 h-4 mr-2" />
+                        {actionLoading === 'unmark-paid'
+                          ? '…'
+                          : 'Annuler paiement'}
+                      </Button>
+                    )}
+                  {/* Transitions — outgoing */}
+                  {invoice?.direction === 'outgoing' &&
+                    invoice?.status === 'draft' && (
+                      <Button
+                        type="button"
+                        onClick={() => handleStatusAction('validate')}
+                        disabled={!!actionLoading}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        {actionLoading === 'validate' ? '…' : 'Valider'}
+                      </Button>
+                    )}
+                  {invoice?.direction === 'outgoing' &&
+                    invoice?.status === 'validated' && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleStatusAction('invalidate')}
+                          disabled={!!actionLoading}
+                          className="text-gray-600"
+                        >
+                          <Undo2 className="w-4 h-4 mr-2" />
+                          {actionLoading === 'invalidate' ? '…' : 'Invalider'}
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleStatusAction('mark-sent')}
+                          disabled={!!actionLoading}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <Send className="w-4 h-4 mr-2" />
+                          {actionLoading === 'mark-sent'
+                            ? '…'
+                            : 'Marquer envoyé'}
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleStatusAction('mark-paid')}
+                          disabled={!!actionLoading}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        >
+                          <Banknote className="w-4 h-4 mr-2" />
+                          {actionLoading === 'mark-paid' ? '…' : 'Marquer payé'}
+                        </Button>
+                      </>
+                    )}
+                  {invoice?.direction === 'outgoing' &&
+                    invoice?.status === 'sent' && (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleStatusAction('unmark-sent')}
+                          disabled={!!actionLoading}
+                          className="text-gray-600"
+                        >
+                          <Undo2 className="w-4 h-4 mr-2" />
+                          {actionLoading === 'unmark-sent'
+                            ? '…'
+                            : 'Annuler envoi'}
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleStatusAction('mark-paid')}
+                          disabled={!!actionLoading}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        >
+                          <Banknote className="w-4 h-4 mr-2" />
+                          {actionLoading === 'mark-paid' ? '…' : 'Marquer payé'}
+                        </Button>
+                      </>
+                    )}
+                  {invoice?.direction === 'outgoing' &&
+                    invoice?.status === 'paid' && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleStatusAction('unmark-paid')}
+                        disabled={!!actionLoading}
+                        className="text-gray-600"
+                      >
+                        <Undo2 className="w-4 h-4 mr-2" />
+                        {actionLoading === 'unmark-paid'
+                          ? '…'
+                          : 'Annuler paiement'}
+                      </Button>
+                    )}
                 </div>
 
                 <Separator />
 
-                <InvoiceTags tags={formData.tags} onTagsChange={updateTags} />
+                {/* Historique (audit trail) */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOpen((o) => !o)}
+                    className={`flex items-center gap-2 w-full text-left text-sm font-medium ${isDarkMode ? 'text-gray-300 hover:text-white' : 'text-gray-700 hover:text-gray-900'} transition-colors`}
+                  >
+                    <History className="w-4 h-4" />
+                    Historique
+                    {history.length > 0 && (
+                      <span
+                        className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${isDarkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-500'}`}
+                      >
+                        {history.length}
+                      </span>
+                    )}
+                    <span className="ml-auto">
+                      {historyOpen ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </span>
+                  </button>
+
+                  {historyOpen && (
+                    <div className="mt-3 space-y-0">
+                      {history.length === 0 ? (
+                        <p
+                          className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'} italic`}
+                        >
+                          Aucun historique disponible.
+                        </p>
+                      ) : (
+                        <div className="relative">
+                          {history.map((entry, i) => {
+                            const isLast = i === history.length - 1;
+                            const cfg =
+                              HISTORY_CONFIG[entry.action] ||
+                              HISTORY_CONFIG._default;
+                            const Icon = cfg.icon;
+                            return (
+                              <div key={i} className="flex gap-3">
+                                {/* Timeline line */}
+                                <div className="flex flex-col items-center">
+                                  <div
+                                    className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${cfg.bg}`}
+                                  >
+                                    <Icon
+                                      className={`w-3.5 h-3.5 ${cfg.color}`}
+                                    />
+                                  </div>
+                                  {!isLast && (
+                                    <div
+                                      className={`w-px flex-1 mt-1 mb-1 ${isDarkMode ? 'bg-gray-600' : 'bg-gray-200'}`}
+                                    />
+                                  )}
+                                </div>
+                                {/* Content */}
+                                <div className={`pb-4 ${isLast ? '' : ''}`}>
+                                  <p
+                                    className={`text-sm font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}
+                                  >
+                                    {cfg.label}
+                                  </p>
+                                  <p
+                                    className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                                  >
+                                    {entry.user}
+                                    {entry.timestamp && (
+                                      <>
+                                        {' '}
+                                        ·{' '}
+                                        {new Date(
+                                          entry.timestamp,
+                                        ).toLocaleString('fr-FR', {
+                                          dateStyle: 'short',
+                                          timeStyle: 'short',
+                                        })}
+                                      </>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -443,7 +948,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                 variant="outline"
                 className="border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
               >
-                Cancel
+                Annuler
               </Button>
             </DialogClose>
             <Button
@@ -454,7 +959,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
               disabled={loading}
             >
               <Save className="w-5 h-5 mr-2" />
-              {loading ? 'Saving...' : 'Save Changes'}
+              {loading ? 'Enregistrement...' : 'Enregistrer les modifications'}
             </Button>
           </DialogFooter>
         </div>

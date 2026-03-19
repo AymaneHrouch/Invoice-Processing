@@ -11,7 +11,18 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
 
 const fetchUsers = async () => {
   const { users } = await getAllUsers();
@@ -30,6 +41,7 @@ const UserManagement = () => {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     fetchUsers().then(setUsers);
@@ -95,7 +107,6 @@ const UserManagement = () => {
     }
   };
 
-
   const handleUpdate = async () => {
     const formErrors = validateForm();
     if (Object.keys(formErrors).length > 0) {
@@ -124,16 +135,28 @@ const UserManagement = () => {
       fetchUsers().then(setUsers);
     } catch (error) {
       console.error('Error updating user:', error);
-      setErrors({ general: 'Failed to update user. Please try again.' });
+      setErrors({
+        general:
+          error.response?.data?.detail ||
+          'Failed to update user. Please try again.',
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!id) return;
-    await deleteUser(id);
-    fetchUsers().then(setUsers);
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteUser(deleteTarget._id || deleteTarget.id);
+      setDeleteTarget(null);
+      fetchUsers().then(setUsers);
+    } catch (error) {
+      setDeleteTarget(null);
+      toast.error(
+        error.response?.data?.detail || 'Erreur lors de la suppression.',
+      );
+    }
   };
 
   const { isDarkMode } = useTheme();
@@ -192,7 +215,10 @@ const UserManagement = () => {
         </Button>
       </div>
 
-      <Dialog open={userModalOpen} onOpenChange={(open) => !open && closeUserModal()}>
+      <Dialog
+        open={userModalOpen}
+        onOpenChange={(open) => !open && closeUserModal()}
+      >
         <DialogContent className="max-w-md bg-white dark:bg-gray-800">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold text-gray-900 dark:text-white">
@@ -242,7 +268,9 @@ const UserManagement = () => {
                 type="password"
                 value={form.password}
                 onChange={handleChange}
-                placeholder={editingUser ? 'New Password (optional)' : 'Password'}
+                placeholder={
+                  editingUser ? 'New Password (optional)' : 'Password'
+                }
                 className={inputClass('password')}
               />
               {errors.password && (
@@ -262,8 +290,8 @@ const UserManagement = () => {
                 onChange={handleChange}
                 className={`border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 w-full ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white focus:ring-purple-800' : 'bg-gray-50 border-gray-300 text-gray-900 focus:ring-purple-300'}`}
               >
-                <option value="USER">USER</option>
-                <option value="ADMIN">ADMIN</option>
+                <option value="USER">Comptable</option>
+                <option value="FIRM_ADMIN">Admin cabinet</option>
               </select>
             </div>
             {errors.general && (
@@ -273,7 +301,11 @@ const UserManagement = () => {
             )}
             <DialogFooter className="gap-2 pt-4">
               <DialogClose asChild>
-                <Button type="button" variant="outline" onClick={closeUserModal}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeUserModal}
+                >
                   Cancel
                 </Button>
               </DialogClose>
@@ -303,6 +335,9 @@ const UserManagement = () => {
                 Email
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
+                Cabinet
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
                 Role
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">
@@ -317,6 +352,9 @@ const UserManagement = () => {
                   {user.full_name}
                 </td>
                 <td className="px-4 py-2 whitespace-nowrap">{user.email}</td>
+                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                  {user.firm_name || '—'}
+                </td>
                 <td className="px-4 py-2 whitespace-nowrap">
                   <span
                     className={`px-2 py-1 rounded-full text-xs font-semibold ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}
@@ -335,7 +373,7 @@ const UserManagement = () => {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => handleDelete(user._id || user.id)}
+                    onClick={() => setDeleteTarget(user)}
                   >
                     Delete
                   </Button>
@@ -345,6 +383,31 @@ const UserManagement = () => {
           </tbody>
         </table>
       </div>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'utilisateur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vous allez supprimer{' '}
+              <span className="font-semibold">{deleteTarget?.full_name}</span> (
+              {deleteTarget?.email}). Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

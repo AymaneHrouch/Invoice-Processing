@@ -57,15 +57,23 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         payload = decode_access_token(token)
         user_id = payload.get("sub")
         role = payload.get("role")
+        username = payload.get("username", user_id)
+        company_id = payload.get("company_id")
+        firm_id = payload.get("firm_id")
         if not user_id or not role:
             raise credentials_exception
-        return {"user_id": user_id, "role": role}
+        return {"user_id": user_id, "role": role, "username": username, "company_id": company_id, "firm_id": firm_id}
     except JWTError:
         raise credentials_exception
 
 def require_admin(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "ADMIN":
         raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+def require_firm_admin(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ("ADMIN", "FIRM_ADMIN"):
+        raise HTTPException(status_code=403, detail="Firm admin access required")
     return current_user
 
 

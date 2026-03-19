@@ -3,10 +3,11 @@ Invoice REST API routes using PyMongo
 """
 from datetime import datetime
 from io import BytesIO
-from time import sleep
 import logging
 from typing import Literal
+import zipfile
 
+from bson import ObjectId
 from fastapi import (
     APIRouter,
     Body,
@@ -17,26 +18,67 @@ from fastapi import (
     Response,
     UploadFile,
 )
-from fastapi.responses import StreamingResponse
 from fastapi.params import Depends
+from fastapi.responses import StreamingResponse
 
 from app.crud.invoice import InvoiceCRUD
-from app.models.invoice import Invoice, InvoiceBatchUpdate, InvoiceCreate, InvoiceResponse, InvoiceUpdate
-from app.services.invoices import extract_invoice_data, run_amount_checks
+from app.database import get_company_collection, get_contacts_collection
+from app.models.invoice import (
+    Invoice,
+    InvoiceBatchUpdate,
+    InvoiceCreate,
+    InvoiceHistoryEntry,
+    InvoiceResponse,
+    InvoiceUpdate,
+)
 from app.services import dashboard
-from app.utils.auth import require_admin
+from app.services.invoices import extract_invoice_data, run_amount_checks
+from app.services.pdf import generate_invoice_pdf
+from app.utils.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
 
 def invoice_to_response(invoice: Invoice) -> InvoiceResponse:
-    """Build API response with computed amount_warnings for extracted invoices."""
+    """Build API response with computed fields for extracted invoices."""
     allowed = set(InvoiceResponse.model_fields)
     data = invoice.model_dump(mode="json", by_alias=False)
     payload = {k: data[k] for k in allowed if k in data}
     payload["amount_warnings"] = run_amount_checks(invoice)
+    # Compute is_overdue: due date in the past and not paid
+    today = datetime.utcnow()
+    if invoice.invoice_due_date and not invoice.is_paid:
+        payload["is_overdue"] = invoice.invoice_due_date < today
+    else:
+        payload["is_overdue"] = False
     return InvoiceResponse(**payload)
+
+
+def _contacts_map(invoices: list) -> dict:
+    """Batch-fetch contacts for a list of invoices. Returns {contact_id: contact_doc}."""
+    ids = [inv.contact_id for inv in invoices if inv.contact_id]
+    if not ids:
+        return {}
+    col = get_contacts_collection()
+    return {
+        str(c["_id"]): c
+        for c in col.find({"_id": {"$in": [ObjectId(cid) for cid in ids]}})
+    }
+
+
+def _apply_contact(inv: Invoice, contacts_map: dict) -> Invoice:
+    """Override name+ICE on the invoice object from the linked contact's current data."""
+    contact = contacts_map.get(inv.contact_id) if inv.contact_id else None
+    if not contact:
+        return inv
+    if inv.direction == "outgoing":
+        inv.client_name = contact.get("name") or inv.client_name
+        inv.client_ice = contact.get("ice") or inv.client_ice
+    else:
+        inv.vendor_name = contact.get("name") or inv.vendor_name
+        inv.vendor_ice = contact.get("ice") or inv.vendor_ice
+    return inv
 
 
 def _source_type_from_filename(filename: str) -> str:
@@ -54,9 +96,10 @@ def _source_type_from_filename(filename: str) -> str:
 # ============= CREATE ENDPOINTS =============
 
 @router.post("/", response_model=InvoiceResponse, summary="Create a new invoice")
-def create_invoice(invoice_data: InvoiceCreate):
+def create_invoice(invoice_data: InvoiceCreate, current_user: dict = Depends(get_current_user)):
     """Create a new invoice with all required fields"""
     try:
+        invoice_data.company_id = current_user.get("company_id")
         logger.info("Creating invoice: %s", invoice_data.invoice_number)
         invoice = InvoiceCRUD.create_invoice(invoice_data)
         if not invoice:
@@ -73,7 +116,11 @@ def create_invoice(invoice_data: InvoiceCreate):
 
 
 @router.post("/upload")
-async def handle_upload_files(files: list[UploadFile] = File(...)):
+async def handle_upload_files(
+    files: list[UploadFile] = File(...),
+    direction: str = Query("incoming", description="Invoice direction: incoming or outgoing"),
+    current_user: dict = Depends(get_current_user),
+):
 
     extracted_data = []
 
@@ -98,9 +145,10 @@ async def handle_upload_files(files: list[UploadFile] = File(...)):
                 currency=invoice_data.get("currency") or "MAD",
                 items=invoice_data.get("items", []),
                 category=invoice_data.get("category") or "Others",
-                tags=invoice_data.get("tags", []),
                 source_type=source_type,
                 status="extracted",
+                direction=direction,
+                company_id=current_user.get("company_id"),
             )
             saved_invoice = InvoiceCRUD.create_invoice(invoice_create)
             logger.info("Saved invoice from %s with ID: %s", file.filename, saved_invoice.id)
@@ -125,6 +173,28 @@ async def handle_upload_files(files: list[UploadFile] = File(...)):
 # ============= READ ENDPOINTS =============
 
 
+@router.post("/achats/export", summary="Export incoming invoices (Achats) to Excel")
+def export_achats(
+        status: str | None = Query(None),
+        vendor_name: str | None = Query(None),
+        category: str | None = Query(None),
+        is_exported: bool | None = Query(None),
+        include_archived: bool = Query(False),
+        current_user: dict = Depends(get_current_user),
+):
+    """Export incoming invoices to Excel. Locks direction=incoming."""
+    return _do_export(
+        direction="incoming",
+        status=status,
+        vendor_name=vendor_name,
+        category=category,
+        is_exported=is_exported,
+        include_archived=include_archived,
+        filename_prefix="achats",
+        company_id=current_user.get("company_id"),
+    )
+
+
 @router.post("/export", summary="Export filtered invoices to Excel")
 def export_invoices(
         status: str | None = Query(None, description="Filter by status"),
@@ -134,6 +204,28 @@ def export_invoices(
         include_archived: bool = Query(False, description="Include archived invoices"),
 ):
     """Export filtered invoices to Excel. Auto-sets is_exported=True on all exported invoices."""
+    return _do_export(
+        direction=None,
+        status=status,
+        vendor_name=vendor_name,
+        category=category,
+        is_exported=is_exported,
+        include_archived=include_archived,
+        filename_prefix="invoices",
+    )
+
+
+def _do_export(
+    *,
+    direction: str | None,
+    status: str | None,
+    vendor_name: str | None,
+    category: str | None,
+    is_exported: bool | None,
+    include_archived: bool,
+    filename_prefix: str,
+    company_id: str | None = None,
+):
     try:
         from openpyxl import Workbook
 
@@ -143,6 +235,8 @@ def export_invoices(
             category=category,
             is_exported=is_exported,
             include_archived=include_archived,
+            direction=direction,
+            company_id=company_id,
         )
 
         wb = Workbook()
@@ -174,16 +268,18 @@ def export_invoices(
             ])
             exported_ids.append(str(inv.id))
 
-        InvoiceCRUD.bulk_mark_exported(exported_ids)
-
         output = BytesIO()
         wb.save(output)
         output.seek(0)
-        filename = f"invoices_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        filename = f"{filename_prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         return StreamingResponse(
             output,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename={filename}"},
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "X-Exported-Ids": ",".join(exported_ids),
+                "Access-Control-Expose-Headers": "X-Exported-Ids",
+            },
         )
     except Exception as e:
         logger.exception("Export failed: %s", e)
@@ -210,6 +306,11 @@ def get_invoices(
         is_exported: bool | None = Query(None, description="Filter by export status"),
         is_paid: bool | None = Query(None, description="Filter by paid status"),
         include_archived: bool = Query(False, description="Include archived invoices"),
+        direction: str | None = Query(None, description="Filter by direction (incoming/outgoing)"),
+        start_date: datetime | None = Query(None, description="Filter invoices on or after this date (YYYY-MM-DD)"),
+        end_date: datetime | None = Query(None, description="Filter invoices on or before this date (YYYY-MM-DD)"),
+        overdue: bool | None = Query(None, description="If true, return only overdue invoices (due_date < today and not paid)"),
+        current_user: dict = Depends(get_current_user),
 ):
     """
     Get all invoices with optional filtering and pagination
@@ -217,6 +318,8 @@ def get_invoices(
     - **status**: Filter by invoice status (e.g., 'extracted', 'validated')
     - **is_exported**: Filter by export status (for "ready to export" = false)
     - **include_archived**: Include archived invoices (excluded by default)
+    - **start_date** / **end_date**: Date range filter on invoice_date
+    - **overdue**: If true, only invoices past due date and unpaid
     """
     try:
         result = InvoiceCRUD.get_all_invoices(
@@ -230,6 +333,11 @@ def get_invoices(
             is_exported=is_exported,
             is_paid=is_paid,
             include_archived=include_archived,
+            direction=direction,
+            start_date=start_date,
+            end_date=end_date,
+            overdue=overdue,
+            company_id=current_user.get("company_id"),
         )
         response.headers["X-Total-Count"] = str(result["total"])
         response.headers["X-Total-Pages"] = str(result["total_pages"])
@@ -237,7 +345,8 @@ def get_invoices(
         response.headers["X-Page"] = str(page)
         response.headers["X-Has-Next"] = str(result["has_next"]).lower()
         response.headers["X-Has-Prev"] = str(result["has_prev"]).lower()
-        return [invoice_to_response(inv) for inv in result["data"]]
+        contacts = _contacts_map(result["data"])
+        return [invoice_to_response(_apply_contact(inv, contacts)) for inv in result["data"]]
     except Exception as e:
         logger.exception("Error in get_invoices: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -256,10 +365,25 @@ def get_invoice_by_id(
         invoice = InvoiceCRUD.get_invoice_by_id(invoice_id)
         if not invoice:
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
-        return invoice_to_response(invoice)
+        contacts = _contacts_map([invoice])
+        return invoice_to_response(_apply_contact(invoice, contacts))
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{invoice_id}/history", summary="Get audit trail for an invoice")
+def get_invoice_history(
+        invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
+        current_user: dict = Depends(get_current_user),
+):
+    """Return the history (audit trail) for an invoice, newest first."""
+    try:
+        entries = InvoiceCRUD.get_history(invoice_id)
+        return entries
+    except Exception as e:
+        logger.exception("Failed to get history for invoice %s: %s", invoice_id, e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -294,43 +418,6 @@ def get_invoices_by_vendor_name(
         invoices = InvoiceCRUD.get_invoices_by_vendor(vendor_name)
         if not invoices:
             raise HTTPException(status_code=404, detail=f"No invoices found for vendor '{vendor_name}'")
-        return [invoice_to_response(inv) for inv in invoices]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/search/tags", response_model=list[InvoiceResponse], summary="Get invoices by tags")
-def get_invoices_by_tags(
-        tags: list[str] = Body(..., description="List of tags to search for")
-):
-    """
-    Get invoices that contain any of the specified tags
-
-    - **tags**: List of tags to search for (e.g., ['development', 'monthly-service'])
-
-    Returns invoices that have at least one of the specified tags.
-    """
-    try:
-        if not tags:
-            raise HTTPException(status_code=400, detail="Tags list cannot be empty")
-
-        invoices = InvoiceCRUD.get_invoices_by_tags(tags)
-        return [invoice_to_response(inv) for inv in invoices]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/tags/{tag}", response_model=list[InvoiceResponse], summary="Get invoices by single tag")
-def get_invoices_by_single_tag(
-        tag: str = Path(..., description="Tag to search for")
-):
-    """
-    Get invoices that contain a specific tag
-
-    - **tag**: The tag to search for (e.g., 'development')
-    """
-    try:
-        invoices = InvoiceCRUD.get_invoices_by_tags([tag])
         return [invoice_to_response(inv) for inv in invoices]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -377,12 +464,28 @@ def update_invoice_by_id(
     try:
         logger.info("Updating invoice %s", invoice_id)
 
+        LOCKED_FIELDS = {
+            "total_amount", "subtotal_ht", "tva", "amount_tva", "items",
+            "vendor_name", "invoice_number", "invoice_date", "invoice_due_date",
+            "currency", "contact_id", "ice",
+        }
+        existing = InvoiceCRUD.get_invoice_by_id(invoice_id)
+        if existing and existing.status in ("validated", "paid"):
+            changed = LOCKED_FIELDS & set(update_data.model_dump(exclude_unset=True).keys())
+            if changed:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Facture validée — certains champs ne sont pas modifiables.",
+                )
+
         invoice = InvoiceCRUD.update_invoice(invoice_id, update_data)
         if not invoice:
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
 
         logger.info("Invoice updated successfully: %s", invoice_id)
         return invoice_to_response(invoice)
+    except HTTPException:
+        raise
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
     except Exception as e:
@@ -435,10 +538,58 @@ def batch_update_invoices(body: InvoiceBatchUpdate = Body(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.patch("/{invoice_id}/status", summary="Update invoice status by ID")
+@router.post("/batch-pdf", summary="Download multiple invoices as a ZIP of PDFs")
+def batch_download_pdf(
+    invoice_ids: list[str] = Body(..., embed=True),
+    current_user: dict = Depends(get_current_user),
+):
+    """Generate PDFs for the given invoice IDs and return them in a ZIP archive."""
+    company_id = current_user.get("company_id")
+    col = get_company_collection()
+    company = (
+        col.find_one({"_id": ObjectId(company_id)}) if company_id else col.find_one({})
+    ) or {}
+
+    contacts_col = get_contacts_collection()
+    zip_buffer = BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for invoice_id in invoice_ids:
+            try:
+                inv = InvoiceCRUD.get_invoice_by_id(invoice_id)
+                if not inv:
+                    continue
+                if inv.direction == "outgoing" and inv.contact_id:
+                    try:
+                        contact = contacts_col.find_one(
+                            {"_id": ObjectId(inv.contact_id)}
+                        )
+                        if contact:
+                            inv.client_address = contact.get("address")
+                            inv.client_city = contact.get("city")
+                            inv.client_phone = contact.get("phone")
+                            inv.client_email = contact.get("email")
+                    except Exception:
+                        pass
+                pdf_bytes = generate_invoice_pdf(inv, company)
+                zf.writestr(f"facture_{inv.invoice_number or invoice_id}.pdf", pdf_bytes)
+            except Exception as e:
+                logger.warning("Skipping invoice %s in batch PDF: %s", invoice_id, e)
+
+    zip_buffer.seek(0)
+    stamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="factures_{stamp}.zip"'},
+    )
+
+
+@router.patch("/{invoice_id}/status", response_model=InvoiceResponse, summary="Update invoice status by ID")
 def update_invoice_status_by_id(
         invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
-        status: str = Body(..., description="New status value", embed=True)
+        status: str = Body(..., description="New status value", embed=True),
+        current_user: dict = Depends(get_current_user),
 ):
     """
     Update only the status of an invoice by its ID
@@ -447,18 +598,80 @@ def update_invoice_status_by_id(
     - **status**: The new status (e.g., 'extracted', 'validated')
     """
     try:
+        existing = InvoiceCRUD.get_invoice_by_id(invoice_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
+        status_from = existing.status
         invoice = InvoiceCRUD.update_invoice_status(invoice_id, status)
         if not invoice:
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
-        return {
-            "message": "Status updated successfully",
-            "invoice_id": invoice_id,
-            "new_status": status
+        # Map status transitions to action labels
+        _action_map = {
+            ("extracted", "validated"): "validated",
+            ("validated", "extracted"): "invalidated",
         }
+        action = _action_map.get((status_from, status), f"status→{status}")
+        InvoiceCRUD.append_history(invoice_id, InvoiceHistoryEntry(
+            action=action, status_from=status_from, status_to=status,
+            user=current_user.get("username", "système"),
+        ))
+        return invoice_to_response(invoice)
+    except HTTPException:
+        raise
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid ObjectId format")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{invoice_id}/mark-paid", response_model=InvoiceResponse)
+def mark_invoice_paid(
+    invoice_id: str = Path(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Transition validated → paid for an incoming invoice."""
+    try:
+        inv = InvoiceCRUD.get_invoice_by_id(invoice_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID invalide.") from None
+    if not inv or inv.direction != "incoming":
+        raise HTTPException(status_code=404, detail="Facture introuvable.")
+    if inv.status != "validated":
+        raise HTTPException(status_code=400, detail="La facture doit être validée pour être marquée payée.")
+    updated = InvoiceCRUD.update_invoice(
+        invoice_id,
+        InvoiceUpdate(status="paid", is_paid=True, paid_at=datetime.utcnow()),
+    )
+    InvoiceCRUD.append_history(invoice_id, InvoiceHistoryEntry(
+        action="paid", status_from="validated", status_to="paid",
+        user=current_user.get("username", "système"),
+    ))
+    return invoice_to_response(updated)
+
+
+@router.post("/{invoice_id}/unmark-paid", response_model=InvoiceResponse)
+def unmark_invoice_paid(
+    invoice_id: str = Path(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Revert paid → validated for an incoming invoice."""
+    try:
+        inv = InvoiceCRUD.get_invoice_by_id(invoice_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID invalide.") from None
+    if not inv or inv.direction != "incoming":
+        raise HTTPException(status_code=404, detail="Facture introuvable.")
+    if inv.status != "paid":
+        raise HTTPException(status_code=400, detail="La facture doit être payée pour annuler le paiement.")
+    updated = InvoiceCRUD.update_invoice(
+        invoice_id,
+        InvoiceUpdate(status="validated", is_paid=False),
+    )
+    InvoiceCRUD.append_history(invoice_id, InvoiceHistoryEntry(
+        action="unmark_paid", status_from="paid", status_to="validated",
+        user=current_user.get("username", "système"),
+    ))
+    return invoice_to_response(updated)
 
 
 # ============= DELETE ENDPOINTS =============
@@ -466,7 +679,7 @@ def update_invoice_status_by_id(
 @router.delete("/{invoice_id}", summary="Delete invoice by ID")
 def delete_invoice_by_id(
         invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
-        current_user = Depends(require_admin)
+        current_user = Depends(get_current_user)
 ):
     """
     Delete an invoice by its MongoDB ObjectId
@@ -573,3 +786,35 @@ def get_invoices_count_by_status():
         return InvoiceCRUD.get_invoices_by_status_count()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============= PDF ENDPOINT =============
+
+@router.get("/{invoice_id}/pdf", summary="Download invoice as PDF")
+def download_invoice_pdf(
+    invoice_id: str = Path(..., description="MongoDB ObjectId of the invoice"),
+    current_user: dict = Depends(get_current_user),
+):
+    """Generate and return a PDF for the given invoice (incoming or outgoing)."""
+    try:
+        inv = InvoiceCRUD.get_invoice_by_id(invoice_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID invalide.") from None
+    if not inv:
+        raise HTTPException(status_code=404, detail="Facture introuvable.")
+
+    col = get_company_collection()
+    company = col.find_one({}) or {}
+
+    try:
+        pdf_bytes = generate_invoice_pdf(inv, company)
+    except Exception as e:
+        logger.exception("PDF generation failed for invoice %s: %s", invoice_id, e)
+        raise HTTPException(status_code=500, detail="Erreur lors de la génération du PDF.") from e
+
+    filename = f"facture_{inv.invoice_number or invoice_id}.pdf"
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
