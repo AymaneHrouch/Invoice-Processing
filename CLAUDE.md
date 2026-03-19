@@ -177,7 +177,7 @@ frontend/
 
 21. **Delete confirmations**: All destructive delete actions use shadcn `AlertDialog` (not `window.confirm`). Firm deletion modal fetches and displays live inventory counts. User deletion modal shows the user's name and email.
 
-22. **`button.jsx` cursor**: `cursor-pointer` is in the base `cva` class — applies globally to every `Button` variant across the app.
+22. **`button.jsx` cursor**: `cursor-pointer` is in the base `cva` class — applies globally to every `Button` variant across the app. However, raw `<button>`, `<div onClick>`, `<td onClick>`, and any other clickable primitive that is NOT a shadcn `<Button>` does NOT inherit this — always add `cursor-pointer` explicitly to every such element.
 
 23. **Sidebar parent navigation**: Achats and Ventes sidebar items have both `hasChildren: true` and a `path`. Clicking them navigates to the list page AND toggles sub-menu expansion.
 

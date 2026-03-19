@@ -347,7 +347,7 @@ const Sidebar = ({ profileComplete = true }) => {
                         setCompanySwitcherOpen(false);
                         switchCompany(c._id);
                       }}
-                      className={`flex-1 flex items-center gap-2 px-3 py-2.5 text-sm transition-colors text-left ${
+                      className={`flex-1 flex items-center gap-2 px-3 py-2.5 text-sm transition-colors text-left cursor-pointer ${
                         isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'
                       }`}
                     >
@@ -382,7 +382,7 @@ const Sidebar = ({ profileComplete = true }) => {
                       setCompanySwitcherOpen(false);
                       navigate('/company/new');
                     }}
-                    className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors text-left ${
+                    className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors text-left cursor-pointer ${
                       isDarkMode
                         ? 'hover:bg-gray-700 text-gray-400'
                         : 'hover:bg-gray-50 text-gray-500'
