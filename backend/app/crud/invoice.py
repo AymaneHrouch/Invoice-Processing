@@ -336,11 +336,15 @@ class InvoiceCRUD:
                 set_op["status"] = "paid"
             else:
                 unset_op["paid_at"] = ""
-                set_op["status"] = "validated"
         if direction is not None:
             set_op["direction"] = direction
         if status is not None:
             set_op["status"] = status
+            # When moving to a non-paid status, always reset payment state to avoid
+            # inconsistent documents (is_paid=True with status != 'paid').
+            if status != "paid" and is_paid is None:
+                set_op["is_paid"] = False
+                unset_op["paid_at"] = ""
         if is_archived is not None:
             set_op["is_archived"] = is_archived
         if is_exported is not None:
@@ -359,9 +363,12 @@ class InvoiceCRUD:
                 update["$unset"] = unset_op
             query: dict = {"_id": {"$in": object_ids}}
             if is_paid is True:
-                query["status"] = "validated"
+                # Only mark-paid invoices that are in a valid pre-paid state
+                query["status"] = {"$in": ["validated", "sent"]}
             elif is_paid is False:
-                query["status"] = "paid"
+                # Unmark any invoice that is currently paid, regardless of status field,
+                # to recover from any inconsistent state.
+                query["is_paid"] = True
             result = collection.update_many(query, update)
             return result.modified_count
         except Exception as e:

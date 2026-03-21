@@ -131,7 +131,7 @@ const Sidebar = ({ profileComplete = true }) => {
       <div key={item.id} className="mb-1">
         <button
           onClick={() => handleItemClick(item)}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group ${
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group cursor-pointer ${
             isActive
               ? 'bg-blue-600 text-white shadow-lg'
               : sectionActive
@@ -196,7 +196,7 @@ const Sidebar = ({ profileComplete = true }) => {
                 <button
                   key={child.id}
                   onClick={() => navigate(child.path)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-sm ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-sm cursor-pointer ${
                     isChildActive
                       ? 'bg-blue-100 text-blue-700 border-l-2 border-blue-500'
                       : `${isDarkMode ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-200' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}`
@@ -279,10 +279,11 @@ const Sidebar = ({ profileComplete = true }) => {
           <button
             onClick={handleTabChange}
             className={`
-            p-2 
-            rounded-lg 
-            transition-all 
-            duration-200 
+            p-2
+            rounded-lg
+            transition-all
+            duration-200
+            cursor-pointer
             ${isDarkMode ? 'hover:bg-gray-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}
           `}
           >
@@ -315,7 +316,7 @@ const Sidebar = ({ profileComplete = true }) => {
           >
             <button
               onClick={() => setCompanySwitcherOpen((o) => !o)}
-              className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm transition-colors ${
+              className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm transition-colors cursor-pointer ${
                 isDarkMode
                   ? 'hover:bg-gray-700 text-gray-200'
                   : 'hover:bg-gray-100 text-gray-700'
@@ -408,7 +409,7 @@ const Sidebar = ({ profileComplete = true }) => {
         >
           <button
             onClick={logout}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 cursor-pointer ${
               isDarkMode
                 ? 'text-red-400 hover:bg-red-900/20 hover:text-red-300'
                 : 'text-red-600 hover:bg-red-50 hover:text-red-700'

@@ -445,6 +445,8 @@ def download_vente_pdf(
                 inv.client_city = contact.get("city")
                 inv.client_phone = contact.get("phone")
                 inv.client_email = contact.get("email")
+                if contact.get("ice"):
+                    inv.client_ice = contact["ice"]
         except Exception:
             pass
 
