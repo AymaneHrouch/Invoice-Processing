@@ -28,6 +28,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ventes", tags=["Ventes"])
 
 
+def _recompute_totals_from_items(items: list) -> tuple[float, float, float]:
+    """Return (subtotal_ht, amount_tva, total_amount) derived from item list.
+    Items are InvoiceItem objects; item.total is TTC."""
+    subtotal_ht = sum(float(item.quantity) * float(item.unit_price) for item in items)
+    amount_tva = sum(float(item.tva_amount) for item in items)
+    total_amount = round(subtotal_ht + amount_tva, 2)
+    return round(subtotal_ht, 2), round(amount_tva, 2), total_amount
+
+
 class VenteCreate(BaseModel):
     """Payload for creating an outgoing invoice. invoice_number is auto-generated."""
     client_name: str
@@ -148,6 +157,17 @@ def create_vente(
 
     invoice_number = _generate_next_number(col, company_id)
 
+    # Recompute totals from items (items.total is TTC)
+    if data.items:
+        ht, tva_amt, total = _recompute_totals_from_items(data.items)
+        subtotal_ht_val = Decimal(str(ht))
+        amount_tva_val = tva_amt
+        total_amount_val = Decimal(str(total))
+    else:
+        subtotal_ht_val = Decimal(str(data.subtotal_ht)) if data.subtotal_ht is not None else None
+        amount_tva_val = data.amount_tva
+        total_amount_val = Decimal(str(data.total_amount))
+
     invoice_create = InvoiceCreate(
         invoice_number=invoice_number,
         invoice_date=data.invoice_date,
@@ -157,10 +177,10 @@ def create_vente(
         client_name=data.client_name,
         client_ice=data.client_ice,
         contact_id=data.contact_id,
-        subtotal_ht=Decimal(str(data.subtotal_ht)) if data.subtotal_ht is not None else None,
+        subtotal_ht=subtotal_ht_val,
         tva=data.tva,
-        amount_tva=data.amount_tva,
-        total_amount=Decimal(str(data.total_amount)),
+        amount_tva=amount_tva_val,
+        total_amount=total_amount_val,
         currency=data.currency,
         items=data.items,
         category=data.category,
@@ -189,7 +209,6 @@ def list_ventes(
     order: Literal["desc", "asc"] = Query("desc"),
     status: str | None = Query(None),
     category: str | None = Query(None),
-    is_paid: bool | None = Query(None),
     is_exported: bool | None = Query(None),
     include_archived: bool = Query(False),
     current_user: dict = Depends(get_current_user),
@@ -201,7 +220,6 @@ def list_ventes(
         sort_by=sort_by,
         order=order,
         category=category,
-        is_paid=is_paid,
         is_exported=is_exported,
         include_archived=include_archived,
         direction="outgoing",
@@ -250,6 +268,12 @@ def update_vente(
             status_code=400,
             detail="Seules les factures en brouillon peuvent être modifiées.",
         )
+    # Recompute totals from items when items are sent
+    if data.items is not None and len(data.items) > 0:
+        ht, tva_amt, total = _recompute_totals_from_items(data.items)
+        data.subtotal_ht = ht
+        data.amount_tva = tva_amt
+        data.total_amount = total
     updated = InvoiceCRUD.update_invoice(vente_id, data)
     return _to_response(updated)
 
@@ -340,7 +364,7 @@ def mark_paid(
         )
     updated = InvoiceCRUD.update_invoice(
         vente_id,
-        InvoiceUpdate(status="paid", is_paid=True, paid_at=datetime.now(UTC)),
+        InvoiceUpdate(status="paid", paid_at=datetime.now(UTC)),
     )
     InvoiceCRUD.append_history(vente_id, InvoiceHistoryEntry(
         action="paid", status_from=inv.status, status_to="paid",
@@ -410,7 +434,7 @@ def unmark_paid(
         raise HTTPException(status_code=400, detail="La facture doit être payée pour annuler le paiement.")
     updated = InvoiceCRUD.update_invoice(
         vente_id,
-        InvoiceUpdate(status="sent", is_paid=False),
+        InvoiceUpdate(status="sent"),
     )
     InvoiceCRUD.append_history(vente_id, InvoiceHistoryEntry(
         action="unmark_paid", status_from="paid", status_to="sent",
@@ -492,7 +516,7 @@ def export_ventes(
         headers = [
             "N° Facture", "Client", "Date", "ICE Client",
             "TVA (%)", "Montant TVA", "Total TTC", "Échéance",
-            "Statut", "Payé", "Catégorie",
+            "Statut", "Catégorie",
         ]
         ws.append(headers)
 
@@ -508,7 +532,6 @@ def export_ventes(
                 float(inv.total_amount) if inv.total_amount else "",
                 inv.invoice_due_date.strftime("%d/%m/%Y") if inv.invoice_due_date else "",
                 inv.status or "",
-                "Oui" if inv.is_paid else "Non",
                 inv.category or "",
             ])
             exported_ids.append(str(inv.id))

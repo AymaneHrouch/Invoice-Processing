@@ -8,7 +8,6 @@ import { computeBatchCounts } from '../batchCounts';
 function inv(overrides) {
   return {
     status: 'extracted',
-    is_paid: false,
     is_archived: false,
     is_exported: false,
     direction: 'incoming',
@@ -17,62 +16,53 @@ function inv(overrides) {
 }
 
 // ---------------------------------------------------------------------------
-// canMarkPaid
+// canMarkPaid — only validated or sent qualify
 // ---------------------------------------------------------------------------
 
 describe('canMarkPaid', () => {
-  test('counts validated invoice with is_paid=false (bug 7 regression)', () => {
-    const counts = computeBatchCounts([inv({ status: 'validated', is_paid: false })]);
+  test('counts validated invoice', () => {
+    const counts = computeBatchCounts([inv({ status: 'validated' })]);
     expect(counts.canMarkPaid).toBe(1);
   });
 
-  test('counts sent invoice with is_paid=false', () => {
-    const counts = computeBatchCounts([inv({ status: 'sent', is_paid: false })]);
+  test('counts sent invoice', () => {
+    const counts = computeBatchCounts([inv({ status: 'sent' })]);
     expect(counts.canMarkPaid).toBe(1);
   });
 
   test('does not count draft invoice', () => {
-    const counts = computeBatchCounts([inv({ status: 'draft', is_paid: false })]);
+    const counts = computeBatchCounts([inv({ status: 'draft' })]);
     expect(counts.canMarkPaid).toBe(0);
   });
 
   test('does not count extracted invoice', () => {
-    const counts = computeBatchCounts([inv({ status: 'extracted', is_paid: false })]);
+    const counts = computeBatchCounts([inv({ status: 'extracted' })]);
     expect(counts.canMarkPaid).toBe(0);
-  });
-
-  // Bug 7 + Bug 2 regression: inconsistent doc (is_paid=true, status=validated)
-  // must NOT appear in canMarkPaid — it should be in canUnmarkPaid instead
-  test('does not count is_paid=true even if status=validated (bug 2+7 regression)', () => {
-    const counts = computeBatchCounts([inv({ status: 'validated', is_paid: true })]);
-    expect(counts.canMarkPaid).toBe(0);
-    expect(counts.canUnmarkPaid).toBe(1);
   });
 
   test('does not count already-paid invoice', () => {
-    const counts = computeBatchCounts([inv({ status: 'paid', is_paid: true })]);
+    const counts = computeBatchCounts([inv({ status: 'paid' })]);
     expect(counts.canMarkPaid).toBe(0);
   });
 });
 
 // ---------------------------------------------------------------------------
-// canUnmarkPaid
+// canUnmarkPaid — only status='paid' qualifies
 // ---------------------------------------------------------------------------
 
 describe('canUnmarkPaid', () => {
-  // Bug 2 regression: unmark-paid must match on is_paid=true, not status='paid'
-  test('counts is_paid=true regardless of status (bug 2 regression)', () => {
-    const counts = computeBatchCounts([inv({ status: 'validated', is_paid: true })]);
+  test('counts paid invoice', () => {
+    const counts = computeBatchCounts([inv({ status: 'paid' })]);
     expect(counts.canUnmarkPaid).toBe(1);
   });
 
-  test('counts standard paid invoice', () => {
-    const counts = computeBatchCounts([inv({ status: 'paid', is_paid: true })]);
-    expect(counts.canUnmarkPaid).toBe(1);
+  test('does not count validated invoice', () => {
+    const counts = computeBatchCounts([inv({ status: 'validated' })]);
+    expect(counts.canUnmarkPaid).toBe(0);
   });
 
-  test('does not count unpaid invoice', () => {
-    const counts = computeBatchCounts([inv({ status: 'validated', is_paid: false })]);
+  test('does not count extracted invoice', () => {
+    const counts = computeBatchCounts([inv({ status: 'extracted' })]);
     expect(counts.canUnmarkPaid).toBe(0);
   });
 });
@@ -173,10 +163,10 @@ describe('canInvalidate', () => {
 describe('mixed selection', () => {
   test('correct counts for [validated, paid, draft, outgoing-sent]', () => {
     const invoices = [
-      inv({ status: 'validated', is_paid: false }),
-      inv({ status: 'paid', is_paid: true }),
-      inv({ status: 'draft', is_paid: false }),
-      inv({ direction: 'outgoing', status: 'sent', is_paid: false }),
+      inv({ status: 'validated' }),
+      inv({ status: 'paid' }),
+      inv({ status: 'draft' }),
+      inv({ direction: 'outgoing', status: 'sent' }),
     ];
     const counts = computeBatchCounts(invoices);
 

@@ -79,9 +79,8 @@ export const statusConfig = {
   },
 };
 
-export const calculateItemTotal = (quantity, unitPrice) => {
-  return (quantity * unitPrice).toFixed(2);
-};
+// Re-exported from invoiceCalculations.js — single source of truth
+export { calculateItemTotal } from '@/utils/invoiceCalculations';
 
 export const sidebarItems = [
   {

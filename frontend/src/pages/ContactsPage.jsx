@@ -244,6 +244,7 @@ export default function ContactsPage() {
         await updateContact(editing._id, payload);
       } else {
         await createContact(payload);
+        window.dispatchEvent(new CustomEvent('contacts:updated'));
       }
       setModalOpen(false);
       fetchContacts();
@@ -628,7 +629,7 @@ export default function ContactsPage() {
                         <strong className={textClass}>
                           {historyData.summary.count}
                         </strong>{' '}
-                        facture(s)
+                        facture{historyData.summary.count > 1 ? 's' : ''}
                       </span>
                       <span className={subTextClass}>
                         Total :{' '}

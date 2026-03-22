@@ -12,10 +12,10 @@ export function computeBatchCounts(selectedInvoices) {
     canInvalidate: selectedInvoices.filter(
       (inv) => !['extracted', 'draft'].includes(inv.status),
     ).length,
-    canMarkPaid: selectedInvoices.filter(
-      (inv) => !inv.is_paid && ['validated', 'sent'].includes(inv.status),
+    canMarkPaid: selectedInvoices.filter((inv) =>
+      ['validated', 'sent'].includes(inv.status),
     ).length,
-    canUnmarkPaid: selectedInvoices.filter((inv) => inv.is_paid).length,
+    canUnmarkPaid: selectedInvoices.filter((inv) => inv.status === 'paid').length,
     canMarkSent: selectedInvoices.filter(
       (inv) => inv.direction === 'outgoing' && inv.status === 'validated',
     ).length,

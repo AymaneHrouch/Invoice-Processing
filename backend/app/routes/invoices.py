@@ -2,6 +2,7 @@
 Invoice REST API routes using PyMongo
 """
 from datetime import datetime
+from decimal import Decimal
 from io import BytesIO
 import logging
 from typing import Literal
@@ -22,7 +23,11 @@ from fastapi.params import Depends
 from fastapi.responses import StreamingResponse
 
 from app.crud.invoice import InvoiceCRUD
-from app.database import get_company_collection, get_contacts_collection
+from app.database import (
+    get_company_collection,
+    get_contacts_collection,
+    get_invoices_collection,
+)
 from app.models.invoice import (
     Invoice,
     InvoiceBatchUpdate,
@@ -40,6 +45,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
 
+def _recompute_totals_from_items(items: list) -> tuple[float, float, float]:
+    """Return (subtotal_ht, amount_tva, total_amount) derived from item list.
+    Items are InvoiceItem objects; item.total is TTC."""
+    subtotal_ht = sum(float(item.quantity) * float(item.unit_price) for item in items)
+    amount_tva = sum(float(item.tva_amount) for item in items)
+    total_amount = round(subtotal_ht + amount_tva, 2)
+    return round(subtotal_ht, 2), round(amount_tva, 2), total_amount
+
+
 def invoice_to_response(invoice: Invoice) -> InvoiceResponse:
     """Build API response with computed fields for extracted invoices."""
     allowed = set(InvoiceResponse.model_fields)
@@ -48,7 +62,7 @@ def invoice_to_response(invoice: Invoice) -> InvoiceResponse:
     payload["amount_warnings"] = run_amount_checks(invoice)
     # Compute is_overdue: due date in the past and not paid
     today = datetime.utcnow()
-    if invoice.invoice_due_date and not invoice.is_paid:
+    if invoice.invoice_due_date and invoice.status != "paid":
         payload["is_overdue"] = invoice.invoice_due_date < today
     else:
         payload["is_overdue"] = False
@@ -100,6 +114,17 @@ def create_invoice(invoice_data: InvoiceCreate, current_user: dict = Depends(get
     """Create a new invoice with all required fields"""
     try:
         invoice_data.company_id = current_user.get("company_id")
+        # Resolve total_amount from items when not provided
+        if invoice_data.total_amount is None:
+            if invoice_data.items:
+                ht, tva_amt, total = _recompute_totals_from_items(invoice_data.items)
+                invoice_data.total_amount = Decimal(str(total))
+                if invoice_data.subtotal_ht is None:
+                    invoice_data.subtotal_ht = Decimal(str(ht))
+                if invoice_data.amount_tva is None:
+                    invoice_data.amount_tva = tva_amt
+            else:
+                invoice_data.total_amount = Decimal("0")
         logger.info("Creating invoice: %s", invoice_data.invoice_number)
         invoice = InvoiceCRUD.create_invoice(invoice_data)
         if not invoice:
@@ -141,6 +166,7 @@ async def handle_upload_files(
                 ice=invoice_data.get("ice"),
                 tva=invoice_data.get("tva"),
                 amount_tva=invoice_data.get("amount_tva"),
+                subtotal_ht=invoice_data.get("subtotal_ht"),
                 total_amount=max(float(invoice_data.get("amount") or 0), 0.01),
                 currency=invoice_data.get("currency") or "MAD",
                 items=invoice_data.get("items", []),
@@ -246,7 +272,7 @@ def _do_export(
         headers = [
             "Invoice Number", "Vendor", "Date", "Direction", "ICE",
             "TVA", "Amount TVA", "Total Amount", "Due Date",
-            "Status", "Paid", "Category",
+            "Status", "Category",
         ]
         ws.append(headers)
 
@@ -263,7 +289,6 @@ def _do_export(
                 float(inv.total_amount) if inv.total_amount else "",
                 inv.invoice_due_date.strftime("%d/%m/%Y") if inv.invoice_due_date else "",
                 inv.status,
-                "Yes" if inv.is_paid else "No",
                 inv.category or "",
             ])
             exported_ids.append(str(inv.id))
@@ -304,7 +329,6 @@ def get_invoices(
         vendor_name: str | None = Query(None, description="Filter by vendor name (partial match)"),
         category: str | None = Query(None, description="Filter by category"),
         is_exported: bool | None = Query(None, description="Filter by export status"),
-        is_paid: bool | None = Query(None, description="Filter by paid status"),
         include_archived: bool = Query(False, description="Include archived invoices"),
         direction: str | None = Query(None, description="Filter by direction (incoming/outgoing)"),
         start_date: datetime | None = Query(None, description="Filter invoices on or after this date (YYYY-MM-DD)"),
@@ -331,7 +355,6 @@ def get_invoices(
             vendor_name=vendor_name,
             category=category,
             is_exported=is_exported,
-            is_paid=is_paid,
             include_archived=include_archived,
             direction=direction,
             start_date=start_date,
@@ -478,6 +501,13 @@ def update_invoice_by_id(
                     detail="Facture validée — certains champs ne sont pas modifiables.",
                 )
 
+        # Recompute invoice totals from items whenever items are sent
+        if update_data.items is not None and len(update_data.items) > 0:
+            ht, tva_amt, total = _recompute_totals_from_items(update_data.items)
+            update_data.subtotal_ht = ht
+            update_data.amount_tva = tva_amt
+            update_data.total_amount = total
+
         invoice = InvoiceCRUD.update_invoice(invoice_id, update_data)
         if not invoice:
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
@@ -517,23 +547,58 @@ def update_invoice_by_number(
 
 
 @router.patch("/batch", summary="Batch update invoices")
-def batch_update_invoices(body: InvoiceBatchUpdate = Body(...)):
+def batch_update_invoices(
+    body: InvoiceBatchUpdate = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
     """
     Update multiple invoices with the same field values.
     - **invoice_ids**: List of invoice IDs to update
-    - **is_paid**: Set paid status (optional)
+    - **status**: Target status (optional)
     - **direction**: Set direction to 'incoming' or 'outgoing' (optional)
     """
     try:
+        # Capture pre-update statuses so history entries reflect the real transition.
+        # Only needed when status is changing.
+        prev_statuses: dict[str, str] = {}
+        if body.status is not None:
+            col = get_invoices_collection()
+            valid_oids = [ObjectId(i) for i in body.invoice_ids if ObjectId.is_valid(i)]
+            for doc in col.find({"_id": {"$in": valid_oids}}, {"status": 1}):
+                prev_statuses[str(doc["_id"])] = doc.get("status", "")
+
         count = InvoiceCRUD.batch_update_invoices(
             invoice_ids=body.invoice_ids,
-            is_paid=body.is_paid,
             direction=body.direction,
             status=body.status,
             is_archived=body.is_archived,
             is_exported=body.is_exported,
         )
-        return {"updated_count": count, "message": f"Updated {count} invoice(s)"}
+
+        # Append history for every invoice whose status actually changed.
+        if body.status is not None and count > 0:
+            username = current_user.get("username", "système")
+            action_map = {
+                "validated": "validated",
+                "extracted": "invalidated",
+                "draft": "invalidated",
+                "paid": "paid",
+                "sent": "mark_sent",
+            }
+            action = action_map.get(body.status, body.status)
+            history_entries = [
+                (inv_id, InvoiceHistoryEntry(
+                    action=action,
+                    status_from=prev_statuses.get(inv_id, ""),
+                    status_to=body.status,
+                    user=username,
+                ))
+                for inv_id in body.invoice_ids
+                if prev_statuses.get(inv_id) and prev_statuses.get(inv_id) != body.status
+            ]
+            InvoiceCRUD.bulk_append_history(history_entries)
+
+        return {"updated_count": count}
     except Exception as e:
         logger.exception("Batch update failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
@@ -641,7 +706,7 @@ def mark_invoice_paid(
         raise HTTPException(status_code=400, detail="La facture doit être validée pour être marquée payée.")
     updated = InvoiceCRUD.update_invoice(
         invoice_id,
-        InvoiceUpdate(status="paid", is_paid=True, paid_at=datetime.utcnow()),
+        InvoiceUpdate(status="paid", paid_at=datetime.utcnow()),
     )
     InvoiceCRUD.append_history(invoice_id, InvoiceHistoryEntry(
         action="paid", status_from="validated", status_to="paid",
@@ -666,7 +731,7 @@ def unmark_invoice_paid(
         raise HTTPException(status_code=400, detail="La facture doit être payée pour annuler le paiement.")
     updated = InvoiceCRUD.update_invoice(
         invoice_id,
-        InvoiceUpdate(status="validated", is_paid=False),
+        InvoiceUpdate(status="validated"),
     )
     InvoiceCRUD.append_history(invoice_id, InvoiceHistoryEntry(
         action="unmark_paid", status_from="paid", status_to="validated",

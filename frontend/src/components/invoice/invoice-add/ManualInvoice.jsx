@@ -27,7 +27,7 @@ import { FormField } from '@/components/ui/form-field';
 import SupplierCombobox from '@/components/ui/SupplierCombobox';
 import TvaRateField from '@/components/ui/TvaRateField';
 import { InvoiceItems, AmountWarningBanner } from '@/components/invoice';
-import { runAmountChecks } from '@/utils/invoiceCalculations';
+import { runAmountChecks, calculateInvoiceTotals } from '@/utils/invoiceCalculations';
 
 // ✅ Fonction utilitaire pour formater les dates
 const formatDateForInput = (dateString) => {
@@ -86,13 +86,15 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
     }
   };
 
-  // ✅ Fonction pour mettre à jour les items
+  // ✅ Fonction pour mettre à jour les items (preserve per-item tva/tva_amount)
   const updateItems = (items) => {
     const processedItems = items.map((item) => ({
       name: item.name || '',
       description: item.description || '',
       quantity: Number(item.quantity) || 1,
       unit_price: Number(item.unit_price) || 0,
+      tva: Number(item.tva) || 0,
+      tva_amount: Number(item.tva_amount) || 0,
       total: Number(item.total) || 0,
     }));
 
@@ -111,9 +113,6 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
     }
     if (!formData.invoice_number?.trim()) {
       newErrors.invoice_number = 'Le numéro de facture est requis !';
-    }
-    if (!formData.total_amount || parseFloat(formData.total_amount) <= 0) {
-      newErrors.total_amount = 'Le montant doit être supérieur à 0 !';
     }
     if (!formData.category?.trim()) {
       newErrors.category = 'La catégorie est requise !';
@@ -153,20 +152,31 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
       return;
     }
 
+    // Compute totals from items when present; otherwise fall back to manual field (or 0)
+    let subtotal_ht = null;
+    let amount_tva = null;
+    let total_amount;
+    if (formData.items.length > 0) {
+      const totals = calculateInvoiceTotals(formData.items);
+      subtotal_ht = totals.subtotalHT;
+      amount_tva = totals.amountTva;
+      total_amount = totals.totalTTC;
+    } else {
+      total_amount = formData.total_amount !== '' ? parseFloat(formData.total_amount) : null;
+    }
+
     // Préparer les données pour l'envoi
     const invoiceData = {
       ...formData,
-      total_amount: parseFloat(formData.total_amount),
+      total_amount,
+      subtotal_ht,
+      amount_tva,
       invoice_date: formData.invoice_date?.trim() || null,
       invoice_due_date: formData.invoice_due_date?.trim() || null,
       ice: formData.ice?.trim() || null,
       tva:
         formData.tva !== '' && formData.tva != null
           ? parseFloat(formData.tva)
-          : null,
-      amount_tva:
-        formData.amount_tva !== '' && formData.amount_tva != null
-          ? parseFloat(formData.amount_tva)
           : null,
     };
 
@@ -202,6 +212,10 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
         </CardHeader>
         <CardContent className="space-y-6">
           {(() => {
+            // Only check amounts when the user has explicitly typed a total — if
+            // the field is empty it will be auto-computed from items, so comparing
+            // "sum vs. 0" would be misleading noise.
+            if (formData.total_amount === '') return null;
             const warnings = runAmountChecks(
               { total_amount: formData.total_amount, items: formData.items },
               formData.currency,
@@ -248,6 +262,7 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
               onChange={(v) => updateField('tva', v)}
               allowCustom={true}
               isDarkMode={isDarkMode}
+              label="TVA par défaut (%)"
             />
             <div className="space-y-1">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -257,36 +272,38 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
                 className={`flex items-center h-10 px-3 rounded-md border text-sm ${isDarkMode ? 'bg-gray-700 border-gray-600 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
               >
                 {(() => {
-                  const ht = parseFloat(formData.total_amount) || 0;
-                  const rate = parseFloat(formData.tva) || 0;
-                  const amt =
-                    ht > 0 && rate > 0 ? ((ht * rate) / 100).toFixed(2) : null;
-                  return amt ? (
-                    `${amt} ${formData.currency}`
-                  ) : (
-                    <span className="text-gray-400">—</span>
-                  );
+                  if (formData.items.length > 0) {
+                    const { amountTva } = calculateInvoiceTotals(formData.items);
+                    return amountTva > 0 ? `${amountTva.toFixed(2)} ${formData.currency}` : <span className="text-gray-400">—</span>;
+                  }
+                  return <span className="text-gray-400">—</span>;
                 })()}
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-500 italic">
-                HT × TVA%
+                Calculé depuis les articles
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-            <FormField
-              id="total_amount"
-              type="number"
-              label="Montant"
-              value={formData.total_amount}
-              onChange={(e) => updateField('total_amount', e.target.value)}
-              placeholder="0.00"
-              step="0.01"
-              error={errors.total_amount}
-              icon={DollarSign}
-              required
-            />
+            <div className="space-y-1">
+              <FormField
+                id="total_amount"
+                type="number"
+                label="Montant"
+                value={formData.total_amount}
+                onChange={(e) => updateField('total_amount', e.target.value)}
+                placeholder="0.00"
+                step="0.01"
+                error={errors.total_amount}
+                icon={DollarSign}
+              />
+              <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+                {formData.items.length > 0
+                  ? `Calculé automatiquement depuis les articles`
+                  : `Optionnel — calculé automatiquement si des articles sont ajoutés`}
+              </p>
+            </div>
             <FormField
               type="select"
               label="Devise"
@@ -329,6 +346,7 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
             items={formData.items}
             currency={formData.currency}
             onItemsChange={updateItems}
+            defaultTvaRate={parseFloat(formData.tva) || 0}
           />
         </CardContent>
       </Card>

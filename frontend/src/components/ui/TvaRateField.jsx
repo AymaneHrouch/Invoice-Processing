@@ -53,11 +53,11 @@ const TvaRateField = ({
         className={selectClass}
       >
         {TVA_RATES.map((r) => (
-          <option key={r} value={String(r)}>
+          <option key={r} value={String(r)} className={isDarkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}>
             {r}%
           </option>
         ))}
-        {allowCustom && <option value="autre">Autre…</option>}
+        {allowCustom && <option value="autre" className={isDarkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}>Autre…</option>}
       </select>
       {custom && (
         <input

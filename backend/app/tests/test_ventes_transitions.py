@@ -28,8 +28,8 @@ from bson import ObjectId
 from app.tests.conftest import make_invoice
 
 
-def insert_vente(col, status="draft", is_paid=False, **kwargs):
-    doc = make_invoice(direction="outgoing", status=status, is_paid=is_paid, **kwargs)
+def insert_vente(col, status="draft", **kwargs):
+    doc = make_invoice(direction="outgoing", status=status, **kwargs)
     col.insert_one(doc)
     return str(doc["_id"]), doc
 
@@ -78,7 +78,6 @@ class TestVenteStateMachine:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "paid"
-        assert data["is_paid"] is True
 
     def test_validated_to_paid_directly(self, invoices_col, patch_db, api_client):
         """Validated invoice can be marked paid without going through sent."""
@@ -90,14 +89,13 @@ class TestVenteStateMachine:
         assert response.json()["status"] == "paid"
 
     def test_paid_to_sent_via_unmark_paid(self, invoices_col, patch_db, api_client):
-        inv_id, _ = insert_vente(invoices_col, status="paid", is_paid=True)
+        inv_id, _ = insert_vente(invoices_col, status="paid")
 
         response = api_client.post(f"/ventes/{inv_id}/unmark-paid")
 
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "sent"
-        assert data["is_paid"] is False
 
 
 # ── Invalid transitions ───────────────────────────────────────────────────────

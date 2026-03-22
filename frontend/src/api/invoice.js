@@ -256,10 +256,6 @@ export const fetchInvoices = async (
         filters.is_exported !== 'all' && {
           is_exported: filters.is_exported === 'true',
         }),
-      ...(filters.is_paid !== undefined &&
-        filters.is_paid !== 'all' && {
-          is_paid: filters.is_paid === 'true',
-        }),
       ...(filters.include_archived && { include_archived: true }),
       ...(filters.direction && { direction: filters.direction }),
       ...(filters.start_date && { start_date: filters.start_date }),

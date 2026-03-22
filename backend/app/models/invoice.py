@@ -22,7 +22,9 @@ class InvoiceItem(BaseModel):
     description: str = Field(..., description="Item description")
     quantity: int = Field(..., gt=0, description="Item quantity")
     unit_price: Decimal = Field(..., ge=0, description="Price per unit")
-    total: Decimal = Field(..., ge=0, description="Total price for this item")
+    total: Decimal = Field(..., ge=0, description="Total TTC for this item (qty × unit_price × (1 + tva/100))")
+    tva: float = Field(default=0.0, description="TVA rate for this item (e.g. 20 for 20%)")
+    tva_amount: Decimal = Field(default=Decimal("0"), ge=0, description="TVA monetary amount for this item")
 
     model_config = ConfigDict(
         json_encoders={
@@ -58,7 +60,7 @@ class Invoice(BaseModel):
 
     # Financial information
     subtotal_ht: Decimal | None = Field(default=None, description="Subtotal before tax (HT)")
-    total_amount: Decimal = Field(..., gt=0, description="Total invoice amount")
+    total_amount: Decimal = Field(..., ge=0, description="Total invoice amount")
     currency: str = Field(default="MAD", description="Currency code")
 
     # Invoice items
@@ -73,7 +75,6 @@ class Invoice(BaseModel):
 
     # Boolean flags
     is_exported: bool = Field(default=False, description="Included in at least one export")
-    is_paid: bool = Field(default=False, description="Payment confirmed")
     is_archived: bool = Field(default=False, description="Hidden from main list")
     direction: str = Field(default="incoming", description="incoming or outgoing")
     paid_at: datetime | None = None
@@ -128,7 +129,7 @@ class InvoiceCreate(BaseModel):
     client_ice: str | None = Field(default=None, description="Client ICE")
     contact_id: str | None = Field(default=None, description="Reference to contact _id")
     subtotal_ht: Decimal | None = Field(default=None, description="Subtotal before tax (HT)")
-    total_amount: Decimal = Field(..., gt=0, description="Total invoice amount")
+    total_amount: Decimal | None = Field(default=None, ge=0, description="Total invoice amount — omit to auto-compute from items")
     currency: str = Field(default="MAD", description="Currency code")
     items: list[InvoiceItem] = Field(default_factory=list, description="List of invoice items")
     category: str = Field(..., min_length=1, description="Invoice category")
@@ -137,7 +138,6 @@ class InvoiceCreate(BaseModel):
 
     # Boolean flags
     is_exported: bool = Field(default=False, description="Included in at least one export")
-    is_paid: bool = Field(default=False, description="Payment confirmed")
     is_archived: bool = Field(default=False, description="Hidden from main list")
     direction: str = Field(default="incoming", description="incoming or outgoing")
 
@@ -237,7 +237,6 @@ class InvoiceUpdate(BaseModel):
     source_type: str | None = None
     status: str | None = None
     is_exported: bool | None = None
-    is_paid: bool | None = None
     is_archived: bool | None = None
     direction: str | None = None
     paid_at: datetime | None = None
@@ -247,7 +246,6 @@ class InvoiceUpdate(BaseModel):
 class InvoiceBatchUpdate(BaseModel):
     """Schema for batch updating invoices"""
     invoice_ids: list[str]
-    is_paid: bool | None = None
     direction: str | None = None
     status: str | None = None
     is_archived: bool | None = None
@@ -276,7 +274,6 @@ class InvoiceResponse(BaseModel):
     source_type: str | None = None
     status: str | None = None
     is_exported: bool | None = None
-    is_paid: bool | None = None
     is_archived: bool | None = None
     direction: str | None = None
     paid_at: datetime | None = None
@@ -285,7 +282,7 @@ class InvoiceResponse(BaseModel):
     updated_at: datetime | None = None
     # Computed by backend when status is 'extracted' (amount verification warnings)
     amount_warnings: list[str] | None = None
-    # Computed: true when invoice_due_date < today AND is_paid is false
+    # Computed: true when invoice_due_date < today AND status != 'paid'
     is_overdue: bool | None = None
     # Audit trail — only populated by the /history endpoint
     history: list[dict] | None = None

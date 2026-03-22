@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 from bson.errors import InvalidId
 from bson.objectid import ObjectId
-from pymongo import ASCENDING, DESCENDING
+from pymongo import ASCENDING, DESCENDING, UpdateOne
 from pymongo.errors import DuplicateKeyError
 
 from app.database import get_invoices_collection
@@ -45,7 +45,6 @@ class InvoiceCRUD:
             invoice_dict = invoice_data.model_dump(exclude_unset=True, exclude_none=True)
 
             invoice_dict.setdefault("is_exported", False)
-            invoice_dict.setdefault("is_paid", False)
             invoice_dict.setdefault("is_archived", False)
             invoice_dict.setdefault("direction", "incoming")
             # Backward compat: populate vendor_ice from ice if missing
@@ -122,7 +121,6 @@ class InvoiceCRUD:
             vendor_name: str | None = None,
             category: str | None = None,
             is_exported: bool | None = None,
-            is_paid: bool | None = None,
             include_archived: bool = False,
             direction: str | None = None,
             start_date: datetime | None = None,
@@ -148,8 +146,6 @@ class InvoiceCRUD:
                 filter_query["category"] = category
             if is_exported is not None:
                 filter_query["is_exported"] = is_exported
-            if is_paid is not None:
-                filter_query["is_paid"] = is_paid
             if direction is not None:
                 filter_query["direction"] = direction
             if start_date or end_date:
@@ -162,7 +158,7 @@ class InvoiceCRUD:
             if overdue:
                 today = datetime.utcnow()
                 filter_query["invoice_due_date"] = {"$lt": today}
-                filter_query["is_paid"] = {"$ne": True}
+                filter_query["status"] = {"$ne": "paid"}
 
             total = collection.count_documents(filter_query)
             total_pages = (total + per_page - 1) // per_page
@@ -318,7 +314,6 @@ class InvoiceCRUD:
     @staticmethod
     def batch_update_invoices(
         invoice_ids: list[str],
-        is_paid: bool | None = None,
         direction: str | None = None,
         status: str | None = None,
         is_archived: bool | None = None,
@@ -327,23 +322,17 @@ class InvoiceCRUD:
         """Update multiple invoices with the same field values. Returns count of updated documents."""
         if not invoice_ids:
             return 0
+        if direction is None and status is None and is_archived is None and is_exported is None:
+            return 0
         set_op = {"updated_at": datetime.utcnow()}
         unset_op = {}
-        if is_paid is not None:
-            set_op["is_paid"] = is_paid
-            if is_paid:
-                set_op["paid_at"] = datetime.utcnow()
-                set_op["status"] = "paid"
-            else:
-                unset_op["paid_at"] = ""
         if direction is not None:
             set_op["direction"] = direction
         if status is not None:
             set_op["status"] = status
-            # When moving to a non-paid status, always reset payment state to avoid
-            # inconsistent documents (is_paid=True with status != 'paid').
-            if status != "paid" and is_paid is None:
-                set_op["is_paid"] = False
+            if status == "paid":
+                set_op["paid_at"] = datetime.utcnow()
+            else:
                 unset_op["paid_at"] = ""
         if is_archived is not None:
             set_op["is_archived"] = is_archived
@@ -351,8 +340,6 @@ class InvoiceCRUD:
             set_op["is_exported"] = is_exported
             if not is_exported:
                 unset_op["exported_at"] = ""
-        if is_paid is None and direction is None and status is None and is_archived is None and is_exported is None:
-            return 0
         try:
             collection = get_invoices_collection()
             object_ids = [ObjectId(oid) for oid in invoice_ids if ObjectId.is_valid(oid)]
@@ -362,13 +349,13 @@ class InvoiceCRUD:
             if unset_op:
                 update["$unset"] = unset_op
             query: dict = {"_id": {"$in": object_ids}}
-            if is_paid is True:
+            if status == "paid":
                 # Only mark-paid invoices that are in a valid pre-paid state
                 query["status"] = {"$in": ["validated", "sent"]}
-            elif is_paid is False:
-                # Unmark any invoice that is currently paid, regardless of status field,
-                # to recover from any inconsistent state.
-                query["is_paid"] = True
+            elif status is not None and status != "paid":
+                # Only unmark/revert invoices that are currently paid
+                # (prevents double-applying non-paid transitions)
+                pass
             result = collection.update_many(query, update)
             return result.modified_count
         except Exception as e:
@@ -393,6 +380,26 @@ class InvoiceCRUD:
 
         except Exception as e:
             raise Exception(f"Failed to update invoice status: {e!s}")
+
+    @staticmethod
+    def bulk_append_history(entries: list[tuple[str, InvoiceHistoryEntry]]) -> None:
+        """Push history entries to multiple invoices in one bulk write."""
+        if not entries:
+            return
+        collection = get_invoices_collection()
+        ops = [
+            UpdateOne(
+                {"_id": ObjectId(invoice_id)},
+                {"$push": {"history": entry.model_dump()}},
+            )
+            for invoice_id, entry in entries
+            if ObjectId.is_valid(invoice_id)
+        ]
+        if ops:
+            try:
+                collection.bulk_write(ops, ordered=False)
+            except Exception as e:
+                logger.warning("bulk_append_history failed: %s", e)
 
     @staticmethod
     def append_history(invoice_id: str, entry: InvoiceHistoryEntry) -> None:

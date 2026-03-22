@@ -105,7 +105,6 @@ const InvoiceListPage = ({ direction = null }) => {
     searchParams.get('include_archived') === 'true';
   const initialVendorName = searchParams.get('vendor_name') || '';
   const initialCategory = searchParams.get('category') || 'all';
-  const initialIsPaid = searchParams.get('is_paid') ?? 'all';
   const initialStartDate = searchParams.get('start_date') || undefined;
   const initialEndDate = searchParams.get('end_date') || undefined;
   const initialOverdue = searchParams.get('overdue') === 'true';
@@ -132,7 +131,6 @@ const InvoiceListPage = ({ direction = null }) => {
     include_archived: initialIncludeArchived,
     vendor_name: initialVendorName,
     category: initialCategory,
-    is_paid: initialIsPaid,
     start_date: initialStartDate,
     end_date: initialEndDate,
     overdue: initialOverdue,
@@ -224,13 +222,14 @@ const InvoiceListPage = ({ direction = null }) => {
     return updated;
   };
 
-  const handleBatchUpdate = async (updates, label = 'mise(s) à jour') => {
+  const handleBatchUpdate = async (updates, label = { s: 'mise à jour', p: 'mises à jour' }) => {
     if (selectedIds.size === 0) return;
     setBatchLoading(true);
     try {
       const result = await batchUpdateInvoices([...selectedIds], updates);
       const n = result.updated_count;
-      toast.success(`${n} facture${n > 1 ? 's' : ''} ${label}`);
+      const lbl = n > 1 ? label.p : label.s;
+      toast.success(`${n} facture${n > 1 ? 's' : ''} ${lbl}`);
       setSelectedIds(new Set());
       handleFetchInvoices(page, sortBy, order, filters);
     } catch (err) {
@@ -244,7 +243,7 @@ const InvoiceListPage = ({ direction = null }) => {
     if (selectedIds.size === 0) return;
     setPdfBatchLoading(true);
     const toastId = toast.loading(
-      `Génération du ZIP (${selectedIds.size} facture(s))...`,
+      `Génération du ZIP (${selectedIds.size} facture${selectedIds.size > 1 ? 's' : ''})...`,
     );
     try {
       await batchDownloadPdf([...selectedIds]);
@@ -350,8 +349,6 @@ const InvoiceListPage = ({ direction = null }) => {
     if (filters.vendor_name) params.set('vendor_name', filters.vendor_name);
     if (filters.category && filters.category !== 'all')
       params.set('category', filters.category);
-    if (filters.is_paid && filters.is_paid !== 'all')
-      params.set('is_paid', filters.is_paid);
     if (filters.start_date) params.set('start_date', filters.start_date);
     if (filters.end_date) params.set('end_date', filters.end_date);
     if (filters.overdue) params.set('overdue', 'true');
@@ -461,7 +458,6 @@ const InvoiceListPage = ({ direction = null }) => {
       include_archived: false,
       vendor_name: '',
       category: 'all',
-      is_paid: 'all',
       start_date: undefined,
       end_date: undefined,
       overdue: false,
@@ -570,7 +566,7 @@ const InvoiceListPage = ({ direction = null }) => {
     try {
       await batchUpdateInvoices(exportConfirm.ids, { is_exported: true });
       toast.success(
-        `${exportConfirm.ids.length} facture(s) marquée(s) comme exportées.`,
+        `${exportConfirm.ids.length} facture${exportConfirm.ids.length > 1 ? 's marquées' : ' marquée'} comme exportée${exportConfirm.ids.length > 1 ? 's' : ''}.`,
       );
       handleFetchInvoices(page, sortBy, order, filters);
     } catch (err) {
@@ -755,7 +751,7 @@ const InvoiceListPage = ({ direction = null }) => {
                     isDarkMode ? 'text-blue-200' : 'text-blue-800'
                   }`}
                 >
-                  {selectedIds.size} facture(s) sélectionnée(s)
+                  {selectedIds.size} facture{selectedIds.size > 1 ? 's' : ''} sélectionnée{selectedIds.size > 1 ? 's' : ''}
                 </span>
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* Left cluster: state mutations */}
@@ -764,7 +760,7 @@ const InvoiceListPage = ({ direction = null }) => {
                       size="sm"
                       variant="outline"
                       onClick={() =>
-                        handleBatchUpdate({ status: 'validated' }, 'validée(s)')
+                        handleBatchUpdate({ status: 'validated' }, { s: 'validée', p: 'validées' })
                       }
                       disabled={batchLoading}
                       className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
@@ -783,7 +779,7 @@ const InvoiceListPage = ({ direction = null }) => {
                             status:
                               direction === 'outgoing' ? 'draft' : 'extracted',
                           },
-                          'invalidée(s)',
+                          { s: 'invalidée', p: 'invalidées' },
                         )
                       }
                       disabled={batchLoading}
@@ -804,7 +800,7 @@ const InvoiceListPage = ({ direction = null }) => {
                       onClick: () =>
                         handleBatchUpdate(
                           { status: 'sent' },
-                          'marquée(s) envoyée(s)',
+                          { s: 'marquée envoyée', p: 'marquées envoyées' },
                         ),
                       className:
                         'border-indigo-400 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-600 dark:text-indigo-400 dark:hover:bg-indigo-900/20',
@@ -816,7 +812,7 @@ const InvoiceListPage = ({ direction = null }) => {
                       onClick: () =>
                         handleBatchUpdate(
                           { status: 'validated' },
-                          'marquée(s) non envoyée(s)',
+                          { s: 'marquée non envoyée', p: 'marquées non envoyées' },
                         ),
                       className:
                         'border-gray-400 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
@@ -831,8 +827,8 @@ const InvoiceListPage = ({ direction = null }) => {
                       count: canMarkPaid,
                       onClick: () =>
                         handleBatchUpdate(
-                          { is_paid: true, status: 'paid' },
-                          'marquée(s) payée(s)',
+                          { status: 'paid' },
+                          { s: 'marquée payée', p: 'marquées payées' },
                         ),
                       className:
                         'border-green-400 text-green-600 hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-900/20',
@@ -844,9 +840,9 @@ const InvoiceListPage = ({ direction = null }) => {
                       onClick: () =>
                         handleBatchUpdate(
                           direction === 'outgoing'
-                            ? { is_paid: false, status: 'sent' }
-                            : { is_paid: false, status: 'validated' },
-                          'marquée(s) non payée(s)',
+                            ? { status: 'sent' }
+                            : { status: 'validated' },
+                          { s: 'marquée non payée', p: 'marquées non payées' },
                         ),
                       className:
                         'border-gray-400 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
@@ -869,7 +865,7 @@ const InvoiceListPage = ({ direction = null }) => {
                       onClick: () =>
                         handleBatchUpdate(
                           { is_exported: true },
-                          'marquée(s) exportée(s)',
+                          { s: 'marquée exportée', p: 'marquées exportées' },
                         ),
                       className:
                         'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
@@ -881,7 +877,7 @@ const InvoiceListPage = ({ direction = null }) => {
                       onClick: () =>
                         handleBatchUpdate(
                           { is_exported: false },
-                          'marquée(s) non exportée(s)',
+                          { s: 'marquée non exportée', p: 'marquées non exportées' },
                         ),
                       className:
                         'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
@@ -895,7 +891,7 @@ const InvoiceListPage = ({ direction = null }) => {
                       icon: Archive,
                       count: canArchive,
                       onClick: () =>
-                        handleBatchUpdate({ is_archived: true }, 'archivée(s)'),
+                        handleBatchUpdate({ is_archived: true }, { s: 'archivée', p: 'archivées' }),
                       className:
                         'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
                     }}
@@ -906,7 +902,7 @@ const InvoiceListPage = ({ direction = null }) => {
                       onClick: () =>
                         handleBatchUpdate(
                           { is_archived: false },
-                          'désarchivée(s)',
+                          { s: 'désarchivée', p: 'désarchivées' },
                         ),
                       className:
                         'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
@@ -923,7 +919,7 @@ const InvoiceListPage = ({ direction = null }) => {
                         onClick: () =>
                           handleBatchUpdate(
                             { direction: 'incoming' },
-                            'définie(s) comme achat',
+                            { s: 'définie comme achat', p: 'définies comme achat' },
                           ),
                         className:
                           'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
@@ -935,7 +931,7 @@ const InvoiceListPage = ({ direction = null }) => {
                         onClick: () =>
                           handleBatchUpdate(
                             { direction: 'outgoing' },
-                            'définie(s) comme vente',
+                            { s: 'définie comme vente', p: 'définies comme vente' },
                           ),
                         className:
                           'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',

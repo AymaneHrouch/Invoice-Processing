@@ -102,6 +102,7 @@ const SupplierCombobox = ({
         contact_type: [contactType],
       });
       toast.success(`"${created.name}" ajouté aux contacts.`);
+      window.dispatchEvent(new CustomEvent('contacts:updated'));
       setOptions((prev) => [...prev, created]);
       // Notify parent of selection without closing dropdown — user sees "Contact existant"
       onChange(created.name);
@@ -157,7 +158,7 @@ const SupplierCombobox = ({
                   key={contact._id}
                   type="button"
                   onMouseDown={() => selectContact(contact)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-left"
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-left cursor-pointer"
                 >
                   <span className="font-medium text-gray-800 dark:text-gray-200">
                     {contact.name}

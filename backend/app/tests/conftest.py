@@ -93,7 +93,7 @@ def make_invoice(**overrides) -> dict:
     safe defaults. Pass keyword overrides to customise per test.
 
     Usage:
-        doc = make_invoice(status="validated", is_paid=False)
+        doc = make_invoice(status="validated")
         invoices_col.insert_one(doc)
         inv_id = str(doc["_id"])
     """
@@ -116,7 +116,6 @@ def make_invoice(**overrides) -> dict:
         "category": "Services",
         "source_type": "manual",
         "status": "extracted",
-        "is_paid": False,
         "paid_at": None,
         "is_exported": False,
         "is_archived": False,

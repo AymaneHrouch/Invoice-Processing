@@ -175,7 +175,7 @@ const UploadCard = ({
         await processFileSequentially(addedFiles);
 
         setSuccess(true);
-        setMessage(`${validFiles.length} fichier(s) traité(s) avec succès.`);
+        setMessage(`${validFiles.length} fichier${validFiles.length > 1 ? 's traités' : ' traité'} avec succès.`);
       }
     },
     [isFileAlreadyUploaded, addFiles, processFileSequentially, setIsProcessing],

@@ -21,8 +21,8 @@ from bson import ObjectId
 from app.tests.conftest import make_invoice
 
 
-def insert_achat(col, status="extracted", is_paid=False, **kwargs):
-    doc = make_invoice(direction="incoming", status=status, is_paid=is_paid, **kwargs)
+def insert_achat(col, status="extracted", **kwargs):
+    doc = make_invoice(direction="incoming", status=status, **kwargs)
     col.insert_one(doc)
     return str(doc["_id"]), doc
 
@@ -59,17 +59,15 @@ class TestAchatsStateMachine:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "paid"
-        assert data["is_paid"] is True
 
     def test_paid_to_validated_via_unmark_paid(self, invoices_col, patch_db, api_client):
-        inv_id, _ = insert_achat(invoices_col, status="paid", is_paid=True)
+        inv_id, _ = insert_achat(invoices_col, status="paid")
 
         response = api_client.post(f"/invoices/{inv_id}/unmark-paid")
 
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "validated"
-        assert data["is_paid"] is False
 
 
 # ── Invalid transitions ───────────────────────────────────────────────────────
@@ -86,7 +84,7 @@ class TestAchatsInvalidTransitions:
 
     def test_unmark_paid_on_validated_invoice_rejected(self, invoices_col, patch_db, api_client):
         """Can only unmark-paid when status is 'paid'."""
-        inv_id, _ = insert_achat(invoices_col, status="validated", is_paid=False)
+        inv_id, _ = insert_achat(invoices_col, status="validated")
 
         response = api_client.post(f"/invoices/{inv_id}/unmark-paid")
 
@@ -163,7 +161,7 @@ class TestAchatsPartialLock:
         assert response.json()["category"] == "Logiciels"
 
     def test_put_paid_invoice_also_locked(self, invoices_col, patch_db, api_client):
-        inv_id, _ = insert_achat(invoices_col, status="paid", is_paid=True)
+        inv_id, _ = insert_achat(invoices_col, status="paid")
 
         response = api_client.put(
             f"/invoices/{inv_id}", json={"total_amount": 5000.0}
@@ -213,7 +211,7 @@ class TestAchatsHistoryAppended:
         assert entry["status_to"] == "paid"
 
     def test_unmark_paid_appends_history(self, invoices_col, patch_db, api_client):
-        inv_id, doc = insert_achat(invoices_col, status="paid", is_paid=True)
+        inv_id, doc = insert_achat(invoices_col, status="paid")
 
         api_client.post(f"/invoices/{inv_id}/unmark-paid")
 
