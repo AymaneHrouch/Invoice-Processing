@@ -22,7 +22,11 @@ from fastapi.params import Depends
 from fastapi.responses import StreamingResponse
 
 from app.crud.invoice import InvoiceCRUD
-from app.database import get_company_collection, get_contacts_collection
+from app.database import (
+    get_company_collection,
+    get_contacts_collection,
+    get_invoices_collection,
+)
 from app.models.invoice import (
     Invoice,
     InvoiceBatchUpdate,
@@ -514,7 +518,10 @@ def update_invoice_by_number(
 
 
 @router.patch("/batch", summary="Batch update invoices")
-def batch_update_invoices(body: InvoiceBatchUpdate = Body(...)):
+def batch_update_invoices(
+    body: InvoiceBatchUpdate = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
     """
     Update multiple invoices with the same field values.
     - **invoice_ids**: List of invoice IDs to update
@@ -522,6 +529,15 @@ def batch_update_invoices(body: InvoiceBatchUpdate = Body(...)):
     - **direction**: Set direction to 'incoming' or 'outgoing' (optional)
     """
     try:
+        # Capture pre-update statuses so history entries reflect the real transition.
+        # Only needed when status is changing.
+        prev_statuses: dict[str, str] = {}
+        if body.status is not None:
+            col = get_invoices_collection()
+            valid_oids = [ObjectId(i) for i in body.invoice_ids if ObjectId.is_valid(i)]
+            for doc in col.find({"_id": {"$in": valid_oids}}, {"status": 1}):
+                prev_statuses[str(doc["_id"])] = doc.get("status", "")
+
         count = InvoiceCRUD.batch_update_invoices(
             invoice_ids=body.invoice_ids,
             direction=body.direction,
@@ -529,6 +545,30 @@ def batch_update_invoices(body: InvoiceBatchUpdate = Body(...)):
             is_archived=body.is_archived,
             is_exported=body.is_exported,
         )
+
+        # Append history for every invoice whose status actually changed.
+        if body.status is not None and count > 0:
+            username = current_user.get("username", "système")
+            action_map = {
+                "validated": "validated",
+                "extracted": "invalidated",
+                "draft": "invalidated",
+                "paid": "paid",
+                "sent": "mark_sent",
+            }
+            action = action_map.get(body.status, body.status)
+            history_entries = [
+                (inv_id, InvoiceHistoryEntry(
+                    action=action,
+                    status_from=prev_statuses.get(inv_id, ""),
+                    status_to=body.status,
+                    user=username,
+                ))
+                for inv_id in body.invoice_ids
+                if prev_statuses.get(inv_id) and prev_statuses.get(inv_id) != body.status
+            ]
+            InvoiceCRUD.bulk_append_history(history_entries)
+
         return {"updated_count": count, "message": f"Updated {count} invoice(s)"}
     except Exception as e:
         logger.exception("Batch update failed: %s", e)

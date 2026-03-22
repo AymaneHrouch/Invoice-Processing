@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 from bson.errors import InvalidId
 from bson.objectid import ObjectId
-from pymongo import ASCENDING, DESCENDING
+from pymongo import ASCENDING, DESCENDING, UpdateOne
 from pymongo.errors import DuplicateKeyError
 
 from app.database import get_invoices_collection
@@ -380,6 +380,26 @@ class InvoiceCRUD:
 
         except Exception as e:
             raise Exception(f"Failed to update invoice status: {e!s}")
+
+    @staticmethod
+    def bulk_append_history(entries: list[tuple[str, InvoiceHistoryEntry]]) -> None:
+        """Push history entries to multiple invoices in one bulk write."""
+        if not entries:
+            return
+        collection = get_invoices_collection()
+        ops = [
+            UpdateOne(
+                {"_id": ObjectId(invoice_id)},
+                {"$push": {"history": entry.model_dump()}},
+            )
+            for invoice_id, entry in entries
+            if ObjectId.is_valid(invoice_id)
+        ]
+        if ops:
+            try:
+                collection.bulk_write(ops, ordered=False)
+            except Exception as e:
+                logger.warning("bulk_append_history failed: %s", e)
 
     @staticmethod
     def append_history(invoice_id: str, entry: InvoiceHistoryEntry) -> None:
