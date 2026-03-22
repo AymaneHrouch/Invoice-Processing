@@ -75,7 +75,7 @@ backend/
 │   ├── routes/
 │   │   ├── invoices.py      # Achats CRUD, upload, export, PDF, search, history
 │   │   ├── ventes.py        # Ventes CRUD, status transitions, export, PDF
-│   │   ├── company.py       # GET/PUT /company, GET /company/categories
+│   │   ├── company.py       # Multi-doc company CRUD (list, create, active, categories, get, update, delete)
 │   │   ├── contacts.py      # Contacts CRUD
 │   │   ├── dashboard.py     # Dashboard stats + GET /recent-activity
 │   │   ├── auth.py          # Login/register (JWT includes username, firm_id fields)
@@ -89,10 +89,20 @@ backend/
 │   │   └── ocr/             # OCR provider abstraction (Azure DI, AWS, GCP)
 │   ├── templates/
 │   │   └── invoice.html     # Jinja2 HTML/CSS invoice template (A4, both directions)
+│   ├── tests/
+│   │   ├── conftest.py      # mongomock fixtures: patch_db, api_client, fake_user, make_invoice()
+│   │   ├── test_health.py
+│   │   ├── test_contacts.py
+│   │   ├── test_company.py
+│   │   ├── test_batch_operations.py
+│   │   ├── test_contact_enrichment.py
+│   │   ├── test_ventes_transitions.py
+│   │   └── test_achats_transitions.py
 │   └── utils/
 │       └── auth.py          # JWT helpers, get_current_user, require_admin
 ├── scripts/
 │   └── reset.py             # DB reset: --empty (wipe) or --seed (wipe + demo data)
+├── conftest.py              # Root pytest config — stubs weasyprint for Windows (no Docker needed)
 ├── dev.sh                   # Local Docker build + run script
 ├── Dockerfile               # python:3.13-slim + weasyprint apt deps
 ├── pyproject.toml
@@ -128,9 +138,14 @@ frontend/
 │   ├── hooks/               # useCategories, useInvoiceData, useFileUpload, etc.
 │   ├── contexts/            # AuthContext, ThemeContext
 │   ├── constants/           # sidebarItems, statusConfig, currencies
+│   ├── test/
+│   │   └── setup.js         # Vitest setup — imports @testing-library/jest-dom
 │   └── utils/               # formatters, validators, auth helpers
+│       ├── batchCounts.js   # computeBatchCounts() — pure batch action count logic
+│       └── __tests__/       # Unit tests: batchCounts, invoiceCalculations, fileValidation, auth, editInvoiceFormInit
 ├── package.json
-└── vite.config.js
+├── vite.config.js
+└── vitest.config.js         # Vitest config — separate from vite.config.js to avoid @tailwindcss/vite conflict
 ```
 
 ## Key Architecture Decisions
