@@ -29,6 +29,7 @@ import {
   downloadVentePdf,
   exportVentes,
 } from '@/api/ventes';
+import { computeBatchCounts } from '@/utils/batchCounts';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCategories } from '@/hooks/useCategories';
 import {
@@ -602,36 +603,20 @@ const InvoiceListPage = ({ direction = null }) => {
   const selectedInvoices = (invoiceData?.data || []).filter((inv) =>
     selectedIds.has(inv.id || inv._id),
   );
-  const canValidate = selectedInvoices.filter((inv) =>
-    ['extracted', 'draft'].includes(inv.status),
-  ).length;
-  const canInvalidate = selectedInvoices.filter(
-    (inv) => !['extracted', 'draft'].includes(inv.status),
-  ).length;
-  const canMarkPaid = selectedInvoices.filter(
-    (inv) => !inv.is_paid && ['validated', 'sent'].includes(inv.status),
-  ).length;
-  const canUnmarkPaid = selectedInvoices.filter((inv) => inv.is_paid).length;
-  const canMarkSent = selectedInvoices.filter(
-    (inv) => inv.direction === 'outgoing' && inv.status === 'validated',
-  ).length;
-  const canUnmarkSent = selectedInvoices.filter(
-    (inv) => inv.direction === 'outgoing' && inv.status === 'sent',
-  ).length;
-  const canArchive = selectedInvoices.filter((inv) => !inv.is_archived).length;
-  const canRestore = selectedInvoices.filter((inv) => inv.is_archived).length;
-  const canMarkExported = selectedInvoices.filter(
-    (inv) => !inv.is_exported,
-  ).length;
-  const canUnmarkExported = selectedInvoices.filter(
-    (inv) => inv.is_exported,
-  ).length;
-  const canSetIncoming = selectedInvoices.filter(
-    (inv) => inv.direction !== 'incoming',
-  ).length;
-  const canSetOutgoing = selectedInvoices.filter(
-    (inv) => inv.direction !== 'outgoing',
-  ).length;
+  const {
+    canValidate,
+    canInvalidate,
+    canMarkPaid,
+    canUnmarkPaid,
+    canMarkSent,
+    canUnmarkSent,
+    canArchive,
+    canRestore,
+    canMarkExported,
+    canUnmarkExported,
+    canSetIncoming,
+    canSetOutgoing,
+  } = computeBatchCounts(selectedInvoices);
 
   // editModal and exportConfirmDialog are always the last two children of the
   // root fragment — same tree position regardless of which branch renders —

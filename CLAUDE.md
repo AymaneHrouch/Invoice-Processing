@@ -199,6 +199,59 @@ frontend/
 
 32. **Nouveau contact type pre-selection**: `ContactsPage.openCreate()` seeds `contact_type` from `typeFilter` — visiting `/contacts?type=supplier` and clicking "Nouveau contact" pre-selects Fournisseur; `?type=client` or no filter pre-selects Client.
 
+## Testing
+
+### Backend tests
+
+Location: `backend/app/tests/`
+
+All backend tests are **integration tests** — they use FastAPI's `TestClient` with auth dependency-overridden and MongoDB replaced by `mongomock` (in-memory). No Docker, no Atlas connection needed. The root `backend/conftest.py` stubs `weasyprint` before any import, so tests run on Windows without native system libs.
+
+| File | Coverage |
+|------|----------|
+| `test_health.py` | Health endpoint |
+| `test_contacts.py` | Contacts CRUD |
+| `test_company.py` | Company multi-doc CRUD (list, create, active, categories, get, update, delete) |
+| `test_batch_operations.py` | Batch state transitions — regressions for is_paid consistency bugs |
+| `test_contact_enrichment.py` | ICE enrichment on GET list, GET by ID, and PUT response |
+| `test_ventes_transitions.py` | Ventes state machine, history, locking, PDF smoke |
+| `test_achats_transitions.py` | Achats state machine, partial lock, history, PDF smoke |
+
+Shared fixtures in `backend/app/tests/conftest.py`: `mongo_db`, `patch_db`, `api_client`, `fake_user`, `make_invoice()`. Fixtures are **not** `autouse` — tests opt in explicitly.
+
+```bash
+cd backend/
+
+# All tests (~3 min — mongomock spins up per test)
+uv run pytest app/tests/ -v
+
+# Single suite
+uv run pytest app/tests/test_batch_operations.py -v
+uv run pytest app/tests/test_company.py -v
+```
+
+### Frontend tests
+
+Location: `frontend/src/utils/__tests__/`
+
+All frontend tests are **unit tests** — pure functions, no component rendering, no API calls, no React providers. Runner: **Vitest** (separate `vitest.config.js` to avoid `@tailwindcss/vite` plugin conflict).
+
+| File | Coverage |
+|------|----------|
+| `batchCounts.test.js` | `computeBatchCounts()` — batch action count logic, regressions for bugs 2/6/7 |
+| `invoiceCalculations.test.js` | `calculateItemTotal`, `calculateInvoiceTotal`, `runAmountChecks` |
+| `fileValidation.test.js` | `validateFiles` — type + size validation |
+| `auth.test.js` | `setAuthToken`, `getAuthToken`, `removeAuthToken`, `replaceAuthToken`, `getAuthConfig` |
+| `editInvoiceFormInit.test.js` | ICE field init logic — `vendor_ice` vs legacy `ice` fallback (bug 5 regression) |
+
+```bash
+cd frontend/
+
+npm run test:run      # run once, exit (~2s)
+npm test              # watch mode
+npm run test:coverage # with coverage report
+```
+
 ## Local Development
 
 ### Backend (Docker — required on Windows for weasyprint)
