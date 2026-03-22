@@ -105,7 +105,6 @@ const InvoiceListPage = ({ direction = null }) => {
     searchParams.get('include_archived') === 'true';
   const initialVendorName = searchParams.get('vendor_name') || '';
   const initialCategory = searchParams.get('category') || 'all';
-  const initialIsPaid = searchParams.get('is_paid') ?? 'all';
   const initialStartDate = searchParams.get('start_date') || undefined;
   const initialEndDate = searchParams.get('end_date') || undefined;
   const initialOverdue = searchParams.get('overdue') === 'true';
@@ -132,7 +131,6 @@ const InvoiceListPage = ({ direction = null }) => {
     include_archived: initialIncludeArchived,
     vendor_name: initialVendorName,
     category: initialCategory,
-    is_paid: initialIsPaid,
     start_date: initialStartDate,
     end_date: initialEndDate,
     overdue: initialOverdue,
@@ -350,8 +348,6 @@ const InvoiceListPage = ({ direction = null }) => {
     if (filters.vendor_name) params.set('vendor_name', filters.vendor_name);
     if (filters.category && filters.category !== 'all')
       params.set('category', filters.category);
-    if (filters.is_paid && filters.is_paid !== 'all')
-      params.set('is_paid', filters.is_paid);
     if (filters.start_date) params.set('start_date', filters.start_date);
     if (filters.end_date) params.set('end_date', filters.end_date);
     if (filters.overdue) params.set('overdue', 'true');
@@ -461,7 +457,6 @@ const InvoiceListPage = ({ direction = null }) => {
       include_archived: false,
       vendor_name: '',
       category: 'all',
-      is_paid: 'all',
       start_date: undefined,
       end_date: undefined,
       overdue: false,
@@ -831,7 +826,7 @@ const InvoiceListPage = ({ direction = null }) => {
                       count: canMarkPaid,
                       onClick: () =>
                         handleBatchUpdate(
-                          { is_paid: true, status: 'paid' },
+                          { status: 'paid' },
                           'marquée(s) payée(s)',
                         ),
                       className:
@@ -844,8 +839,8 @@ const InvoiceListPage = ({ direction = null }) => {
                       onClick: () =>
                         handleBatchUpdate(
                           direction === 'outgoing'
-                            ? { is_paid: false, status: 'sent' }
-                            : { is_paid: false, status: 'validated' },
+                            ? { status: 'sent' }
+                            : { status: 'validated' },
                           'marquée(s) non payée(s)',
                         ),
                       className:

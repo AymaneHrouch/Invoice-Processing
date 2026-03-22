@@ -95,7 +95,7 @@ def _invoice(
     invoice_number, direction, vendor_name, vendor_ice,
     client_name, client_ice, items, tva, status,
     invoice_date, due_date=None, category="services",
-    is_paid=False, currency="MAD", company_id=None,
+    currency="MAD", company_id=None,
     is_exported=False,
 ):
     subtotal = sum(i["quantity"] * i["unit_price"] for i in items)
@@ -103,7 +103,7 @@ def _invoice(
     total = round(subtotal + tva_amount, 2)
     history = _history(status, direction, invoice_date, due_date)
     last_action_at = history[-1]["timestamp"] if history else _now()
-    paid_at = history[-1]["timestamp"] if (history and is_paid) else None
+    paid_at = history[-1]["timestamp"] if (history and status == "paid") else None
     return {
         "invoice_number": invoice_number,
         "direction": direction,
@@ -114,7 +114,6 @@ def _invoice(
         "invoice_date": invoice_date,
         "invoice_due_date": due_date,
         "status": status,
-        "is_paid": is_paid,
         "paid_at": paid_at,
         "is_archived": False,
         "is_exported": is_exported,
@@ -462,12 +461,10 @@ def seed(db):
                 # Mix of draft, validated, sent for current month
                 status = random.choices(["draft", "validated", "sent"], weights=[4, 3, 2])[0]
                 due_date = inv_date + timedelta(days=due_days) if status != "draft" else None
-                is_paid = False
             elif is_last_month:
                 # Some sent (not yet paid), some validated, some already paid
                 status = random.choices(["validated", "sent", "paid"], weights=[2, 3, 5])[0]
                 due_date = inv_date + timedelta(days=due_days)
-                is_paid = (status == "paid")
             else:
                 # Older months: mostly paid, some sent (overdue)
                 # Intentionally leave ~15% unpaid for overdue alerts
@@ -476,12 +473,11 @@ def seed(db):
                 else:
                     status = random.choices(["paid", "sent"], weights=[93, 7])[0]
                 due_date = inv_date + timedelta(days=due_days)
-                is_paid = (status == "paid")
 
             vente_counter += 1
             items = _make_items(VENTE_ITEMS[cat], amount_ht)
             # Mark older paid ventes as exported
-            is_exported = is_paid and month_offset >= 2 and random.random() > 0.2
+            is_exported = (status == "paid") and month_offset >= 2 and random.random() > 0.2
 
             ventes.append(_invoice(
                 invoice_number=f"FAC-{year}-{vente_counter:03d}",
@@ -490,8 +486,7 @@ def seed(db):
                 client_name=c_name, client_ice=c_ice,
                 items=items, tva=tva_pct, status=status,
                 invoice_date=inv_date, due_date=due_date,
-                category=cat, is_paid=is_paid,
-                company_id=COMPANY_ID, is_exported=is_exported,
+                category=cat, company_id=COMPANY_ID, is_exported=is_exported,
             ))
 
     # Update next_invoice_number to avoid conflicts
@@ -534,11 +529,9 @@ def seed(db):
                 status = random.choices(["extracted", "validated"], weights=[3, 2])[0]
                 # extracted invoices have no due date yet; validated ones do
                 due_date = inv_date + timedelta(days=due_days) if status == "validated" else None
-                is_paid = False
             elif is_recent:
                 status = random.choices(["validated", "paid"], weights=[3, 7])[0]
                 due_date = inv_date + timedelta(days=due_days)
-                is_paid = (status == "paid")
             else:
                 # Older: mostly paid, a few validated (overdue) for alerts
                 if month_offset <= 3:
@@ -546,12 +539,11 @@ def seed(db):
                 else:
                     status = "paid"
                 due_date = inv_date + timedelta(days=due_days)
-                is_paid = (status == "paid")
 
             achat_counters[sup_idx] = achat_counters.get(sup_idx, 0) + 1
             inv_num = f"{prefix}-{year}-{achat_counters[sup_idx]:04d}"
             items = _make_items(ACHAT_ITEMS[sup_idx], amount_ht)
-            is_exported = is_paid and month_offset >= 2 and random.random() > 0.25
+            is_exported = (status == "paid") and month_offset >= 2 and random.random() > 0.25
 
             achats.append(_invoice(
                 invoice_number=inv_num,
@@ -560,8 +552,7 @@ def seed(db):
                 client_name=COMPANY_NAME, client_ice=COMPANY_ICE,
                 items=items, tva=tva_pct, status=status,
                 invoice_date=inv_date, due_date=due_date,
-                category=cat, is_paid=is_paid,
-                company_id=COMPANY_ID, is_exported=is_exported,
+                category=cat, company_id=COMPANY_ID, is_exported=is_exported,
             ))
 
             occurrence += 1

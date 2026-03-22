@@ -71,7 +71,6 @@ def generate_invoice() -> dict:
         "created_at": now,
         "status": random.choice(STATUS),
         "is_exported": random.choice([True, False]),
-        "is_paid": random.choice([True, False]),
         "is_archived": False,
         "direction": random.choice(DIRECTIONS),
     }

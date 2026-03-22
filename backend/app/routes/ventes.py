@@ -189,7 +189,6 @@ def list_ventes(
     order: Literal["desc", "asc"] = Query("desc"),
     status: str | None = Query(None),
     category: str | None = Query(None),
-    is_paid: bool | None = Query(None),
     is_exported: bool | None = Query(None),
     include_archived: bool = Query(False),
     current_user: dict = Depends(get_current_user),
@@ -201,7 +200,6 @@ def list_ventes(
         sort_by=sort_by,
         order=order,
         category=category,
-        is_paid=is_paid,
         is_exported=is_exported,
         include_archived=include_archived,
         direction="outgoing",
@@ -340,7 +338,7 @@ def mark_paid(
         )
     updated = InvoiceCRUD.update_invoice(
         vente_id,
-        InvoiceUpdate(status="paid", is_paid=True, paid_at=datetime.now(UTC)),
+        InvoiceUpdate(status="paid", paid_at=datetime.now(UTC)),
     )
     InvoiceCRUD.append_history(vente_id, InvoiceHistoryEntry(
         action="paid", status_from=inv.status, status_to="paid",
@@ -410,7 +408,7 @@ def unmark_paid(
         raise HTTPException(status_code=400, detail="La facture doit être payée pour annuler le paiement.")
     updated = InvoiceCRUD.update_invoice(
         vente_id,
-        InvoiceUpdate(status="sent", is_paid=False),
+        InvoiceUpdate(status="sent"),
     )
     InvoiceCRUD.append_history(vente_id, InvoiceHistoryEntry(
         action="unmark_paid", status_from="paid", status_to="sent",
@@ -492,7 +490,7 @@ def export_ventes(
         headers = [
             "N° Facture", "Client", "Date", "ICE Client",
             "TVA (%)", "Montant TVA", "Total TTC", "Échéance",
-            "Statut", "Payé", "Catégorie",
+            "Statut", "Catégorie",
         ]
         ws.append(headers)
 
@@ -508,7 +506,6 @@ def export_ventes(
                 float(inv.total_amount) if inv.total_amount else "",
                 inv.invoice_due_date.strftime("%d/%m/%Y") if inv.invoice_due_date else "",
                 inv.status or "",
-                "Oui" if inv.is_paid else "Non",
                 inv.category or "",
             ])
             exported_ids.append(str(inv.id))

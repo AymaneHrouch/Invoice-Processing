@@ -73,7 +73,6 @@ class Invoice(BaseModel):
 
     # Boolean flags
     is_exported: bool = Field(default=False, description="Included in at least one export")
-    is_paid: bool = Field(default=False, description="Payment confirmed")
     is_archived: bool = Field(default=False, description="Hidden from main list")
     direction: str = Field(default="incoming", description="incoming or outgoing")
     paid_at: datetime | None = None
@@ -137,7 +136,6 @@ class InvoiceCreate(BaseModel):
 
     # Boolean flags
     is_exported: bool = Field(default=False, description="Included in at least one export")
-    is_paid: bool = Field(default=False, description="Payment confirmed")
     is_archived: bool = Field(default=False, description="Hidden from main list")
     direction: str = Field(default="incoming", description="incoming or outgoing")
 
@@ -237,7 +235,6 @@ class InvoiceUpdate(BaseModel):
     source_type: str | None = None
     status: str | None = None
     is_exported: bool | None = None
-    is_paid: bool | None = None
     is_archived: bool | None = None
     direction: str | None = None
     paid_at: datetime | None = None
@@ -247,7 +244,6 @@ class InvoiceUpdate(BaseModel):
 class InvoiceBatchUpdate(BaseModel):
     """Schema for batch updating invoices"""
     invoice_ids: list[str]
-    is_paid: bool | None = None
     direction: str | None = None
     status: str | None = None
     is_archived: bool | None = None
@@ -276,7 +272,6 @@ class InvoiceResponse(BaseModel):
     source_type: str | None = None
     status: str | None = None
     is_exported: bool | None = None
-    is_paid: bool | None = None
     is_archived: bool | None = None
     direction: str | None = None
     paid_at: datetime | None = None
@@ -285,7 +280,7 @@ class InvoiceResponse(BaseModel):
     updated_at: datetime | None = None
     # Computed by backend when status is 'extracted' (amount verification warnings)
     amount_warnings: list[str] | None = None
-    # Computed: true when invoice_due_date < today AND is_paid is false
+    # Computed: true when invoice_due_date < today AND status != 'paid'
     is_overdue: bool | None = None
     # Audit trail — only populated by the /history endpoint
     history: list[dict] | None = None

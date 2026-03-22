@@ -48,7 +48,7 @@ def invoice_to_response(invoice: Invoice) -> InvoiceResponse:
     payload["amount_warnings"] = run_amount_checks(invoice)
     # Compute is_overdue: due date in the past and not paid
     today = datetime.utcnow()
-    if invoice.invoice_due_date and not invoice.is_paid:
+    if invoice.invoice_due_date and invoice.status != "paid":
         payload["is_overdue"] = invoice.invoice_due_date < today
     else:
         payload["is_overdue"] = False
@@ -246,7 +246,7 @@ def _do_export(
         headers = [
             "Invoice Number", "Vendor", "Date", "Direction", "ICE",
             "TVA", "Amount TVA", "Total Amount", "Due Date",
-            "Status", "Paid", "Category",
+            "Status", "Category",
         ]
         ws.append(headers)
 
@@ -263,7 +263,6 @@ def _do_export(
                 float(inv.total_amount) if inv.total_amount else "",
                 inv.invoice_due_date.strftime("%d/%m/%Y") if inv.invoice_due_date else "",
                 inv.status,
-                "Yes" if inv.is_paid else "No",
                 inv.category or "",
             ])
             exported_ids.append(str(inv.id))
@@ -304,7 +303,6 @@ def get_invoices(
         vendor_name: str | None = Query(None, description="Filter by vendor name (partial match)"),
         category: str | None = Query(None, description="Filter by category"),
         is_exported: bool | None = Query(None, description="Filter by export status"),
-        is_paid: bool | None = Query(None, description="Filter by paid status"),
         include_archived: bool = Query(False, description="Include archived invoices"),
         direction: str | None = Query(None, description="Filter by direction (incoming/outgoing)"),
         start_date: datetime | None = Query(None, description="Filter invoices on or after this date (YYYY-MM-DD)"),
@@ -331,7 +329,6 @@ def get_invoices(
             vendor_name=vendor_name,
             category=category,
             is_exported=is_exported,
-            is_paid=is_paid,
             include_archived=include_archived,
             direction=direction,
             start_date=start_date,
@@ -521,13 +518,12 @@ def batch_update_invoices(body: InvoiceBatchUpdate = Body(...)):
     """
     Update multiple invoices with the same field values.
     - **invoice_ids**: List of invoice IDs to update
-    - **is_paid**: Set paid status (optional)
+    - **status**: Target status (optional)
     - **direction**: Set direction to 'incoming' or 'outgoing' (optional)
     """
     try:
         count = InvoiceCRUD.batch_update_invoices(
             invoice_ids=body.invoice_ids,
-            is_paid=body.is_paid,
             direction=body.direction,
             status=body.status,
             is_archived=body.is_archived,
@@ -641,7 +637,7 @@ def mark_invoice_paid(
         raise HTTPException(status_code=400, detail="La facture doit être validée pour être marquée payée.")
     updated = InvoiceCRUD.update_invoice(
         invoice_id,
-        InvoiceUpdate(status="paid", is_paid=True, paid_at=datetime.utcnow()),
+        InvoiceUpdate(status="paid", paid_at=datetime.utcnow()),
     )
     InvoiceCRUD.append_history(invoice_id, InvoiceHistoryEntry(
         action="paid", status_from="validated", status_to="paid",
@@ -666,7 +662,7 @@ def unmark_invoice_paid(
         raise HTTPException(status_code=400, detail="La facture doit être payée pour annuler le paiement.")
     updated = InvoiceCRUD.update_invoice(
         invoice_id,
-        InvoiceUpdate(status="validated", is_paid=False),
+        InvoiceUpdate(status="validated"),
     )
     InvoiceCRUD.append_history(invoice_id, InvoiceHistoryEntry(
         action="unmark_paid", status_from="paid", status_to="validated",

@@ -417,8 +417,7 @@ def get_a_encaisser(limit: int = 10, company_id: str | None = None):
     today = datetime.now()
     query: dict = {
         "direction": "outgoing",
-        "is_paid": {"$ne": True},
-        "status": {"$nin": ["draft"]},
+        "status": {"$nin": ["draft", "paid"]},
         "is_archived": {"$ne": True},
     }
     if company_id:
@@ -463,7 +462,6 @@ def get_a_payer(limit: int = 10, company_id: str | None = None):
     today = datetime.now()
     query: dict = {
         "direction": "incoming",
-        "is_paid": {"$ne": True},
         "status": {"$in": ["validated", "sent", "extracted"]},
         "is_archived": {"$ne": True},
     }
@@ -752,7 +750,7 @@ def get_ca_evolution(company_id: str | None = None):
 
 def get_delai_paiement(company_id: str | None = None):
     """Average payment delay in days: encaissement (ventes) and règlement (achats)."""
-    base: dict = {"is_paid": True, "paid_at": {"$ne": None}, "invoice_date": {"$ne": None}}
+    base: dict = {"status": "paid", "paid_at": {"$ne": None}, "invoice_date": {"$ne": None}}
     if company_id:
         base["company_id"] = company_id
 
@@ -782,9 +780,8 @@ def get_tresorerie_prevision(company_id: str | None = None):
     def window_total(direction, days):
         match: dict = {
             "direction": direction,
-            "is_paid": {"$ne": True},
             "invoice_due_date": {"$gte": now, "$lte": now + timedelta(days=days)},
-            "status": {"$nin": ["draft"]},
+            "status": {"$nin": ["draft", "paid"]},
             "is_archived": {"$ne": True},
             "total_amount": {"$ne": None},
         }
@@ -810,10 +807,9 @@ def get_factures_retard(company_id: str | None = None):
     """Overdue invoices grouped by delay bucket: 1-30d, 31-60d, 60+d."""
     now = datetime.now()
     match: dict = {
-        "is_paid": {"$ne": True},
         "is_archived": {"$ne": True},
         "invoice_due_date": {"$lt": now},
-        "status": {"$nin": ["draft"]},
+        "status": {"$nin": ["draft", "paid"]},
     }
     if company_id:
         match["company_id"] = company_id
@@ -847,10 +843,9 @@ def get_echeances_proches(company_id: str | None = None):
 
     def due_in(days):
         match: dict = {
-            "is_paid": {"$ne": True},
             "is_archived": {"$ne": True},
             "invoice_due_date": {"$gte": now, "$lte": now + timedelta(days=days)},
-            "status": {"$nin": ["draft"]},
+            "status": {"$nin": ["draft", "paid"]},
             "total_amount": {"$ne": None},
         }
         if company_id:
