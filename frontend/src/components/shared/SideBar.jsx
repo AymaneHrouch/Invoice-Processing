@@ -64,18 +64,26 @@ const Sidebar = ({ profileComplete = true }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  useEffect(() => {
+  const refreshContactCounts = () => {
     getContacts()
       .then((data) => {
         setContactsCount(data.length);
         setContactTypeCounts({
           client: data.filter((c) => c.contact_type?.includes('client')).length,
-          supplier: data.filter((c) => c.contact_type?.includes('supplier'))
-            .length,
+          supplier: data.filter((c) => c.contact_type?.includes('supplier')).length,
         });
       })
       .catch(() => setContactsCount(null));
+  };
+
+  useEffect(() => {
+    refreshContactCounts();
   }, [location.pathname]);
+
+  useEffect(() => {
+    window.addEventListener('contacts:updated', refreshContactCounts);
+    return () => window.removeEventListener('contacts:updated', refreshContactCounts);
+  }, []);
 
   // Super Admin sees only admin-specific items; others see normal items
   const filteredSidebarItems = sidebarItems.filter((item) => {

@@ -262,25 +262,25 @@ export default function FirmsPage() {
                       <span className="font-semibold">
                         {inventory.users ?? '—'}
                       </span>{' '}
-                      utilisateur(s)
+                      utilisateur{inventory.users > 1 ? 's' : ''}
                     </li>
                     <li>
                       <span className="font-semibold">
                         {inventory.companies ?? '—'}
                       </span>{' '}
-                      entreprise(s)
+                      entreprise{inventory.companies > 1 ? 's' : ''}
                     </li>
                     <li>
                       <span className="font-semibold">
                         {inventory.invoices ?? '—'}
                       </span>{' '}
-                      facture(s)
+                      facture{inventory.invoices > 1 ? 's' : ''}
                     </li>
                     <li>
                       <span className="font-semibold">
                         {inventory.contacts ?? '—'}
                       </span>{' '}
-                      contact(s)
+                      contact{inventory.contacts > 1 ? 's' : ''}
                     </li>
                   </ul>
                 )}

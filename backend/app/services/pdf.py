@@ -51,6 +51,7 @@ def generate_invoice_pdf(invoice, company: dict) -> bytes:
     tva_amount = float(invoice.amount_tva or 0)
     subtotal_ht = float(invoice.subtotal_ht or 0) if invoice.subtotal_ht is not None else None
     total_amount = float(invoice.total_amount or 0)
+    # tva_rate and tva_amount kept for fallback (used below when no item-level groups exist)
 
     # Build emetteur dict from company profile (outgoing) or invoice vendor fields (incoming)
     if direction == "outgoing":
@@ -98,15 +99,29 @@ def generate_invoice_pdf(invoice, company: dict) -> bytes:
         bank_account = None
         legal_line = ""
 
+    invoice_tva_rate = float(invoice.tva or 0)
     items = []
+    tva_groups: dict[int, float] = {}  # {rate_int: monetary_amount}
     for item in (invoice.items or []):
+        # Per-item tva — fall back to invoice-level tva for legacy items
+        item_tva = float(getattr(item, "tva", None) or 0) or invoice_tva_rate
+        item_tva_amount = float(getattr(item, "tva_amount", None) or 0)
         items.append({
             "name": item.name,
             "description": item.description,
             "quantity": item.quantity,
             "unit_price": float(item.unit_price or 0),
+            "tva": item_tva,
+            "tva_amount": item_tva_amount,
             "total": float(item.total or 0),
         })
+        if item_tva > 0:
+            rate_key = int(round(item_tva))
+            tva_groups[rate_key] = round(tva_groups.get(rate_key, 0.0) + item_tva_amount, 2)
+
+    # Fall back to invoice-level tva/tva_amount when no items define groups
+    if not tva_groups and tva_amount > 0:
+        tva_groups = {int(round(tva_rate)): tva_amount}
 
     status = invoice.status or "draft"
     context = {
@@ -124,8 +139,7 @@ def generate_invoice_pdf(invoice, company: dict) -> bytes:
         "items": items,
         "currency": currency,
         "subtotal_ht": subtotal_ht,
-        "tva_rate": tva_rate,
-        "tva_amount": tva_amount,
+        "tva_groups": sorted(tva_groups.items()),  # [(rate, amount), ...] sorted by rate
         "total_amount": total_amount,
         "bank_name": bank_name,
         "bank_account": bank_account,

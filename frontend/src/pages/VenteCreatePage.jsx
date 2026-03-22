@@ -61,17 +61,17 @@ export default function VenteCreatePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Auto-calculate totals from items + TVA rate
+  // Compute totals from items: subtotalHT = sum(qty × unit_price), amountTva = sum(tva_amount)
   const subtotalHT = useMemo(
-    () => form.items.reduce((sum, item) => sum + Number(item.total || 0), 0),
+    () => form.items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0), 0),
     [form.items],
   );
   const tvaAmount = useMemo(
-    () => subtotalHT * (form.tva_rate / 100),
-    [subtotalHT, form.tva_rate],
+    () => form.items.reduce((sum, item) => sum + (Number(item.tva_amount) || 0), 0),
+    [form.items],
   );
   const totalTTC = useMemo(
-    () => subtotalHT + tvaAmount,
+    () => Math.round((subtotalHT + tvaAmount) * 100) / 100,
     [subtotalHT, tvaAmount],
   );
 
@@ -314,6 +314,7 @@ export default function VenteCreatePage() {
               items={form.items}
               currency={form.currency}
               onItemsChange={set('items')}
+              defaultTvaRate={form.tva_rate}
             />
           </CardContent>
         </Card>
@@ -334,11 +335,12 @@ export default function VenteCreatePage() {
               }
               allowCustom={false}
               isDarkMode={isDarkMode}
+              label="TVA par défaut (%)"
             />
 
             <Separator className={isDarkMode ? 'bg-gray-700' : 'bg-gray-200'} />
 
-            {/* Totals */}
+            {/* Totals derived from items */}
             <div className="space-y-2 max-w-xs ml-auto text-sm">
               <div className="flex justify-between">
                 <span
@@ -354,7 +356,7 @@ export default function VenteCreatePage() {
                 <span
                   className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}
                 >
-                  TVA ({form.tva_rate}%)
+                  TVA
                 </span>
                 <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
                   {tvaAmount.toFixed(2)} {form.currency}

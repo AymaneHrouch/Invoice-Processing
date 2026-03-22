@@ -2,6 +2,7 @@
 Invoice REST API routes using PyMongo
 """
 from datetime import datetime
+from decimal import Decimal
 from io import BytesIO
 import logging
 from typing import Literal
@@ -42,6 +43,15 @@ from app.utils.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/invoices", tags=["invoices"])
+
+
+def _recompute_totals_from_items(items: list) -> tuple[float, float, float]:
+    """Return (subtotal_ht, amount_tva, total_amount) derived from item list.
+    Items are InvoiceItem objects; item.total is TTC."""
+    subtotal_ht = sum(float(item.quantity) * float(item.unit_price) for item in items)
+    amount_tva = sum(float(item.tva_amount) for item in items)
+    total_amount = round(subtotal_ht + amount_tva, 2)
+    return round(subtotal_ht, 2), round(amount_tva, 2), total_amount
 
 
 def invoice_to_response(invoice: Invoice) -> InvoiceResponse:
@@ -104,6 +114,17 @@ def create_invoice(invoice_data: InvoiceCreate, current_user: dict = Depends(get
     """Create a new invoice with all required fields"""
     try:
         invoice_data.company_id = current_user.get("company_id")
+        # Resolve total_amount from items when not provided
+        if invoice_data.total_amount is None:
+            if invoice_data.items:
+                ht, tva_amt, total = _recompute_totals_from_items(invoice_data.items)
+                invoice_data.total_amount = Decimal(str(total))
+                if invoice_data.subtotal_ht is None:
+                    invoice_data.subtotal_ht = Decimal(str(ht))
+                if invoice_data.amount_tva is None:
+                    invoice_data.amount_tva = tva_amt
+            else:
+                invoice_data.total_amount = Decimal("0")
         logger.info("Creating invoice: %s", invoice_data.invoice_number)
         invoice = InvoiceCRUD.create_invoice(invoice_data)
         if not invoice:
@@ -145,6 +166,7 @@ async def handle_upload_files(
                 ice=invoice_data.get("ice"),
                 tva=invoice_data.get("tva"),
                 amount_tva=invoice_data.get("amount_tva"),
+                subtotal_ht=invoice_data.get("subtotal_ht"),
                 total_amount=max(float(invoice_data.get("amount") or 0), 0.01),
                 currency=invoice_data.get("currency") or "MAD",
                 items=invoice_data.get("items", []),
@@ -479,6 +501,13 @@ def update_invoice_by_id(
                     detail="Facture validée — certains champs ne sont pas modifiables.",
                 )
 
+        # Recompute invoice totals from items whenever items are sent
+        if update_data.items is not None and len(update_data.items) > 0:
+            ht, tva_amt, total = _recompute_totals_from_items(update_data.items)
+            update_data.subtotal_ht = ht
+            update_data.amount_tva = tva_amt
+            update_data.total_amount = total
+
         invoice = InvoiceCRUD.update_invoice(invoice_id, update_data)
         if not invoice:
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
@@ -569,7 +598,7 @@ def batch_update_invoices(
             ]
             InvoiceCRUD.bulk_append_history(history_entries)
 
-        return {"updated_count": count, "message": f"Updated {count} invoice(s)"}
+        return {"updated_count": count}
     except Exception as e:
         logger.exception("Batch update failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

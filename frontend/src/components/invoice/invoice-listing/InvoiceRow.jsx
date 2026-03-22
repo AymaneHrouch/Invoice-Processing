@@ -291,7 +291,8 @@ const InvoiceRow = ({
   return (
     <>
       <tr
-        className={`transition-colors ${
+        onDoubleClick={() => { setSelectedInvoice(invoice); setEditModalOpen(true); }}
+        className={`transition-colors cursor-pointer ${
           isArchived
             ? isDarkMode
               ? 'bg-slate-900 border-l-4 border-slate-600 hover:bg-slate-800'

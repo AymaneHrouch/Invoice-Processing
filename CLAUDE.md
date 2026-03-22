@@ -96,6 +96,7 @@ backend/
 │   │   ├── test_company.py
 │   │   ├── test_batch_operations.py
 │   │   ├── test_contact_enrichment.py
+│   │   ├── test_invoice_calculations.py  # run_amount_checks — per-item TVA semantics
 │   │   ├── test_ventes_transitions.py
 │   │   └── test_achats_transitions.py
 │   └── utils/
@@ -123,8 +124,9 @@ frontend/
 │   ├── components/
 │   │   ├── shared/          # NavBar, SideBar
 │   │   ├── invoice/
-│   │   │   ├── invoice-add/     # UploadCard, AutoInvoice, ManualInvoice, InvoiceItems
-│   │   │   └── invoice-listing/ # InvoiceRow, EditInvoice (collapsible history timeline), InvoiceExpandedRow (inline history), Filters, ExportConfirmDialog...
+│   │   │   ├── InvoiceItems.jsx     # Per-item TVA article form (add/edit/read; syncs tva from defaultTvaRate prop)
+│   │   │   ├── invoice-add/         # UploadCard, AutoInvoice, ManualInvoice
+│   │   │   └── invoice-listing/     # InvoiceRow, EditInvoice (collapsible history timeline), InvoiceExpandedRow (inline history), Filters, ExportConfirmDialog...
 │   │   ├── dashboard/       # RecentActivity, FinanceWidgets, TVABalanceWidget, TopVendorsWidget, WorkQueueWidgets, DashboardHeader, DashboardLoading, DashboardError, CAEvolutionWidget, AlertsWidget, TresorerieWidget, DelaiPaiementWidget, CategoryBreakdownWidget
 │   │   └── ui/              # shadcn/ui primitives
 │   ├── pages/
@@ -141,8 +143,9 @@ frontend/
 │   ├── test/
 │   │   └── setup.js         # Vitest setup — imports @testing-library/jest-dom
 │   └── utils/               # formatters, validators, auth helpers
-│       ├── batchCounts.js   # computeBatchCounts() — pure batch action count logic
-│       └── __tests__/       # Unit tests: batchCounts, invoiceCalculations, fileValidation, auth, editInvoiceFormInit
+│       ├── batchCounts.js        # computeBatchCounts() — pure batch action count logic
+│       ├── invoiceCalculations.js # calculateItemTotal(qty, price, tvaRate), calculateInvoiceTotals(items), runAmountChecks
+│       └── __tests__/            # Unit tests: batchCounts, invoiceCalculations, fileValidation, auth, editInvoiceFormInit
 ├── package.json
 ├── vite.config.js
 └── vitest.config.js         # Vitest config — separate from vite.config.js to avoid @tailwindcss/vite conflict
@@ -214,6 +217,14 @@ frontend/
 
 32. **Nouveau contact type pre-selection**: `ContactsPage.openCreate()` seeds `contact_type` from `typeFilter` — visiting `/contacts?type=supplier` and clicking "Nouveau contact" pre-selects Fournisseur; `?type=client` or no filter pre-selects Client.
 
+33. **Per-item TVA**: Each `InvoiceItem` has `tva: float` (rate, e.g. 20 for 20%) and `tva_amount: Decimal` (monetary amount). `item.total` is **TTC** (`qty × unit_price × (1 + tva/100)`), not HT. Moroccan rates: 0%, 7%, 10%, 14%, 20% — a single invoice can mix rates.
+    - **Invoice-level `tva`** is a default rate only: pre-fills new items in the form (`defaultTvaRate` prop on `InvoiceItems`), used as fallback for OCR-extracted items that have `tva=0` (backward compat).
+    - **`InvoiceItems.jsx`** uses a `useEffect` on `defaultTvaRate` to sync the currently-open (unsaved) item form's TVA selector when the header default changes.
+    - **Stored totals** (`total_amount`, `subtotal_ht`, `amount_tva`) are always recomputed from items on every write (POST/PUT in both `routes/invoices.py` and `routes/ventes.py`).
+    - **PDF template** renders one TVA line per distinct rate (`tva_groups: dict[rate_int → amount]`) built in `services/pdf.py`. Falls back to a single invoice-level TVA row when no item-level groups exist.
+    - **`run_amount_checks`** (backend + frontend): Check 1 validates per-item TTC with fallback to invoice-level `tva` for items where `item.tva=0`; Check 2 validates `sum(item.total) == total_amount`.
+    - **Pitfall**: Python dicts have a `.items()` method — `hasattr(dict, "items")` returns `True`. Always use `isinstance(invoice, dict)` guard before deciding whether to call `.get()` or `getattr()`.
+
 ## Testing
 
 ### Backend tests
@@ -229,6 +240,7 @@ All backend tests are **integration tests** — they use FastAPI's `TestClient` 
 | `test_company.py` | Company multi-doc CRUD (list, create, active, categories, get, update, delete) |
 | `test_batch_operations.py` | Batch state transitions — regressions for is_paid consistency bugs |
 | `test_contact_enrichment.py` | ICE enrichment on GET list, GET by ID, and PUT response |
+| `test_invoice_calculations.py` | `run_amount_checks` — per-item TVA, mixed rates, legacy fallback, model objects |
 | `test_ventes_transitions.py` | Ventes state machine, history, locking, PDF smoke |
 | `test_achats_transitions.py` | Achats state machine, partial lock, history, PDF smoke |
 
@@ -254,7 +266,7 @@ All frontend tests are **unit tests** — pure functions, no component rendering
 | File | Coverage |
 |------|----------|
 | `batchCounts.test.js` | `computeBatchCounts()` — batch action count logic, regressions for bugs 2/6/7 |
-| `invoiceCalculations.test.js` | `calculateItemTotal`, `calculateInvoiceTotal`, `runAmountChecks` |
+| `invoiceCalculations.test.js` | `calculateItemTotal` (with tvaRate), `calculateInvoiceTotals`, `calculateInvoiceTotal` (legacy), `runAmountChecks` (per-item TVA, mixed rates, legacy fallback) |
 | `fileValidation.test.js` | `validateFiles` — type + size validation |
 | `auth.test.js` | `setAuthToken`, `getAuthToken`, `removeAuthToken`, `replaceAuthToken`, `getAuthConfig` |
 | `editInvoiceFormInit.test.js` | ICE field init logic — `vendor_ice` vs legacy `ice` fallback (bug 5 regression) |

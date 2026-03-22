@@ -129,7 +129,9 @@ def _invoice(
                 "description": i.get("description", ""),
                 "quantity": i["quantity"],
                 "unit_price": float(i["unit_price"]),
-                "total": float(round(i["quantity"] * i["unit_price"], 2)),
+                "tva": float(tva),
+                "tva_amount": float(round(i["quantity"] * i["unit_price"] * tva / 100, 2)),
+                "total": float(round(i["quantity"] * i["unit_price"] * (1 + tva / 100), 2)),
             }
             for i in items
         ],

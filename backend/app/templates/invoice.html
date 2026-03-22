@@ -183,11 +183,12 @@
     }
 
     .items-table .col-num   { width: 8mm;  text-align: center; }
-    .items-table .col-name  { width: 42mm; }
+    .items-table .col-name  { width: 38mm; }
     .items-table .col-desc  { }
     .items-table .col-qty   { width: 12mm; text-align: center; }
-    .items-table .col-pu    { width: 28mm; text-align: right; }
-    .items-table .col-total { width: 28mm; text-align: right; font-weight: 600; }
+    .items-table .col-pu    { width: 24mm; text-align: right; }
+    .items-table .col-tva   { width: 14mm; text-align: center; }
+    .items-table .col-total { width: 24mm; text-align: right; font-weight: 600; }
 
     .item-name { font-weight: 600; color: #111827; }
     .item-desc { color: #6B7280; font-size: 8pt; margin-top: 1pt; }
@@ -351,7 +352,8 @@
         <th class="col-desc">Description</th>
         <th class="col-qty text-center">Qté</th>
         <th class="col-pu text-right">PU HT ({{ currency }})</th>
-        <th class="col-total text-right">Total HT ({{ currency }})</th>
+        <th class="col-tva text-center">TVA</th>
+        <th class="col-total text-right">Total TTC ({{ currency }})</th>
       </tr>
     </thead>
     <tbody>
@@ -369,12 +371,13 @@
           </td>
           <td class="col-qty text-center">{{ item.quantity }}</td>
           <td class="col-pu text-right mono">{{ item.unit_price | fmt_amount }}</td>
+          <td class="col-tva text-center text-grey">{{ item.tva | int }}%</td>
           <td class="col-total text-right mono">{{ item.total | fmt_amount }}</td>
         </tr>
         {% endfor %}
       {% else %}
         <tr>
-          <td colspan="6" class="text-center text-grey" style="padding: 4mm;">
+          <td colspan="7" class="text-center text-grey" style="padding: 4mm;">
             Aucun article renseigné
           </td>
         </tr>
@@ -391,12 +394,12 @@
         <span class="totals-value mono">{{ subtotal_ht | fmt_amount }} {{ currency }}</span>
       </div>
       {% endif %}
-      {% if tva_rate %}
+      {% for rate, amount in tva_groups %}
       <div class="totals-row">
-        <span class="totals-label">TVA ({{ tva_rate | int }}%)</span>
-        <span class="totals-value mono">{{ tva_amount | fmt_amount }} {{ currency }}</span>
+        <span class="totals-label">TVA {{ rate }}%</span>
+        <span class="totals-value mono">{{ amount | fmt_amount }} {{ currency }}</span>
       </div>
-      {% endif %}
+      {% endfor %}
       <div class="totals-row grand">
         <span>TOTAL TTC</span>
         <span class="mono">{{ total_amount | fmt_amount }} {{ currency }}</span>

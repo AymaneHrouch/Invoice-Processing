@@ -186,6 +186,9 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
               description: item.description || '',
               quantity: item.quantity || 1,
               unit_price: item.unit_price || 0,
+              // Fall back to invoice-level tva for legacy items without per-item tva
+              tva: item.tva ?? invoice.tva ?? 0,
+              tva_amount: item.tva_amount || 0,
               total: item.total || 0,
             }))
           : [],
@@ -228,7 +231,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     }
   };
 
-  // ✅ Fonction pour mettre à jour les items
+  // ✅ Fonction pour mettre à jour les items (preserve per-item tva/tva_amount)
   const updateItems = (items) => {
     console.log('📦 Updating items:', items);
 
@@ -237,6 +240,8 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       description: item.description || '',
       quantity: Number(item.quantity) || 1,
       unit_price: Number(item.unit_price) || 0,
+      tva: Number(item.tva) || 0,
+      tva_amount: Number(item.tva_amount) || 0,
       total: Number(item.total) || 0,
     }));
 
@@ -274,15 +279,16 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Derived: HT → TVA → TTC
+  // Derived: HT = sum(qty × unit_price), TVA = sum(item.tva_amount), TTC = HT + TVA
   const tvaRate = parseFloat(formData.tva) || 0;
   const subtotalHT =
-    invoice?.direction === 'outgoing'
-      ? formData.items.reduce((sum, item) => sum + (Number(item.total) || 0), 0)
+    formData.items.length > 0
+      ? formData.items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0), 0)
       : parseFloat(formData.subtotal_ht) || 0;
-  const computedAmountTva = parseFloat(
-    ((subtotalHT * tvaRate) / 100).toFixed(2),
-  );
+  const computedAmountTva =
+    formData.items.length > 0
+      ? Math.round(formData.items.reduce((sum, item) => sum + (Number(item.tva_amount) || 0), 0) * 100) / 100
+      : parseFloat(((subtotalHT * tvaRate) / 100).toFixed(2));
   const computedTotal = parseFloat((subtotalHT + computedAmountTva).toFixed(2));
 
   const amountWarnings =
@@ -353,7 +359,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     const invoiceData = {
       ...formData,
       contact_id: formData.contact_id || null,
-      subtotal_ht: subtotalHT || null,
+      subtotal_ht: subtotalHT > 0 ? subtotalHT : null,
       amount_tva: computedAmountTva > 0 ? computedAmountTva : null,
       total_amount: computedTotal > 0 ? computedTotal : subtotalHT,
       invoice_date: formData.invoice_date?.trim() || null,
@@ -676,6 +682,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                   currency={formData.currency}
                   onItemsChange={updateItems}
                   disabled={financialLocked}
+                  defaultTvaRate={parseFloat(formData.tva) || 0}
                 />
 
                 <Separator />

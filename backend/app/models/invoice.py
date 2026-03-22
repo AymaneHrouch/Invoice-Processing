@@ -22,7 +22,9 @@ class InvoiceItem(BaseModel):
     description: str = Field(..., description="Item description")
     quantity: int = Field(..., gt=0, description="Item quantity")
     unit_price: Decimal = Field(..., ge=0, description="Price per unit")
-    total: Decimal = Field(..., ge=0, description="Total price for this item")
+    total: Decimal = Field(..., ge=0, description="Total TTC for this item (qty × unit_price × (1 + tva/100))")
+    tva: float = Field(default=0.0, description="TVA rate for this item (e.g. 20 for 20%)")
+    tva_amount: Decimal = Field(default=Decimal("0"), ge=0, description="TVA monetary amount for this item")
 
     model_config = ConfigDict(
         json_encoders={
@@ -58,7 +60,7 @@ class Invoice(BaseModel):
 
     # Financial information
     subtotal_ht: Decimal | None = Field(default=None, description="Subtotal before tax (HT)")
-    total_amount: Decimal = Field(..., gt=0, description="Total invoice amount")
+    total_amount: Decimal = Field(..., ge=0, description="Total invoice amount")
     currency: str = Field(default="MAD", description="Currency code")
 
     # Invoice items
@@ -127,7 +129,7 @@ class InvoiceCreate(BaseModel):
     client_ice: str | None = Field(default=None, description="Client ICE")
     contact_id: str | None = Field(default=None, description="Reference to contact _id")
     subtotal_ht: Decimal | None = Field(default=None, description="Subtotal before tax (HT)")
-    total_amount: Decimal = Field(..., gt=0, description="Total invoice amount")
+    total_amount: Decimal | None = Field(default=None, ge=0, description="Total invoice amount — omit to auto-compute from items")
     currency: str = Field(default="MAD", description="Currency code")
     items: list[InvoiceItem] = Field(default_factory=list, description="List of invoice items")
     category: str = Field(..., min_length=1, description="Invoice category")
