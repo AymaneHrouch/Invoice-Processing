@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/contexts';
 import {
@@ -71,6 +71,22 @@ const InvoiceRow = ({
   const [togglingField, setTogglingField] = useState(null);
   const [editingField, setEditingField] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const clickTimerRef = useRef(null);
+
+  const handleRowClick = () => {
+    if (clickTimerRef.current) return; // second click of a double-click — ignore
+    clickTimerRef.current = setTimeout(() => {
+      clickTimerRef.current = null;
+      onToggleExpand(invoice.id || invoice._id);
+    }, 220);
+  };
+
+  const handleRowDoubleClick = () => {
+    clearTimeout(clickTimerRef.current);
+    clickTimerRef.current = null;
+    setSelectedInvoice(invoice);
+    setEditModalOpen(true);
+  };
 
   const startEdit = (field, currentValue) => {
     if (togglingField) return;
@@ -291,7 +307,8 @@ const InvoiceRow = ({
   return (
     <>
       <tr
-        onDoubleClick={() => { setSelectedInvoice(invoice); setEditModalOpen(true); }}
+        onClick={handleRowClick}
+        onDoubleClick={handleRowDoubleClick}
         className={`transition-colors cursor-pointer ${
           isArchived
             ? isDarkMode
@@ -309,7 +326,7 @@ const InvoiceRow = ({
         {onSelect && (
           <td
             className={`px-3 py-4 border-b align-middle text-center w-10 cursor-pointer ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
-            onClick={() => onSelect(invoice.id || invoice._id, !isSelected)}
+            onClick={(e) => { e.stopPropagation(); onSelect(invoice.id || invoice._id, !isSelected); }}
           >
             <input
               type="checkbox"
@@ -328,7 +345,7 @@ const InvoiceRow = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onToggleExpand(invoice.id || invoice._id)}
+            onClick={(e) => { e.stopPropagation(); onToggleExpand(invoice.id || invoice._id); }}
             className={`p-1 h-6 w-6 ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-600' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'}`}
           >
             {isExpanded ? <ChevronUp /> : <ChevronDown />}
