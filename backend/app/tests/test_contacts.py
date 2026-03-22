@@ -22,7 +22,12 @@ from app.utils.auth import get_current_user
 # Fixtures & helpers
 # ---------------------------------------------------------------------------
 
-FAKE_USER = {"user_id": "507f1f77bcf86cd799439011", "role": "USER"}
+FAKE_USER = {
+    "user_id": "507f1f77bcf86cd799439011",
+    "role": "USER",
+    "firm_id": "507f1f77bcf86cd799439077",
+    "company_id": "507f1f77bcf86cd799439099",
+}
 
 CONTACT_DOC = {
     "_id": ObjectId("507f1f77bcf86cd799439033"),

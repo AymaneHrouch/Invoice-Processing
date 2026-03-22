@@ -15,7 +15,7 @@
 - **Company profile**: Per-company document in `company_profile` collection — name, ICE, IF, RC, CNSS, address, bank, invoice prefix, categories, logo URL, primary color, custom footer
 - **Contact directory**: Clients + suppliers with full details (name, ICE, IF, RC, address, city, phone, email, notes, contact_type)
 - **Invoice listing**: Filterable, sortable, paginated — separate `/achats` and `/ventes` pages. `vendor_name` filter searches both `vendor_name` and `client_name` fields. Inline category editing: click the category badge in a row to open a dropdown and save immediately. Inline due date and amount editing also available.
-- **PDF generation**: Server-side via weasyprint + Jinja2 (`app/templates/invoice.html`) — both directions. Outgoing PDFs look up contact by `contact_id` to include client address/phone/email in the client block.
+- **PDF generation**: Server-side via weasyprint + Jinja2 (`app/templates/invoice.html`) — both directions. Both Achats and Ventes PDF routes look up the contact at render time to inject the latest ICE (and for Ventes: address/phone/email) — so contact updates are always reflected without re-saving the invoice.
 - **Excel export**: Per-direction (`POST /ventes/export`, `POST /invoices/achats/export`) with post-download confirmation to mark as exported
 - **Batch PDF ZIP**: `POST /invoices/batch-pdf` accepts `{invoice_ids}`, generates all PDFs in memory, zips them, streams back a single `.zip` file. Frontend shows a `toast.loading` during generation, replaces it with success/error on completion.
 - **Dashboard**: PME KPI widgets (including `non_exportees` count), À encaisser / À payer finance widgets (clickable rows open invoice edit modal via location state), TVA balance with period selector, Top 5 clients/fournisseurs, "Dernières actions" activity feed. Additional widgets: CA Évolution (12-month bar chart), Délai moyen de paiement, Prévision de trésorerie (30/60/90 days), Factures en retard (3 overdue buckets), Échéances proches (7 and 15 days), Répartition par catégorie (donut chart with direction toggle)
@@ -75,7 +75,7 @@ backend/
 │   ├── routes/
 │   │   ├── invoices.py      # Achats CRUD, upload, export, PDF, search, history
 │   │   ├── ventes.py        # Ventes CRUD, status transitions, export, PDF
-│   │   ├── company.py       # GET/PUT /company, GET /company/categories
+│   │   ├── company.py       # Multi-doc company CRUD (list, create, active, categories, get, update, delete)
 │   │   ├── contacts.py      # Contacts CRUD
 │   │   ├── dashboard.py     # Dashboard stats + GET /recent-activity
 │   │   ├── auth.py          # Login/register (JWT includes username, firm_id fields)
@@ -89,10 +89,20 @@ backend/
 │   │   └── ocr/             # OCR provider abstraction (Azure DI, AWS, GCP)
 │   ├── templates/
 │   │   └── invoice.html     # Jinja2 HTML/CSS invoice template (A4, both directions)
+│   ├── tests/
+│   │   ├── conftest.py      # mongomock fixtures: patch_db, api_client, fake_user, make_invoice()
+│   │   ├── test_health.py
+│   │   ├── test_contacts.py
+│   │   ├── test_company.py
+│   │   ├── test_batch_operations.py
+│   │   ├── test_contact_enrichment.py
+│   │   ├── test_ventes_transitions.py
+│   │   └── test_achats_transitions.py
 │   └── utils/
 │       └── auth.py          # JWT helpers, get_current_user, require_admin
 ├── scripts/
 │   └── reset.py             # DB reset: --empty (wipe) or --seed (wipe + demo data)
+├── conftest.py              # Root pytest config — stubs weasyprint for Windows (no Docker needed)
 ├── dev.sh                   # Local Docker build + run script
 ├── Dockerfile               # python:3.13-slim + weasyprint apt deps
 ├── pyproject.toml
@@ -128,9 +138,14 @@ frontend/
 │   ├── hooks/               # useCategories, useInvoiceData, useFileUpload, etc.
 │   ├── contexts/            # AuthContext, ThemeContext
 │   ├── constants/           # sidebarItems, statusConfig, currencies
+│   ├── test/
+│   │   └── setup.js         # Vitest setup — imports @testing-library/jest-dom
 │   └── utils/               # formatters, validators, auth helpers
+│       ├── batchCounts.js   # computeBatchCounts() — pure batch action count logic
+│       └── __tests__/       # Unit tests: batchCounts, invoiceCalculations, fileValidation, auth, editInvoiceFormInit
 ├── package.json
-└── vite.config.js
+├── vite.config.js
+└── vitest.config.js         # Vitest config — separate from vite.config.js to avoid @tailwindcss/vite conflict
 ```
 
 ## Key Architecture Decisions
@@ -191,7 +206,66 @@ frontend/
 
 28. **Inline history refresh**: `InvoiceExpandedRow` accepts a `refreshKey` prop (default 0); the `useEffect` that fetches history includes `refreshKey` in its dependency array. `InvoiceListPage` maintains a `historyRefreshKey` counter incremented in `handleUpdateInvoice`, so the inline history timeline in the expanded row updates immediately after any status action without requiring the user to collapse and re-expand the row.
 
-29. **Batch actions — contextual flat pill toolbar**: `SplitPill` component (defined above `InvoiceListPage`) renders paired opposite actions as a joined split button. Counts derived from `invoiceData.data` filtered by `selectedIds` — each action shows how many invoices it will affect. Actions with count=0 are disabled (not hidden) in split pills; standalone actions (Valider, Invalider) are hidden entirely when count=0. Count badge `(N)` shown only when count < total selected. Two visual dividers separate clusters: state mutations (Valider, Invalider, Payé/Non payé) | utility (Exporté/Non exporté, Archiver/Désarchiver) | PDF. Toast uses actual MongoDB `modified_count` with a contextual French label and proper singular/plural (`facture` vs `factures`).
+29. **Batch actions — contextual flat pill toolbar**: `SplitPill` component (defined above `InvoiceListPage`) renders paired opposite actions as a joined split button. Counts derived from `invoiceData.data` filtered by `selectedIds` — each action shows how many invoices it will affect. Actions with count=0 are disabled (not hidden) in split pills; standalone actions (Valider, Invalider) are hidden entirely when count=0. Count badge `(N)` shown only when count < total selected. Two visual dividers separate clusters: state mutations (Valider, Invalider, Marquer envoyé/Non envoyé [Ventes only], Payé/Non payé) | utility (Exporté/Non exporté, Archiver/Désarchiver) | PDF. Toast uses actual MongoDB `modified_count` with a contextual French label and proper singular/plural (`facture` vs `factures`).
+
+30. **Batch state consistency**: `batch_update_invoices` in `InvoiceCRUD` enforces payment state integrity — when `status` is set to a non-`paid` value (Valider, Invalider), it automatically resets `is_paid=False` and unsets `paid_at`. Mark-paid query guards `status IN ['validated','sent']`; unmark-paid guards on `is_paid=True` (not `status='paid'`) to recover any inconsistent documents. Frontend always sends `status` alongside `is_paid` to keep both fields in sync.
+
+31. **Contact ICE live enrichment**: `_apply_contact()` in `routes/invoices.py` overlays `vendor_name`+`vendor_ice` (incoming) or `client_name`+`client_ice` (outgoing) from the linked contact's current data. Called on `GET /invoices/` (list), `GET /invoices/{id}`, and `PUT /invoices/{id}` — so the Edit modal always reflects the contact's latest ICE without requiring a page refresh or re-selecting the contact.
+
+32. **Nouveau contact type pre-selection**: `ContactsPage.openCreate()` seeds `contact_type` from `typeFilter` — visiting `/contacts?type=supplier` and clicking "Nouveau contact" pre-selects Fournisseur; `?type=client` or no filter pre-selects Client.
+
+## Testing
+
+### Backend tests
+
+Location: `backend/app/tests/`
+
+All backend tests are **integration tests** — they use FastAPI's `TestClient` with auth dependency-overridden and MongoDB replaced by `mongomock` (in-memory). No Docker, no Atlas connection needed. The root `backend/conftest.py` stubs `weasyprint` before any import, so tests run on Windows without native system libs.
+
+| File | Coverage |
+|------|----------|
+| `test_health.py` | Health endpoint |
+| `test_contacts.py` | Contacts CRUD |
+| `test_company.py` | Company multi-doc CRUD (list, create, active, categories, get, update, delete) |
+| `test_batch_operations.py` | Batch state transitions — regressions for is_paid consistency bugs |
+| `test_contact_enrichment.py` | ICE enrichment on GET list, GET by ID, and PUT response |
+| `test_ventes_transitions.py` | Ventes state machine, history, locking, PDF smoke |
+| `test_achats_transitions.py` | Achats state machine, partial lock, history, PDF smoke |
+
+Shared fixtures in `backend/app/tests/conftest.py`: `mongo_db`, `patch_db`, `api_client`, `fake_user`, `make_invoice()`. Fixtures are **not** `autouse` — tests opt in explicitly.
+
+```bash
+cd backend/
+
+# All tests (~3 min — mongomock spins up per test)
+uv run pytest app/tests/ -v
+
+# Single suite
+uv run pytest app/tests/test_batch_operations.py -v
+uv run pytest app/tests/test_company.py -v
+```
+
+### Frontend tests
+
+Location: `frontend/src/utils/__tests__/`
+
+All frontend tests are **unit tests** — pure functions, no component rendering, no API calls, no React providers. Runner: **Vitest** (separate `vitest.config.js` to avoid `@tailwindcss/vite` plugin conflict).
+
+| File | Coverage |
+|------|----------|
+| `batchCounts.test.js` | `computeBatchCounts()` — batch action count logic, regressions for bugs 2/6/7 |
+| `invoiceCalculations.test.js` | `calculateItemTotal`, `calculateInvoiceTotal`, `runAmountChecks` |
+| `fileValidation.test.js` | `validateFiles` — type + size validation |
+| `auth.test.js` | `setAuthToken`, `getAuthToken`, `removeAuthToken`, `replaceAuthToken`, `getAuthConfig` |
+| `editInvoiceFormInit.test.js` | ICE field init logic — `vendor_ice` vs legacy `ice` fallback (bug 5 regression) |
+
+```bash
+cd frontend/
+
+npm run test:run      # run once, exit (~2s)
+npm test              # watch mode
+npm run test:coverage # with coverage report
+```
 
 ## Local Development
 

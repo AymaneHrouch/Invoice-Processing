@@ -483,7 +483,8 @@ def update_invoice_by_id(
             raise HTTPException(status_code=404, detail=f"Invoice with ID {invoice_id} not found")
 
         logger.info("Invoice updated successfully: %s", invoice_id)
-        return invoice_to_response(invoice)
+        contacts = _contacts_map([invoice])
+        return invoice_to_response(_apply_contact(invoice, contacts))
     except HTTPException:
         raise
     except ValueError:
@@ -804,7 +805,17 @@ def download_invoice_pdf(
         raise HTTPException(status_code=404, detail="Facture introuvable.")
 
     col = get_company_collection()
-    company = col.find_one({}) or {}
+    company_id = current_user.get("company_id")
+    company = (col.find_one({"_id": ObjectId(company_id)}) if company_id else col.find_one({})) or {}
+
+    if inv.contact_id:
+        try:
+            contact = get_contacts_collection().find_one({"_id": ObjectId(inv.contact_id)})
+            if contact:
+                if contact.get("ice"):
+                    inv.vendor_ice = contact["ice"]
+        except Exception:
+            pass
 
     try:
         pdf_bytes = generate_invoice_pdf(inv, company)

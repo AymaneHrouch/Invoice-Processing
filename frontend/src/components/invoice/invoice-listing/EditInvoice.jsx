@@ -169,7 +169,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
         client_name: invoice.client_name || '',
         client_ice: invoice.client_ice || '',
         invoice_number: invoice.invoice_number || '',
-        ice: invoice.ice ?? '',
+        ice: invoice.vendor_ice || invoice.ice || '',
         tva:
           invoice.tva != null && invoice.tva !== '' ? String(invoice.tva) : '',
         invoice_date: formatDateForInput(invoice.invoice_date),

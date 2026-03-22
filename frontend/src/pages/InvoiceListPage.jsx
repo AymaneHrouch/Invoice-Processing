@@ -13,6 +13,7 @@ import {
   unmarkInvoicePaid,
   batchUpdateInvoices,
   batchDownloadPdf,
+  downloadInvoicePdf,
   exportInvoices,
   exportAchats,
   archiveInvoice,
@@ -28,6 +29,7 @@ import {
   downloadVentePdf,
   exportVentes,
 } from '@/api/ventes';
+import { computeBatchCounts } from '@/utils/batchCounts';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useCategories } from '@/hooks/useCategories';
 import {
@@ -42,6 +44,8 @@ import {
   FileDown,
   FileX,
   RotateCcw,
+  Send,
+  Undo2,
 } from 'lucide-react';
 import {
   EditInvoice,
@@ -599,30 +603,20 @@ const InvoiceListPage = ({ direction = null }) => {
   const selectedInvoices = (invoiceData?.data || []).filter((inv) =>
     selectedIds.has(inv.id || inv._id),
   );
-  const canValidate = selectedInvoices.filter((inv) =>
-    ['extracted', 'draft'].includes(inv.status),
-  ).length;
-  const canInvalidate = selectedInvoices.filter(
-    (inv) => !['extracted', 'draft'].includes(inv.status),
-  ).length;
-  const canMarkPaid = selectedInvoices.filter(
-    (inv) => !inv.is_paid && ['validated', 'sent'].includes(inv.status),
-  ).length;
-  const canUnmarkPaid = selectedInvoices.filter((inv) => inv.is_paid).length;
-  const canArchive = selectedInvoices.filter((inv) => !inv.is_archived).length;
-  const canRestore = selectedInvoices.filter((inv) => inv.is_archived).length;
-  const canMarkExported = selectedInvoices.filter(
-    (inv) => !inv.is_exported,
-  ).length;
-  const canUnmarkExported = selectedInvoices.filter(
-    (inv) => inv.is_exported,
-  ).length;
-  const canSetIncoming = selectedInvoices.filter(
-    (inv) => inv.direction !== 'incoming',
-  ).length;
-  const canSetOutgoing = selectedInvoices.filter(
-    (inv) => inv.direction !== 'outgoing',
-  ).length;
+  const {
+    canValidate,
+    canInvalidate,
+    canMarkPaid,
+    canUnmarkPaid,
+    canMarkSent,
+    canUnmarkSent,
+    canArchive,
+    canRestore,
+    canMarkExported,
+    canUnmarkExported,
+    canSetIncoming,
+    canSetOutgoing,
+  } = computeBatchCounts(selectedInvoices);
 
   // editModal and exportConfirmDialog are always the last two children of the
   // root fragment — same tree position regardless of which branch renders —
@@ -804,14 +798,40 @@ const InvoiceListPage = ({ direction = null }) => {
                     total={batchTotal}
                     disabled={batchLoading}
                     left={{
+                      label: 'Marquer envoyé',
+                      icon: Send,
+                      count: canMarkSent,
+                      onClick: () =>
+                        handleBatchUpdate(
+                          { status: 'sent' },
+                          'marquée(s) envoyée(s)',
+                        ),
+                      className:
+                        'border-indigo-400 text-indigo-600 hover:bg-indigo-50 dark:border-indigo-600 dark:text-indigo-400 dark:hover:bg-indigo-900/20',
+                    }}
+                    right={{
+                      label: 'Non envoyé',
+                      icon: Undo2,
+                      count: canUnmarkSent,
+                      onClick: () =>
+                        handleBatchUpdate(
+                          { status: 'validated' },
+                          'marquée(s) non envoyée(s)',
+                        ),
+                      className:
+                        'border-gray-400 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
+                    }}
+                  />
+                  <SplitPill
+                    total={batchTotal}
+                    disabled={batchLoading}
+                    left={{
                       label: 'Marquer payé',
                       icon: Banknote,
                       count: canMarkPaid,
                       onClick: () =>
                         handleBatchUpdate(
-                          direction === 'outgoing'
-                            ? { is_paid: true, status: 'paid' }
-                            : { is_paid: true },
+                          { is_paid: true, status: 'paid' },
                           'marquée(s) payée(s)',
                         ),
                       className:
@@ -823,7 +843,9 @@ const InvoiceListPage = ({ direction = null }) => {
                       count: canUnmarkPaid,
                       onClick: () =>
                         handleBatchUpdate(
-                          { is_paid: false },
+                          direction === 'outgoing'
+                            ? { is_paid: false, status: 'sent' }
+                            : { is_paid: false, status: 'validated' },
                           'marquée(s) non payée(s)',
                         ),
                       className:

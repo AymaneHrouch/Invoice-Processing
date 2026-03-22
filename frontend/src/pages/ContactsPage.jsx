@@ -169,7 +169,10 @@ export default function ContactsPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm(EMPTY_FORM);
+    setForm({
+      ...EMPTY_FORM,
+      contact_type: typeFilter === 'supplier' ? ['supplier'] : ['client'],
+    });
     setFormError(null);
     setModalTab('info');
     setHistoryData(null);
