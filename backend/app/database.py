@@ -32,8 +32,16 @@ def init_database():
 
         invoices_collection = db["invoices"]
 
+        # Compound unique index: invoice_number is unique per company, not globally.
+        # Drop the legacy global unique index on invoice_number if it exists.
         try:
-            invoices_collection.create_index("invoice_number", unique=True)
+            invoices_collection.drop_index("invoice_number_1")
+        except Exception:
+            pass
+        try:
+            invoices_collection.create_index(
+                [("invoice_number", 1), ("company_id", 1)], unique=True
+            )
         except Exception:
             pass
 
