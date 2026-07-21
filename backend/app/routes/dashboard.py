@@ -1,5 +1,7 @@
+import asyncio
 from datetime import datetime
 import logging
+from functools import partial
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
@@ -11,6 +13,66 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
+
+@router.get("/all")
+async def fetch_dashboard(
+    year: int | None = Query(None),
+    quarter: int | None = Query(None, ge=0, le=3),
+    vendor_limit: int = Query(5, ge=1, le=10),
+    activity_limit: int = Query(15, ge=1, le=30),
+    encaisser_limit: int = Query(10, ge=1, le=50),
+    payer_limit: int = Query(10, ge=1, le=50),
+    current_user: dict = Depends(get_current_user),
+):
+    company_id = current_user.get("company_id")
+
+    results = await asyncio.gather(
+        asyncio.to_thread(partial(dashboard.get_pme_kpis, company_id=company_id)),
+        asyncio.to_thread(partial(dashboard.get_a_encaisser, encaisser_limit, company_id=company_id)),
+        asyncio.to_thread(partial(dashboard.get_a_payer, payer_limit, company_id=company_id)),
+        asyncio.to_thread(partial(dashboard.get_tva_balance, year=year, quarter=quarter, company_id=company_id)),
+        asyncio.to_thread(partial(dashboard.get_top_vendors, vendor_limit, "MAD", "outgoing", company_id)),
+        asyncio.to_thread(partial(dashboard.get_top_vendors, vendor_limit, "MAD", "incoming", company_id)),
+        asyncio.to_thread(partial(dashboard.get_recent_activity, activity_limit, company_id=company_id)),
+        asyncio.to_thread(partial(dashboard.get_ca_evolution, company_id=company_id)),
+        asyncio.to_thread(partial(dashboard.get_delai_paiement, company_id=company_id)),
+        asyncio.to_thread(partial(dashboard.get_tresorerie_prevision, company_id=company_id)),
+        asyncio.to_thread(partial(dashboard.get_factures_retard, company_id=company_id)),
+        asyncio.to_thread(partial(dashboard.get_echeances_proches, company_id=company_id)),
+        asyncio.to_thread(partial(dashboard.get_category_breakdown, company_id=company_id, direction="incoming")),
+        asyncio.to_thread(partial(dashboard.get_category_breakdown, company_id=company_id, direction="outgoing")),
+        return_exceptions=True,
+    )
+
+    def safe(result):
+        return None if isinstance(result, Exception) else result
+
+    (
+        kpis, a_encaisser, a_payer, tva_balance,
+        top_clients, top_suppliers, recent_activity,
+        ca_evolution, delai_paiement, tresorerie,
+        factures_retard, echeances_proches,
+        category_incoming, category_outgoing,
+    ) = [safe(r) for r in results]
+
+    return {
+        "kpis": kpis,
+        "a_encaisser": a_encaisser,
+        "a_payer": a_payer,
+        "tva_balance": tva_balance,
+        "top_clients": top_clients,
+        "top_suppliers": top_suppliers,
+        "recent_activity": recent_activity,
+        "ca_evolution": ca_evolution,
+        "delai_paiement": delai_paiement,
+        "tresorerie": tresorerie,
+        "factures_retard": factures_retard,
+        "echeances_proches": echeances_proches,
+        "category_breakdown": {
+            "incoming": category_incoming,
+            "outgoing": category_outgoing,
+        },
+    }
 
 @router.get("/stats")
 def get_stats(
