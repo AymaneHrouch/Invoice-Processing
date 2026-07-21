@@ -502,63 +502,73 @@ def get_a_payer(limit: int = 10, company_id: str | None = None):
 
 
 def get_pme_kpis(company_id: str | None = None):
-    """PME KPIs: CA Ventes ce mois, Dépenses Achats ce mois, Ventes brouillons, Achats à valider."""
+    """PME KPIs: CA Ventes ce mois, Dépenses Achats ce mois, Ventes brouillons, Achats à valider. Single aggregation query."""
     now = datetime.now()
     this_month = datetime(now.year, now.month, 1)
     next_month = datetime(now.year + (now.month == 12), (now.month % 12) + 1, 1)
+    
     base_filter: dict = {"is_archived": {"$ne": True}}
     if company_id:
         base_filter["company_id"] = company_id
 
-    pipeline_ventes = [
-        {"$match": {
-            **base_filter,
-            "direction": "outgoing",
-            "status": {"$nin": ["draft"]},
-            "invoice_date": {"$gte": this_month, "$lt": next_month},
-            "total_amount": {"$ne": None},
-        }},
-        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+    pipeline = [
+        {"$match": base_filter},
+        {"$facet": {
+            "ca_ventes": [
+                {"$match": {
+                    "direction": "outgoing",
+                    "status": {"$nin": ["draft"]},
+                    "invoice_date": {"$gte": this_month, "$lt": next_month},
+                    "total_amount": {"$ne": None},
+                }},
+                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+            ],
+            "depenses_achats": [
+                {"$match": {
+                    "direction": "incoming",
+                    "invoice_date": {"$gte": this_month, "$lt": next_month},
+                    "total_amount": {"$ne": None},
+                }},
+                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+            ],
+            "ventes_brouillons": [
+                {"$match": {
+                    "direction": "outgoing",
+                    "status": "draft",
+                }},
+                {"$count": "count"}
+            ],
+            "achats_a_valider": [
+                {"$match": {
+                    "direction": "incoming",
+                    "status": "extracted",
+                }},
+                {"$count": "count"}
+            ],
+            "non_exportees": [
+                {"$match": {
+                    "status": {"$in": ["validated", "sent", "paid"]},
+                    "is_exported": {"$ne": True},
+                }},
+                {"$count": "count"}
+            ]
+        }}
     ]
-    result = list(invoice_collection.aggregate(pipeline_ventes))
-    ca_ventes = round(float(result[0]["total"]) if result else 0.0, 2)
 
-    pipeline_achats = [
-        {"$match": {
-            **base_filter,
-            "direction": "incoming",
-            "invoice_date": {"$gte": this_month, "$lt": next_month},
-            "total_amount": {"$ne": None},
-        }},
-        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
-    ]
-    result = list(invoice_collection.aggregate(pipeline_achats))
-    depenses_achats = round(float(result[0]["total"]) if result else 0.0, 2)
+    res = list(invoice_collection.aggregate(pipeline))[0]
 
-    ventes_brouillons = invoice_collection.count_documents({
-        **base_filter,
-        "direction": "outgoing",
-        "status": "draft",
-    })
+    def extract_total(facet_result):
+        return round(float(facet_result[0]["total"]), 2) if facet_result else 0.0
 
-    achats_a_valider = invoice_collection.count_documents({
-        **base_filter,
-        "direction": "incoming",
-        "status": "extracted",
-    })
-
-    non_exportees = invoice_collection.count_documents({
-        **base_filter,
-        "status": {"$in": ["validated", "sent", "paid"]},
-        "is_exported": {"$ne": True},
-    })
+    def extract_count(facet_result):
+        return facet_result[0]["count"] if facet_result else 0
 
     return {
-        "ca_ventes_ce_mois": ca_ventes,
-        "depenses_achats_ce_mois": depenses_achats,
-        "ventes_brouillons": ventes_brouillons,
-        "achats_a_valider": achats_a_valider,
-        "non_exportees": non_exportees,
+        "ca_ventes_ce_mois": extract_total(res.get("ca_ventes")),
+        "depenses_achats_ce_mois": extract_total(res.get("depenses_achats")),
+        "ventes_brouillons": extract_count(res.get("ventes_brouillons")),
+        "achats_a_valider": extract_count(res.get("achats_a_valider")),
+        "non_exportees": extract_count(res.get("non_exportees")),
     }
 
 
