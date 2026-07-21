@@ -713,37 +713,54 @@ def get_ca_evolution(company_id: str | None = None):
     """Monthly CA (Ventes) vs Achats totals for the past 12 months."""
     now = datetime.now()
     MONTHS_FR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
+
+    start_month = now.month - 11
+    start_year = now.year
+    if start_month <= 0:
+        start_month += 12
+        start_year -= 1
+
+    start_date = datetime(start_year, start_month, 1)
+    end_date = datetime(now.year + (now.month == 12), now.month % 12 + 1, 1)
+
+    match: dict = {
+        "invoice_date": {"$gte": start_date, "$lt": end_date},
+        "total_amount": {"$ne": None},
+        "is_archived": {"$ne": True},
+        "$or": [
+            {"direction": "incoming"},
+            {"direction": "outgoing", "status": {"$nin": ["draft"]}},
+        ],
+    }
+    if company_id:
+        match["company_id"] = company_id
+
+    totals = {
+        (doc["_id"]["year"], doc["_id"]["month"], doc["_id"]["direction"]): round(float(doc["total"]), 2)
+        for doc in invoice_collection.aggregate([
+            {"$match": match},
+            {"$group": {
+                "_id": {
+                    "year": {"$year": "$invoice_date"},
+                    "month": {"$month": "$invoice_date"},
+                    "direction": "$direction",
+                },
+                "total": {"$sum": "$total_amount"},
+            }},
+        ])
+    }
+
     result = []
     for i in range(11, -1, -1):
         month = now.month - i
         year = now.year
-        while month <= 0:
+        if month <= 0:
             month += 12
             year -= 1
-        month_start = datetime(year, month, 1)
-        month_end = datetime(year + (month == 12), month % 12 + 1, 1)
-
-        def month_total(direction, extra=None):
-            match: dict = {
-                "direction": direction,
-                "invoice_date": {"$gte": month_start, "$lt": month_end},
-                "total_amount": {"$ne": None},
-                "is_archived": {"$ne": True},
-            }
-            if extra:
-                match.update(extra)
-            if company_id:
-                match["company_id"] = company_id
-            res = list(invoice_collection.aggregate([
-                {"$match": match},
-                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
-            ]))
-            return round(float(res[0]["total"]) if res else 0.0, 2)
-
         result.append({
             "month": f"{MONTHS_FR[month - 1]} {year}",
-            "ventes": month_total("outgoing", {"status": {"$nin": ["draft"]}}),
-            "achats": month_total("incoming"),
+            "ventes": totals.get((year, month, "outgoing"), 0.0),
+            "achats": totals.get((year, month, "incoming"), 0.0),
         })
     return result
 
@@ -774,32 +791,51 @@ def get_delai_paiement(company_id: str | None = None):
 
 
 def get_tresorerie_prevision(company_id: str | None = None):
-    """Projected inflows and outflows for the next 30, 60, 90 days."""
+    """Projected inflows and outflows for the next 30, 60, 90 days. Single aggregation query."""
     now = datetime.now()
+    
+    date_30 = now + timedelta(days=30)
+    date_60 = now + timedelta(days=60)
+    date_90 = now + timedelta(days=90)
 
-    def window_total(direction, days):
-        match: dict = {
-            "direction": direction,
-            "invoice_due_date": {"$gte": now, "$lte": now + timedelta(days=days)},
-            "status": {"$nin": ["draft", "paid"]},
-            "is_archived": {"$ne": True},
-            "total_amount": {"$ne": None},
-        }
-        if company_id:
-            match["company_id"] = company_id
-        res = list(invoice_collection.aggregate([
-            {"$match": match},
-            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}},
-        ]))
-        return {
-            "total": round(float(res[0]["total"]) if res else 0.0, 2),
-            "count": int(res[0]["count"]) if res else 0,
-        }
+    match: dict = {
+        "invoice_due_date": {"$gte": now, "$lte": date_90},
+        "status": {"$nin": ["draft", "paid"]},
+        "is_archived": {"$ne": True},
+        "total_amount": {"$ne": None},
+    }
+    if company_id:
+        match["company_id"] = company_id
+
+    pipeline = [
+        {"$match": match},
+        {"$group": {
+            "_id": "$direction",
+            "total_30": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_30]}, "$total_amount", 0]}},
+            "count_30": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_30]}, 1, 0]}},
+            "total_60": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_60]}, "$total_amount", 0]}},
+            "count_60": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_60]}, 1, 0]}},
+            "total_90": {"$sum": "$total_amount"},
+            "count_90": {"$sum": 1},
+        }}
+    ]
+
+    res = {
+        "outgoing": {"30j": {"total": 0.0, "count": 0}, "60j": {"total": 0.0, "count": 0}, "90j": {"total": 0.0, "count": 0}},
+        "incoming": {"30j": {"total": 0.0, "count": 0}, "60j": {"total": 0.0, "count": 0}, "90j": {"total": 0.0, "count": 0}},
+    }
+
+    for doc in invoice_collection.aggregate(pipeline):
+        direction = doc["_id"]
+        if direction in res:
+            res[direction]["30j"] = {"total": round(float(doc["total_30"]), 2), "count": int(doc["count_30"])}
+            res[direction]["60j"] = {"total": round(float(doc["total_60"]), 2), "count": int(doc["count_60"])}
+            res[direction]["90j"] = {"total": round(float(doc["total_90"]), 2), "count": int(doc["count_90"])}
 
     return {
-        "30j": {"encaissements": window_total("outgoing", 30), "decaissements": window_total("incoming", 30)},
-        "60j": {"encaissements": window_total("outgoing", 60), "decaissements": window_total("incoming", 60)},
-        "90j": {"encaissements": window_total("outgoing", 90), "decaissements": window_total("incoming", 90)},
+        "30j": {"encaissements": res["outgoing"]["30j"], "decaissements": res["incoming"]["30j"]},
+        "60j": {"encaissements": res["outgoing"]["60j"], "decaissements": res["incoming"]["60j"]},
+        "90j": {"encaissements": res["outgoing"]["90j"], "decaissements": res["incoming"]["90j"]},
     }
 
 
