@@ -573,55 +573,80 @@ def get_pme_kpis(company_id: str | None = None):
 
 
 def get_tva_balance(year: int | None = None, quarter: int | None = None, company_id: str | None = None):
-    """TVA collectée (Ventes) vs TVA déductible (Achats).
-
-    - year + quarter (0-based): single quarter
-    - year only: full year
-    - no params: current quarter
-    """
+    """TVA collectée (Ventes) vs TVA déductible (Achats) for all 3 periods simultaneously."""
     today = datetime.now()
     if year is None:
         year = today.year
         if quarter is None:
             quarter = (today.month - 1) // 3
+    
+    # This quarter
+    tq_start = datetime(year, quarter * 3 + 1, 1)
+    next_q_month = (quarter * 3 + 4) % 12 or 12
+    next_q_year = year + (1 if quarter == 3 else 0)
+    tq_end = datetime(next_q_year, next_q_month, 1)
 
-    if quarter is not None:
-        quarter_start = datetime(year, quarter * 3 + 1, 1)
-        # End of this quarter = start of next quarter
-        next_quarter_month = (quarter * 3 + 4) % 12 or 12
-        next_quarter_year = year + (1 if quarter == 3 else 0)
-        quarter_end = datetime(next_quarter_year, next_quarter_month, 1)
-        period_label = f"T{quarter + 1} {year}"
-    else:
-        quarter_start = datetime(year, 1, 1)
-        quarter_end = datetime(year + 1, 1, 1)
-        period_label = f"Année {year}"
+    # Last quarter
+    lq_quarter = quarter - 1
+    lq_year = year
+    if lq_quarter < 0:
+        lq_quarter = 3
+        lq_year -= 1
+    lq_start = datetime(lq_year, lq_quarter * 3 + 1, 1)
+    lq_end = tq_start
 
-    def sum_tva(direction, statuses):
-        match: dict = {
-            "direction": direction,
-            "status": {"$in": statuses},
-            "invoice_date": {"$gte": quarter_start, "$lt": quarter_end},
-            "amount_tva": {"$ne": None},
-        }
-        if company_id:
-            match["company_id"] = company_id
-        pipeline = [
-            {"$match": match},
-            {"$group": {"_id": None, "total": {"$sum": "$amount_tva"}}},
+    # This year
+    ty_start = datetime(year, 1, 1)
+    ty_end = datetime(year + 1, 1, 1)
+
+    base_match = {"amount_tva": {"$ne": None}}
+    if company_id:
+        base_match["company_id"] = company_id
+
+    def build_facet(direction, statuses, start, end):
+        return [
+            {"$match": {
+                "direction": direction,
+                "status": {"$in": statuses},
+                "invoice_date": {"$gte": start, "$lt": end},
+            }},
+            {"$group": {"_id": None, "total": {"$sum": "$amount_tva"}}}
         ]
-        result = list(invoice_collection.aggregate(pipeline))
-        return round(float(result[0]["total"]) if result else 0.0, 2)
 
-    collectee = sum_tva("outgoing", ["validated", "sent", "paid"])
-    deductible = sum_tva("incoming", ["validated", "paid"])
-    net = round(collectee - deductible, 2)
+    out_stat = ["validated", "sent", "paid"]
+    in_stat = ["validated", "paid"]
+
+    pipeline = [
+        {"$match": base_match},
+        {"$facet": {
+            "tq_out": build_facet("outgoing", out_stat, tq_start, tq_end),
+            "tq_in": build_facet("incoming", in_stat, tq_start, tq_end),
+            "lq_out": build_facet("outgoing", out_stat, lq_start, lq_end),
+            "lq_in": build_facet("incoming", in_stat, lq_start, lq_end),
+            "ty_out": build_facet("outgoing", out_stat, ty_start, ty_end),
+            "ty_in": build_facet("incoming", in_stat, ty_start, ty_end),
+        }}
+    ]
+
+    res = list(invoice_collection.aggregate(pipeline))[0]
+
+    def get_val(key):
+        return round(float(res[key][0]["total"]), 2) if res.get(key) else 0.0
+
+    def build_res(out_key, in_key, label):
+        collectee = get_val(out_key)
+        deductible = get_val(in_key)
+        return {
+            "collectee": collectee,
+            "deductible": deductible,
+            "net": round(collectee - deductible, 2),
+            "quarter_label": label,
+        }
 
     return {
-        "collectee": collectee,
-        "deductible": deductible,
-        "net": net,
-        "quarter_label": period_label,
+        "this_quarter": build_res("tq_out", "tq_in", f"T{quarter + 1} {year}"),
+        "last_quarter": build_res("lq_out", "lq_in", f"T{lq_quarter + 1} {lq_year}"),
+        "this_year": build_res("ty_out", "ty_in", f"Année {year}"),
     }
 
 
