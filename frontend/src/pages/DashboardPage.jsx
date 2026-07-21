@@ -1,19 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '@/contexts';
-import {
-  getPmeKpis,
-  getTopVendors,
-  getAEncaisser,
-  getAPayer,
-  getTvaBalance,
-  getRecentActivity,
-  getCAEvolution,
-  getDelaiPaiement,
-  getTresoreriePrevision,
-  getFacturesRetard,
-  getEcheancesProches,
-  getCategoryBreakdown,
-} from '@/api/dashboard';
+import { fetchDashboardAll } from '@/api/dashboard';
 import {
   DashboardHeader,
   WorkQueueWidgets,
@@ -30,19 +18,12 @@ import {
   CategoryBreakdownWidget,
 } from '@/components/dashboard';
 
-const getPeriodParams = (period) => {
+const getCurrentBasePeriod = () => {
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentQuarter = Math.floor(now.getMonth() / 3);
-  if (period === 'this_quarter')
-    return { year: currentYear, quarter: currentQuarter };
-  if (period === 'last_quarter') {
-    const q = currentQuarter - 1;
-    if (q < 0) return { year: currentYear - 1, quarter: 3 };
-    return { year: currentYear, quarter: q };
-  }
-  if (period === 'this_year') return { year: currentYear };
-  return { year: currentYear, quarter: currentQuarter };
+  return {
+    year: now.getFullYear(),
+    quarter: Math.floor(now.getMonth() / 3),
+  };
 };
 
 const PERIOD_OPTIONS = [
@@ -51,116 +32,64 @@ const PERIOD_OPTIONS = [
   { value: 'this_year', label: 'Cette année' },
 ];
 
+const SafeWidget = ({ data, refetch, children }) => {
+  // If data is null, undefined, or an array containing null (for multiple data dependencies)
+  if (
+    data === null ||
+    data === undefined ||
+    (Array.isArray(data) && data.includes(null))
+  ) {
+    return (
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 flex flex-col items-center justify-center h-full min-h-[150px] border border-gray-100 dark:border-slate-700">
+        <p className="text-slate-500 dark:text-slate-400 mb-3 text-sm">
+          Données indisponibles
+        </p>
+        <button
+          onClick={() => refetch()}
+          className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  }
+  return children;
+};
+
 const DashboardPage = () => {
   const { isDarkMode } = useTheme();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [pmeKpis, setPmeKpis] = useState(null);
-  const [aEncaisser, setAEncaisser] = useState(null);
-  const [aPayer, setAPayer] = useState(null);
-  const [tvaBalance, setTvaBalance] = useState(null);
-  const [topClients, setTopClients] = useState([]);
-  const [topSuppliers, setTopSuppliers] = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
   const [tvaPeriod, setTvaPeriod] = useState('this_quarter');
-  const [tvaLoading, setTvaLoading] = useState(false);
-  const [caEvolution, setCAEvolution] = useState([]);
-  const [delaiPaiement, setDelaiPaiement] = useState(null);
-  const [tresorerie, setTresorerie] = useState(null);
-  const [alertsData, setAlertsData] = useState(null);
-  const [categoryData, setCategoryData] = useState([]);
   const [categoryDirection, setCategoryDirection] = useState('incoming');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const periodParams = getPeriodParams('this_quarter');
-        const [
-          kpis,
-          encaisser,
-          payer,
-          tva,
-          clients,
-          suppliers,
-          activity,
-          caEvo,
-          delai,
-          tresor,
-          retard,
-          echeances,
-          categories,
-        ] = await Promise.all([
-          getPmeKpis(),
-          getAEncaisser(),
-          getAPayer(),
-          getTvaBalance(periodParams),
-          getTopVendors(5, 'outgoing'),
-          getTopVendors(5, 'incoming'),
-          getRecentActivity(15),
-          getCAEvolution(),
-          getDelaiPaiement(),
-          getTresoreriePrevision(),
-          getFacturesRetard(),
-          getEcheancesProches(),
-          getCategoryBreakdown('incoming'),
-        ]);
-        setPmeKpis(kpis);
-        setAEncaisser(encaisser);
-        setAPayer(payer);
-        setTvaBalance(tva);
-        setTopClients(clients);
-        setTopSuppliers(suppliers);
-        setRecentActivity(activity);
-        setCAEvolution(caEvo);
-        setDelaiPaiement(delai);
-        setTresorerie(tresor);
-        setAlertsData({
-          factures_retard: retard,
-          echeances_proches: echeances,
-          non_exportees: kpis?.non_exportees ?? 0,
-        });
-        setCategoryData(categories);
-      } catch (err) {
-        setError(err.message);
-        console.error('Dashboard data fetch error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  const basePeriod = getCurrentBasePeriod();
 
-  const handlePeriodChange = useCallback(async (period) => {
-    setTvaPeriod(period);
-    setTvaLoading(true);
-    try {
-      const params = getPeriodParams(period);
-      const tva = await getTvaBalance(params);
-      setTvaBalance(tva);
-    } catch (err) {
-      console.error('TVA balance fetch error:', err);
-    } finally {
-      setTvaLoading(false);
-    }
-  }, []);
+  const fetchParams = {
+    ...basePeriod,
+    vendorLimit: 5,
+    activityLimit: 15,
+    encaisserLimit: 10,
+    payerLimit: 10,
+  };
 
-  const handleCategoryDirectionChange = useCallback(async (dir) => {
-    setCategoryDirection(dir);
-    try {
-      const categories = await getCategoryBreakdown(dir);
-      setCategoryData(categories);
-    } catch (err) {
-      console.error('Category breakdown fetch error:', err);
-    }
-  }, []);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['dashboardAll', fetchParams],
+    queryFn: () => fetchDashboardAll(fetchParams),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
 
-  if (loading) return <DashboardLoading />;
-  if (error)
-    return (
-      <DashboardError error={error} onRetry={() => window.location.reload()} />
-    );
+  if (isLoading) return <DashboardLoading />;
+  if (error) return <DashboardError error={error.message} onRetry={refetch} />;
+
+  const alertsData =
+    data.factures_retard !== null &&
+    data.echeances_proches !== null &&
+    data.kpis !== null
+      ? {
+          factures_retard: data.factures_retard,
+          echeances_proches: data.echeances_proches,
+          non_exportees: data.kpis.non_exportees ?? 0,
+        }
+      : null;
 
   return (
     <div
@@ -168,31 +97,47 @@ const DashboardPage = () => {
     >
       <DashboardHeader />
 
-      <WorkQueueWidgets stats={pmeKpis} />
+      <SafeWidget data={data.kpis} refetch={refetch}>
+        <WorkQueueWidgets stats={data.kpis} />
+      </SafeWidget>
 
-      <FinanceWidgets aEncaisser={aEncaisser} aPayer={aPayer} />
-
-      {/* CA Evolution — full width */}
-      <div className="mb-6">
-        <CAEvolutionWidget data={caEvolution} />
+      <div className="mt-6">
+        <SafeWidget data={[data.a_encaisser, data.a_payer]} refetch={refetch}>
+          <FinanceWidgets aEncaisser={data.a_encaisser} aPayer={data.a_payer} />
+        </SafeWidget>
       </div>
 
-      {/* Alerts + Trésorerie */}
+      <div className="mb-6 mt-6">
+        <SafeWidget data={data.ca_evolution} refetch={refetch}>
+          <CAEvolutionWidget data={data.ca_evolution} />
+        </SafeWidget>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <AlertsWidget data={alertsData} />
-        <TresorerieWidget data={tresorerie} />
+        <SafeWidget data={alertsData} refetch={refetch}>
+          <AlertsWidget data={alertsData} />
+        </SafeWidget>
+        <SafeWidget data={data.tresorerie} refetch={refetch}>
+          <TresorerieWidget data={data.tresorerie} />
+        </SafeWidget>
       </div>
 
-      {/* Délai paiement + Category breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <DelaiPaiementWidget data={delaiPaiement} />
-        <CategoryBreakdownWidget
-          data={categoryData}
-          onDirectionChange={handleCategoryDirectionChange}
-        />
+        <SafeWidget data={data.delai_paiement} refetch={refetch}>
+          <DelaiPaiementWidget data={data.delai_paiement} />
+        </SafeWidget>
+
+        <SafeWidget
+          data={data.category_breakdown?.[categoryDirection]}
+          refetch={refetch}
+        >
+          <CategoryBreakdownWidget
+            data={data.category_breakdown?.[categoryDirection] || []}
+            onDirectionChange={setCategoryDirection}
+          />
+        </SafeWidget>
       </div>
 
-      {/* TVA Balance with period selector */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2
@@ -204,8 +149,7 @@ const DashboardPage = () => {
             {PERIOD_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
-                onClick={() => handlePeriodChange(opt.value)}
-                disabled={tvaLoading}
+                onClick={() => setTvaPeriod(opt.value)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   tvaPeriod === opt.value
                     ? 'bg-blue-600 text-white'
@@ -219,25 +163,35 @@ const DashboardPage = () => {
             ))}
           </div>
         </div>
-        <TVABalanceWidget data={tvaBalance} loading={tvaLoading} />
+        <SafeWidget data={data.tva_balance?.[tvaPeriod]} refetch={refetch}>
+          <TVABalanceWidget
+            data={data.tva_balance?.[tvaPeriod]}
+            loading={false}
+          />
+        </SafeWidget>
       </div>
 
-      {/* Top 5 clients & fournisseurs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <TopVendorsWidget
-          title="Top 5 clients (CA)"
-          items={topClients}
-          direction="outgoing"
-        />
-        <TopVendorsWidget
-          title="Top 5 fournisseurs (Achats)"
-          items={topSuppliers}
-          direction="incoming"
-        />
+        <SafeWidget data={data.top_clients} refetch={refetch}>
+          <TopVendorsWidget
+            title="Top 5 clients (CA)"
+            items={data.top_clients}
+            direction="outgoing"
+          />
+        </SafeWidget>
+        <SafeWidget data={data.top_suppliers} refetch={refetch}>
+          <TopVendorsWidget
+            title="Top 5 fournisseurs (Achats)"
+            items={data.top_suppliers}
+            direction="incoming"
+          />
+        </SafeWidget>
       </div>
 
       <div className="max-w-2xl">
-        <RecentActivity items={recentActivity} />
+        <SafeWidget data={data.recent_activity} refetch={refetch}>
+          <RecentActivity items={data.recent_activity} />
+        </SafeWidget>
       </div>
     </div>
   );
