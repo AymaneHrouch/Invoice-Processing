@@ -19,6 +19,7 @@ from app.routes.invoices import router as invoices_router
 from app.routes.users import router as users_router
 from app.routes.ventes import router as ventes_router
 from app.utils.auth import create_admin_user
+from app.routes.exchange_rate import router as exchange_rate_router
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -82,6 +83,7 @@ app.include_router(firms_router)
 app.include_router(users_router)
 app.include_router(company_router)
 app.include_router(contacts_router)
+app.include_router(exchange_rate_router)
 
 
 @app.get("/")

@@ -106,3 +106,7 @@ def get_contacts_collection():
 def get_firm_collection():
     """Get firms collection (one doc per accounting firm/tenant)"""
     return get_database()["firms"]
+
+
+def get_exchange_rate_collection():
+    return get_database()["exchange_rate"]
