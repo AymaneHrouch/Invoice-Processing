@@ -19,7 +19,8 @@ import {
   ChevronRight,
   Plus,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getExchangeRate } from '@/api/invoice';
 
 const ExtractedDataForm = ({
   extractedData,
@@ -31,6 +32,7 @@ const ExtractedDataForm = ({
   const { isDarkMode } = useTheme();
   const { addInvoice, loading, error, success, message, reset } =
     useAddInvoice();
+  const [rateStatus, setRateStatus] = useState('idle');
 
   // Refined validation function
   const validateForm = (formData) => {
@@ -80,6 +82,41 @@ const ExtractedDataForm = ({
     {
       ...extractedData[currentInvoiceIndex],
     } || {};
+
+  useEffect(() => {
+    if (!currentFormData.currency || currentFormData.currency === 'MAD') {
+      if (currentFormData.exchange_rate !== 1) {
+        updateFormData('exchange_rate', 1);
+      }
+      return;
+    }
+
+    if (currentFormData.date) {
+      const fetchRate = async () => {
+        try {
+          setRateStatus('loading');
+          const data = await getExchangeRate(currentFormData.date);
+          if (data && data.rates && data.rates[currentFormData.currency]) {
+            updateFormData(
+              'exchange_rate',
+              data.rates[currentFormData.currency],
+            );
+            setRateStatus('success');
+            setTimeout(() => setRateStatus('idle'), 2000);
+          } else {
+            setRateStatus('idle');
+          }
+        } catch (err) {
+          setRateStatus('idle');
+          console.error(
+            'Impossible de récupérer le taux de change pour cette date.',
+          );
+        }
+      };
+      const timeoutId = setTimeout(fetchRate, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [currentFormData.currency, currentFormData.date]);
 
   const updateFormData = (field, value) => {
     if (extractedData.length > 0) {
@@ -148,6 +185,7 @@ const ExtractedDataForm = ({
       vendor_name: currentData.supplier?.trim(),
       total_amount: parseFloat(currentData.amount),
       currency: currentData.currency || 'MAD',
+      exchange_rate: Number(currentData.exchange_rate) || 1,
       items:
         currentData.items?.map((item) => ({
           name: item.name?.trim(),
@@ -343,6 +381,36 @@ const ExtractedDataForm = ({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="space-y-2">
+            <label
+              className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+            >
+              Taux de change (MAD)
+              {rateStatus === 'loading' && (
+                <span className="text-xs text-blue-500 animate-pulse">
+                  (calcul...)
+                </span>
+              )}
+              {rateStatus === 'success' && (
+                <span className="text-xs text-green-500">(actualisé)</span>
+              )}
+            </label>
+            <input
+              type="number"
+              step="0.00001"
+              value={currentFormData.exchange_rate || 1}
+              onChange={(e) =>
+                updateFormData('exchange_rate', parseFloat(e.target.value) || 1)
+              }
+              disabled={
+                !currentFormData.currency ||
+                currentFormData.currency === 'MAD' ||
+                rateStatus === 'loading'
+              }
+              className={`w-full h-11 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 transition-all duration-500 ${rateStatus === 'success' ? 'ring-2 ring-green-500 bg-green-50 text-green-700' : ''} ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+            />
           </div>
 
           <div className="space-y-2">

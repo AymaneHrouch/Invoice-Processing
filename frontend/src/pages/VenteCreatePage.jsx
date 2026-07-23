@@ -24,6 +24,7 @@ import { useCategories } from '@/hooks/useCategories';
 import { currencies } from '@/constants';
 import { getCompanyProfile } from '@/api/company';
 import { getNextVenteNumber, createVente, validateVente } from '@/api/ventes';
+import { getExchangeRate } from '@/api/invoice';
 
 const today = () => new Date().toISOString().split('T')[0];
 
@@ -36,6 +37,7 @@ export default function VenteCreatePage() {
   const [nextNumber, setNextNumber] = useState('…');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [rateStatus, setRateStatus] = useState('idle');
 
   const [form, setForm] = useState({
     client_name: '',
@@ -44,6 +46,7 @@ export default function VenteCreatePage() {
     invoice_date: today(),
     invoice_due_date: '',
     currency: 'MAD',
+    exchange_rate: 1,
     tva_rate: 20,
     category: '',
     items: [],
@@ -61,13 +64,53 @@ export default function VenteCreatePage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (form.currency === 'MAD') {
+      setForm((prev) => ({ ...prev, exchange_rate: 1 }));
+      return;
+    }
+
+    if (form.invoice_date) {
+      const fetchRate = async () => {
+        try {
+          setRateStatus('loading');
+          const data = await getExchangeRate(form.invoice_date);
+          if (data && data.rates && data.rates[form.currency]) {
+            setForm((prev) => ({
+              ...prev,
+              exchange_rate: data.rates[form.currency],
+            }));
+            setRateStatus('success');
+            setTimeout(() => setRateStatus('idle'), 2000);
+          } else {
+            setRateStatus('idle');
+          }
+        } catch (err) {
+          setRateStatus('idle');
+          toast.error(
+            'Impossible de récupérer le taux de change pour cette date.',
+          );
+        }
+      };
+
+      const timeoutId = setTimeout(fetchRate, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [form.currency, form.invoice_date]);
+
   // Compute totals from items: subtotalHT = sum(qty × unit_price), amountTva = sum(tva_amount)
   const subtotalHT = useMemo(
-    () => form.items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0), 0),
+    () =>
+      form.items.reduce(
+        (sum, item) =>
+          sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0),
+        0,
+      ),
     [form.items],
   );
   const tvaAmount = useMemo(
-    () => form.items.reduce((sum, item) => sum + (Number(item.tva_amount) || 0), 0),
+    () =>
+      form.items.reduce((sum, item) => sum + (Number(item.tva_amount) || 0), 0),
     [form.items],
   );
   const totalTTC = useMemo(
@@ -102,6 +145,7 @@ export default function VenteCreatePage() {
     amount_tva: tvaAmount > 0 ? tvaAmount : null,
     total_amount: totalTTC > 0 ? totalTTC : 0.01,
     currency: form.currency,
+    exchange_rate: Number(form.exchange_rate) || 1,
     items: form.items,
     category: form.category,
   });
@@ -287,6 +331,28 @@ export default function VenteCreatePage() {
               onChange={set('currency')}
               options={currencies}
               icon={CircleDollarSign}
+            />
+            <FormField
+              id="exchange_rate"
+              type="number"
+              label={
+                <span className="flex items-center gap-2">
+                  Taux de change (MAD)
+                  {rateStatus === 'loading' && (
+                    <span className="text-xs text-blue-500 animate-pulse">
+                      (calcul...)
+                    </span>
+                  )}
+                  {rateStatus === 'success' && (
+                    <span className="text-xs text-green-500">(actualisé)</span>
+                  )}
+                </span>
+              }
+              value={form.exchange_rate}
+              onChange={setEvent('exchange_rate')}
+              disabled={form.currency === 'MAD' || rateStatus === 'loading'}
+              step="0.00001"
+              className={`w-full transition-all duration-500 ${rateStatus === 'success' ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-900/20' : ''}`}
             />
             <FormField
               type="select"

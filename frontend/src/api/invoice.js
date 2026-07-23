@@ -2,6 +2,25 @@ import { getAuthConfig } from '@/utils/auth';
 import api from './baseApi';
 
 // API pour la gestion des factures
+const rateCache = new Map();
+
+export const getExchangeRate = async (date) => {
+  if (rateCache.has(date)) {
+    return rateCache.get(date);
+  }
+
+  try {
+    const response = await api.get('/exchange-rates', { params: { date } });
+    rateCache.set(date, response.data);
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.data && error.response.data.detail) {
+      throw new Error(error.response.data.detail);
+    }
+    throw new Error('Error while fetching exchange rate.');
+  }
+};
+
 export const createInvoice = async (data) => {
   try {
     const response = await api.post('/invoices/', data);

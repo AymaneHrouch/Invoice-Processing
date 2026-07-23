@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Save,
   Building,
@@ -23,11 +23,15 @@ import { currencies } from '@/constants';
 import { useTheme } from '@/contexts';
 import { useAddInvoice } from '@/hooks/useAddInvoice';
 import { useCategories } from '@/hooks/useCategories';
+import { getExchangeRate } from '@/api/invoice';
 import { FormField } from '@/components/ui/form-field';
 import SupplierCombobox from '@/components/ui/SupplierCombobox';
 import TvaRateField from '@/components/ui/TvaRateField';
 import { InvoiceItems, AmountWarningBanner } from '@/components/invoice';
-import { runAmountChecks, calculateInvoiceTotals } from '@/utils/invoiceCalculations';
+import {
+  runAmountChecks,
+  calculateInvoiceTotals,
+} from '@/utils/invoiceCalculations';
 
 // ✅ Fonction utilitaire pour formater les dates
 const formatDateForInput = (dateString) => {
@@ -60,6 +64,7 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
     invoice_due_date: '',
     total_amount: '',
     currency: 'MAD',
+    exchange_rate: 1,
     category: '',
     items: [],
     source_type: 'manual',
@@ -68,6 +73,40 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
   });
 
   const [errors, setErrors] = useState({});
+  const [rateStatus, setRateStatus] = useState('idle');
+
+  useEffect(() => {
+    if (formData.currency === 'MAD') {
+      setFormData((prev) => ({ ...prev, exchange_rate: 1 }));
+      return;
+    }
+
+    if (formData.invoice_date) {
+      const fetchRate = async () => {
+        try {
+          setRateStatus('loading');
+          const data = await getExchangeRate(formData.invoice_date);
+          if (data && data.rates && data.rates[formData.currency]) {
+            setFormData((prev) => ({
+              ...prev,
+              exchange_rate: data.rates[formData.currency],
+            }));
+            setRateStatus('success');
+            setTimeout(() => setRateStatus('idle'), 2000);
+          } else {
+            setRateStatus('idle');
+          }
+        } catch (err) {
+          setRateStatus('idle');
+          toast.error(
+            'Impossible de récupérer le taux de change pour cette date.',
+          );
+        }
+      };
+      const timeoutId = setTimeout(fetchRate, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [formData.currency, formData.invoice_date]);
 
   // ✅ Fonction pour mettre à jour un champ
   const updateField = (field, value) => {
@@ -135,6 +174,7 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
       invoice_due_date: '',
       total_amount: '',
       currency: 'MAD',
+      exchange_rate: 1,
       category: '',
       items: [],
       source_type: 'manual',
@@ -162,7 +202,8 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
       amount_tva = totals.amountTva;
       total_amount = totals.totalTTC;
     } else {
-      total_amount = formData.total_amount !== '' ? parseFloat(formData.total_amount) : null;
+      total_amount =
+        formData.total_amount !== '' ? parseFloat(formData.total_amount) : null;
     }
 
     // Préparer les données pour l'envoi
@@ -273,8 +314,14 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
               >
                 {(() => {
                   if (formData.items.length > 0) {
-                    const { amountTva } = calculateInvoiceTotals(formData.items);
-                    return amountTva > 0 ? `${amountTva.toFixed(2)} ${formData.currency}` : <span className="text-gray-400">—</span>;
+                    const { amountTva } = calculateInvoiceTotals(
+                      formData.items,
+                    );
+                    return amountTva > 0 ? (
+                      `${amountTva.toFixed(2)} ${formData.currency}`
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    );
                   }
                   return <span className="text-gray-400">—</span>;
                 })()}
@@ -312,6 +359,30 @@ const ManualInvoice = ({ direction = 'incoming' }) => {
               options={currencies}
               placeholder="Sélectionner une devise"
               icon={CircleDollarSign}
+            />
+            <FormField
+              id="exchange_rate"
+              type="number"
+              label={
+                <span className="flex items-center gap-2">
+                  Taux de change (MAD)
+                  {rateStatus === 'loading' && (
+                    <span className="text-xs text-blue-500 animate-pulse">
+                      (calcul...)
+                    </span>
+                  )}
+                  {rateStatus === 'success' && (
+                    <span className="text-xs text-green-500">(actualisé)</span>
+                  )}
+                </span>
+              }
+              value={formData.exchange_rate}
+              onChange={(e) =>
+                updateField('exchange_rate', parseFloat(e.target.value) || 1)
+              }
+              disabled={formData.currency === 'MAD' || rateStatus === 'loading'}
+              step="0.00001"
+              className={`w-full transition-all duration-500 ${rateStatus === 'success' ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-900/20' : ''}`}
             />
             <FormField
               id="invoice_date"
