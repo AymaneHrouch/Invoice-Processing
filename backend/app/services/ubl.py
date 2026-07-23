@@ -48,13 +48,13 @@ def _party(parent, tag, *, name, ice=None, identifiant_fiscal=None, rc=None,
     wrapper = _cac(parent, tag)
     party = _cac(wrapper, "Party")
 
-    party_name = _cac(party, "PartyName")
-    _cbc(party_name, "Name", name or "—")
-
     for scheme, value in (("ICE", ice), ("IF", identifiant_fiscal), ("RC", rc)):
         if value:
             pid = _cac(party, "PartyIdentification")
             _cbc(pid, "ID", value, schemeID=scheme)
+
+    party_name = _cac(party, "PartyName")
+    _cbc(party_name, "Name", name or "—")
 
     if address or city or postal_code:
         addr = _cac(party, "PostalAddress")
@@ -170,9 +170,9 @@ def generate_ubl_invoice(invoice, company: dict) -> str:
         _cbc(line_el, "LineExtensionAmount", _fmt(line["line_ht"]), currencyID=currency)
         _cbc(_cac(line_el, "TaxTotal"), "TaxAmount", _fmt(line["line_tax"]), currencyID=currency)
         item_el = _cac(line_el, "Item")
-        _cbc(item_el, "Name", item.name or item.description or "—")
         if item.description:
             _cbc(item_el, "Description", item.description)
+        _cbc(item_el, "Name", item.name or item.description or "—")
         category = _cac(item_el, "ClassifiedTaxCategory")
         _cbc(category, "ID", _tax_category_code(line["rate"]))
         _cbc(category, "Percent", _fmt(line["rate"]))
