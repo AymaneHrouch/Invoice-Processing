@@ -1,5 +1,7 @@
 """UBL 2.1 Invoice XML generation """
 from datetime import datetime
+from functools import lru_cache
+from pathlib import Path
 
 from lxml import etree
 
@@ -182,3 +184,17 @@ def generate_ubl_invoice(invoice, company: dict) -> str:
         _cbc(price, "BaseQuantity", "1", unitCode="C62")
 
     return etree.tostring(root, xml_declaration=True, encoding="UTF-8", pretty_print=True).decode()
+
+_XSD_PATH = Path(__file__).resolve().parent.parent / "schemas" / "ubl" / "maindoc" / "UBL-Invoice-2.1.xsd"
+
+@lru_cache(maxsize=1)
+def _get_schema() -> etree.XMLSchema:
+    return etree.XMLSchema(etree.parse(str(_XSD_PATH)))
+
+def validate_ubl(xml: str) -> list[str]:
+    """Validate a UBL invoice XML against the UBL 2.1 XSD."""
+    doc = etree.fromstring(xml.encode("utf-8"))
+    schema = _get_schema()
+    if schema.validate(doc):
+        return []
+    return [f"line {e.line}: {e.message}" for e in schema.error_log]
