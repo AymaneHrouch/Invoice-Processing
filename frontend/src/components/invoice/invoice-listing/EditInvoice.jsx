@@ -470,7 +470,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl w-full h-[95vh] bg-white dark:bg-gray-800 flex flex-col p-0 overflow-hidden">
+      <DialogContent className="!max-w-7xl w-full h-[95vh] bg-white dark:bg-gray-800 flex flex-col p-0 overflow-hidden">
         {/* Header fixe */}
         <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
           <DialogHeader className="px-8 py-5">

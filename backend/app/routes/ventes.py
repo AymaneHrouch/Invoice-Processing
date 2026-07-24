@@ -49,6 +49,7 @@ class VenteCreate(BaseModel):
     amount_tva: float | None = None
     total_amount: float
     currency: str = "MAD"
+    exchange_rate: float | None = None
     items: list[InvoiceItem] = []
     category: str
     tags: list[str] = []
@@ -182,6 +183,7 @@ def create_vente(
         amount_tva=amount_tva_val,
         total_amount=total_amount_val,
         currency=data.currency,
+        exchange_rate=data.exchange_rate,
         items=data.items,
         category=data.category,
         tags=data.tags,

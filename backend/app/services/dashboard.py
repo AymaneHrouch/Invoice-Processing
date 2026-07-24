@@ -438,7 +438,8 @@ def get_a_encaisser(limit: int = 10, company_id: str | None = None):
                 days_overdue = delta
                 overdue_count += 1
         amount = float(doc.get("total_amount") or 0)
-        total_amount += amount
+        invoice_rate = doc.get("exchange_rate") or EXCHANGE_RATES.get(doc.get("currency", "MAD"), 1.0)
+        total_amount += amount * invoice_rate
         items.append({
             "id": str(doc["_id"]),
             "invoice_number": doc.get("invoice_number", "—"),
@@ -483,7 +484,8 @@ def get_a_payer(limit: int = 10, company_id: str | None = None):
                 days_overdue = delta
                 overdue_count += 1
         amount = float(doc.get("total_amount") or 0)
-        total_amount += amount
+        invoice_rate = doc.get("exchange_rate") or EXCHANGE_RATES.get(doc.get("currency", "MAD"), 1.0)
+        total_amount += amount * invoice_rate
         items.append({
             "id": str(doc["_id"]),
             "invoice_number": doc.get("invoice_number", "—"),
@@ -522,7 +524,7 @@ def get_pme_kpis(company_id: str | None = None):
                     "invoice_date": {"$gte": this_month, "$lt": next_month},
                     "total_amount": {"$ne": None},
                 }},
-                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+                {"$group": {"_id": None, "total": {"$sum": {"$multiply": ["$total_amount", {"$ifNull": ["$exchange_rate", 1.0]}]}}}},
             ],
             "depenses_achats": [
                 {"$match": {
@@ -530,7 +532,7 @@ def get_pme_kpis(company_id: str | None = None):
                     "invoice_date": {"$gte": this_month, "$lt": next_month},
                     "total_amount": {"$ne": None},
                 }},
-                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+                {"$group": {"_id": None, "total": {"$sum": {"$multiply": ["$total_amount", {"$ifNull": ["$exchange_rate", 1.0]}]}}}},
             ],
             "ventes_brouillons": [
                 {"$match": {
@@ -611,7 +613,7 @@ def get_tva_balance(year: int | None = None, quarter: int | None = None, company
                 "status": {"$in": statuses},
                 "invoice_date": {"$gte": start, "$lt": end},
             }},
-            {"$group": {"_id": None, "total": {"$sum": "$amount_tva"}}}
+            {"$group": {"_id": None, "total": {"$sum": {"$multiply": ["$amount_tva", {"$ifNull": ["$exchange_rate", 1.0]}]}}}}
         ]
 
     out_stat = ["validated", "sent", "paid"]
@@ -781,7 +783,7 @@ def get_ca_evolution(company_id: str | None = None):
                     "month": {"$month": "$invoice_date"},
                     "direction": "$direction",
                 },
-                "total": {"$sum": "$total_amount"},
+                "total": {"$sum": {"$multiply": ["$total_amount", {"$ifNull": ["$exchange_rate", 1.0]}]}},
             }},
         ])
     }
@@ -847,11 +849,11 @@ def get_tresorerie_prevision(company_id: str | None = None):
         {"$match": match},
         {"$group": {
             "_id": "$direction",
-            "total_30": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_30]}, "$total_amount", 0]}},
+            "total_30": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_30]}, {"$multiply": ["$total_amount", {"$ifNull": ["$exchange_rate", 1.0]}]}, 0]}},
             "count_30": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_30]}, 1, 0]}},
-            "total_60": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_60]}, "$total_amount", 0]}},
+            "total_60": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_60]}, {"$multiply": ["$total_amount", {"$ifNull": ["$exchange_rate", 1.0]}]}, 0]}},
             "count_60": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_60]}, 1, 0]}},
-            "total_90": {"$sum": "$total_amount"},
+            "total_90": {"$sum": {"$multiply": ["$total_amount", {"$ifNull": ["$exchange_rate", 1.0]}]}},
             "count_90": {"$sum": 1},
         }}
     ]
@@ -895,9 +897,10 @@ def get_factures_retard(company_id: str | None = None):
     for doc in docs:
         days = (now - doc["invoice_due_date"]).days
         amount = float(doc.get("total_amount") or 0)
+        invoice_rate = doc.get("exchange_rate") or EXCHANGE_RATES.get(doc.get("currency", "MAD"), 1.0)
         key = "1_30" if days <= 30 else "31_60" if days <= 60 else "60p"
         buckets[key]["count"] += 1
-        buckets[key]["total"] += amount
+        buckets[key]["total"] += amount * invoice_rate
 
     for b in buckets.values():
         b["total"] = round(b["total"], 2)
@@ -905,7 +908,7 @@ def get_factures_retard(company_id: str | None = None):
     return {
         "buckets": list(buckets.values()),
         "total_count": len(docs),
-        "total_amount": round(sum(float(d.get("total_amount") or 0) for d in docs), 2),
+        "total_amount": round(sum(b["total"] for b in buckets.values()), 2),
     }
 
 
@@ -924,7 +927,7 @@ def get_echeances_proches(company_id: str | None = None):
             match["company_id"] = company_id
         res = list(invoice_collection.aggregate([
             {"$match": match},
-            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}},
+            {"$group": {"_id": None, "total": {"$sum": {"$multiply": ["$total_amount", {"$ifNull": ["$exchange_rate", 1.0]}]}}, "count": {"$sum": 1}}},
         ]))
         return {
             "total": round(float(res[0]["total"]) if res else 0.0, 2),
@@ -950,7 +953,7 @@ def get_category_breakdown(company_id: str | None = None, direction: str | None 
 
     pipeline = [
         {"$match": match},
-        {"$group": {"_id": "$category", "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}},
+        {"$group": {"_id": "$category", "total": {"$sum": {"$multiply": ["$total_amount", {"$ifNull": ["$exchange_rate", 1.0]}]}}, "count": {"$sum": 1}}},
         {"$sort": {"total": -1}},
     ]
     results = list(invoice_collection.aggregate(pipeline))
