@@ -81,7 +81,7 @@ def get_amount_growth(currency: Literal["MAD", "USD", "EUR"] = "MAD"):
         for invoice in invoices:
             amount = float(invoice["total_amount"])
             invoice_currency = invoice["currency"]
-            input_rate = EXCHANGE_RATES[invoice_currency]
+            input_rate = invoice.get("exchange_rate") or EXCHANGE_RATES[invoice_currency]
             output_rate = EXCHANGE_RATES[currency]
             converted_amount = amount * input_rate / output_rate
             total += converted_amount
@@ -129,8 +129,8 @@ def get_top_vendors(limit=5, currency: Literal["MAD", "USD", "EUR"] = "MAD", dir
 
         amount = float(amount)
 
-        invoice_rate = EXCHANGE_RATES.get(invoice_currency)
-        output_rate = EXCHANGE_RATES.get(currency)
+        invoice_rate = invoice.get("exchange_rate") or EXCHANGE_RATES.get(invoice_currency, 1.0)
+        output_rate = EXCHANGE_RATES.get(currency, 1.0)
 
         amount_in_output_currency = amount * invoice_rate / output_rate
 
@@ -184,8 +184,8 @@ def get_top_categories(limit=5, currency: Literal["MAD", "USD", "EUR"] = "MAD", 
             continue
 
         amount = float(amount)
-        invoice_rate = EXCHANGE_RATES.get(invoice_currency)
-        output_rate = EXCHANGE_RATES.get(currency)
+        invoice_rate = invoice.get("exchange_rate") or EXCHANGE_RATES.get(invoice_currency, 1.0)
+        output_rate = EXCHANGE_RATES.get(currency, 1.0)
         amount_in_output_currency = amount * invoice_rate / output_rate
 
         if category not in categories_data:
@@ -388,12 +388,13 @@ def get_monthly_chart_data(currency: Literal["MAD", "USD", "EUR"] = "MAD", perio
         for invoice in invoices:
             amount = float(invoice["total_amount"])
             invoice_currency = invoice["currency"]
+            invoice_rate = invoice.get("exchange_rate") or EXCHANGE_RATES.get(invoice_currency, 1.0)
 
             # Convert to target currency
             if invoice_currency != currency:
                 # Convert to MAD first, then to target currency
-                amount_in_mad = amount / EXCHANGE_RATES[invoice_currency]
-                amount = amount_in_mad * EXCHANGE_RATES[currency]
+                amount_in_mad = amount * invoice_rate
+                amount = amount_in_mad / EXCHANGE_RATES.get(currency, 1.0)
 
             total_expenses += amount
 
@@ -706,8 +707,8 @@ def get_weekly_pattern(currency: Literal["MAD", "USD", "EUR"] = "MAD", period: s
         # Convert amount to target currency
         amount = float(invoice["total_amount"])
         invoice_currency = invoice["currency"]
-        invoice_rate = EXCHANGE_RATES[invoice_currency]
-        output_rate = EXCHANGE_RATES[currency]
+        invoice_rate = invoice.get("exchange_rate") or EXCHANGE_RATES.get(invoice_currency, 1.0)
+        output_rate = EXCHANGE_RATES.get(currency, 1.0)
         amount_in_output_currency = amount * invoice_rate / output_rate
 
         day_data[day_of_week]["total_invoices"] += 1

@@ -62,6 +62,7 @@ class Invoice(BaseModel):
     subtotal_ht: Decimal | None = Field(default=None, description="Subtotal before tax (HT)")
     total_amount: Decimal = Field(..., ge=0, description="Total invoice amount")
     currency: str = Field(default="MAD", description="Currency code")
+    exchange_rate: float | None = Field(default=None, description="Exchange rate to MAD")
 
     # Invoice items
     items: list[InvoiceItem] = Field(default_factory=list, description="List of invoice items")
@@ -131,6 +132,7 @@ class InvoiceCreate(BaseModel):
     subtotal_ht: Decimal | None = Field(default=None, description="Subtotal before tax (HT)")
     total_amount: Decimal | None = Field(default=None, ge=0, description="Total invoice amount — omit to auto-compute from items")
     currency: str = Field(default="MAD", description="Currency code")
+    exchange_rate: float | None = Field(default=None, description="Exchange rate to MAD")
     items: list[InvoiceItem] = Field(default_factory=list, description="List of invoice items")
     category: str = Field(..., min_length=1, description="Invoice category")
     source_type: str = Field(..., description="Source type (manual/pdf/image)")
@@ -232,6 +234,7 @@ class InvoiceUpdate(BaseModel):
     subtotal_ht: Decimal | None = None
     total_amount: Decimal | None = None
     currency: str | None = None
+    exchange_rate: float | None = None
     items: list[InvoiceItem] | None = None
     category: str | None = None
     source_type: str | None = None
@@ -269,6 +272,7 @@ class InvoiceResponse(BaseModel):
     subtotal_ht: Decimal | None = None
     total_amount: Decimal | None = None
     currency: str | None = None
+    exchange_rate: float | None = None
     items: list[InvoiceItem] | None = None
     category: str | None = None
     source_type: str | None = None

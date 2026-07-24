@@ -16,6 +16,8 @@ import {
   ShieldCheck,
   ShieldOff,
   Undo2,
+  CalendarDays,
+  WifiOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +39,7 @@ import {
   markInvoicePaid,
   unmarkInvoicePaid,
   fetchInvoiceHistory,
+  getExchangeRate,
 } from '@/api/invoice';
 import {
   validateVente,
@@ -148,10 +151,14 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
     invoice_due_date: '',
     subtotal_ht: '',
     currency: 'MAD',
+    exchange_rate: 1,
     category: '',
     items: [],
     status: 'extracted',
   });
+
+  const [rateStatus, setRateStatus] = useState('idle'); // 'idle', 'loading', 'success'
+  const [rateNote, setRateNote] = useState(null);
 
   const [errors, setErrors] = useState({});
   const [history, setHistory] = useState([]);
@@ -179,6 +186,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
           invoice.total_amount?.toString() ||
           '',
         currency: invoice.currency || 'MAD',
+        exchange_rate: invoice.exchange_rate || 1,
         category: invoice.category || '',
         items: Array.isArray(invoice.items)
           ? invoice.items.map((item) => ({
@@ -211,6 +219,57 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
       .then(setHistory)
       .catch(() => {});
   }, [invoice, open]);
+
+  // ✅ Effet pour mettre à jour le taux de change
+  useEffect(() => {
+    // Only fetch if this is not the initial load to avoid overwriting existing rate
+    if (!open || formData.currency === 'MAD') {
+      if (formData.currency === 'MAD' && formData.exchange_rate !== 1) {
+        setFormData((prev) => ({ ...prev, exchange_rate: 1 }));
+        setRateNote(null);
+      }
+      return;
+    }
+
+    if (formData.invoice_date) {
+      const fetchRate = async () => {
+        try {
+          setRateStatus('loading');
+          const data = await getExchangeRate(formData.invoice_date);
+          if (data && data.rates && data.rates[formData.currency]) {
+            setFormData((prev) => ({
+              ...prev,
+              exchange_rate: data.rates[formData.currency],
+            }));
+            setRateStatus('success');
+            setTimeout(() => setRateStatus('idle'), 2000);
+
+            if (data.is_fallback) {
+              setRateNote({
+                type: 'unavailable',
+                date: data.date?.split('T')[0],
+              });
+            } else {
+              const returnedDate = data.date?.split('T')[0];
+              if (returnedDate && returnedDate !== formData.invoice_date) {
+                setRateNote({ type: 'weekend', date: returnedDate });
+              } else {
+                setRateNote({ type: 'normal', date: returnedDate });
+              }
+            }
+          } else {
+            setRateStatus('idle');
+            setRateNote(null);
+          }
+        } catch (err) {
+          setRateStatus('idle');
+          setRateNote({ type: 'unavailable' });
+        }
+      };
+      const timeoutId = setTimeout(fetchRate, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [formData.currency, formData.invoice_date, open]);
 
   // ✅ Fonction pour mettre à jour un champ
   const updateField = (field, value) => {
@@ -283,11 +342,20 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
   const tvaRate = parseFloat(formData.tva) || 0;
   const subtotalHT =
     formData.items.length > 0
-      ? formData.items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0), 0)
+      ? formData.items.reduce(
+          (sum, item) =>
+            sum + (Number(item.quantity) || 0) * (Number(item.unit_price) || 0),
+          0,
+        )
       : parseFloat(formData.subtotal_ht) || 0;
   const computedAmountTva =
     formData.items.length > 0
-      ? Math.round(formData.items.reduce((sum, item) => sum + (Number(item.tva_amount) || 0), 0) * 100) / 100
+      ? Math.round(
+          formData.items.reduce(
+            (sum, item) => sum + (Number(item.tva_amount) || 0),
+            0,
+          ) * 100,
+        ) / 100
       : parseFloat(((subtotalHT * tvaRate) / 100).toFixed(2));
   const computedTotal = parseFloat((subtotalHT + computedAmountTva).toFixed(2));
 
@@ -402,7 +470,7 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-full h-[95vh] bg-white dark:bg-gray-800 flex flex-col p-0 overflow-hidden">
+      <DialogContent className="max-w-5xl w-full h-[95vh] bg-white dark:bg-gray-800 flex flex-col p-0 overflow-hidden">
         {/* Header fixe */}
         <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
           <DialogHeader className="px-8 py-5">
@@ -635,6 +703,59 @@ const EditInvoice = ({ open, onClose, invoice, onSuccess }) => {
                     options={currencies}
                     disabled={allFieldsLocked}
                   />
+                  <div className="space-y-1">
+                    <FormField
+                      id="exchange_rate"
+                      type="number"
+                      label={
+                        <span className="flex items-center gap-2">
+                          Taux de change (MAD)
+                          {rateStatus === 'loading' && (
+                            <span className="text-xs text-blue-500 animate-pulse">
+                              (calcul...)
+                            </span>
+                          )}
+                          {rateStatus === 'success' && (
+                            <span className="text-xs text-green-500">
+                              (actualisé)
+                            </span>
+                          )}
+                        </span>
+                      }
+                      value={formData.exchange_rate}
+                      onChange={(e) =>
+                        updateField(
+                          'exchange_rate',
+                          parseFloat(e.target.value) || 1,
+                        )
+                      }
+                      disabled={
+                        formData.currency === 'MAD' ||
+                        rateStatus === 'loading' ||
+                        allFieldsLocked
+                      }
+                      step="0.00001"
+                      className={`w-full transition-all duration-500 ${rateStatus === 'success' ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-900/20' : ''}`}
+                    />
+                    {rateNote?.type === 'normal' && (
+                      <p className="flex items-center gap-1 text-xs text-gray-400">
+                        <CalendarDays className="w-3 h-3" /> Taux du{' '}
+                        {rateNote.date}
+                      </p>
+                    )}
+                    {rateNote?.type === 'weekend' && (
+                      <p className="flex items-center gap-1 text-xs text-amber-500">
+                        <AlertTriangle className="w-3 h-3" /> Week-end — taux du{' '}
+                        {rateNote.date}
+                      </p>
+                    )}
+                    {rateNote?.type === 'unavailable' && (
+                      <p className="flex items-center gap-1 text-xs text-red-500">
+                        <WifiOff className="w-3 h-3" /> BAM indisponible
+                        {rateNote.date ? ` — taux du ${rateNote.date}` : ''}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Catégorie */}
