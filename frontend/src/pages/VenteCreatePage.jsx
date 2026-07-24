@@ -9,6 +9,8 @@ import {
   Save,
   CheckCircle,
   ChevronRight,
+  AlertTriangle,
+  WifiOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -38,6 +40,7 @@ export default function VenteCreatePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [rateStatus, setRateStatus] = useState('idle');
+  const [rateNote, setRateNote] = useState(null);
 
   const [form, setForm] = useState({
     client_name: '',
@@ -67,6 +70,7 @@ export default function VenteCreatePage() {
   useEffect(() => {
     if (form.currency === 'MAD') {
       setForm((prev) => ({ ...prev, exchange_rate: 1 }));
+      setRateNote(null);
       return;
     }
 
@@ -82,14 +86,28 @@ export default function VenteCreatePage() {
             }));
             setRateStatus('success');
             setTimeout(() => setRateStatus('idle'), 2000);
+
+            // Check if the returned date differs from the requested date (weekend/holiday)
+            if (data.is_fallback) {
+              setRateNote({
+                type: 'unavailable',
+                date: data.date?.split('T')[0],
+              });
+            } else {
+              const returnedDate = data.date?.split('T')[0];
+              if (returnedDate && returnedDate !== form.invoice_date) {
+                setRateNote({ type: 'weekend', date: returnedDate });
+              } else {
+                setRateNote({ type: 'normal', date: returnedDate });
+              }
+            }
           } else {
             setRateStatus('idle');
+            setRateNote(null);
           }
         } catch (err) {
           setRateStatus('idle');
-          toast.error(
-            'Impossible de récupérer le taux de change pour cette date.',
-          );
+          setRateNote({ type: 'unavailable' });
         }
       };
 
@@ -332,28 +350,49 @@ export default function VenteCreatePage() {
               options={currencies}
               icon={CircleDollarSign}
             />
-            <FormField
-              id="exchange_rate"
-              type="number"
-              label={
-                <span className="flex items-center gap-2">
-                  Taux de change (MAD)
-                  {rateStatus === 'loading' && (
-                    <span className="text-xs text-blue-500 animate-pulse">
-                      (calcul...)
-                    </span>
-                  )}
-                  {rateStatus === 'success' && (
-                    <span className="text-xs text-green-500">(actualisé)</span>
-                  )}
-                </span>
-              }
-              value={form.exchange_rate}
-              onChange={setEvent('exchange_rate')}
-              disabled={form.currency === 'MAD' || rateStatus === 'loading'}
-              step="0.00001"
-              className={`w-full transition-all duration-500 ${rateStatus === 'success' ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-900/20' : ''}`}
-            />
+            <div className="space-y-1">
+              <FormField
+                id="exchange_rate"
+                type="number"
+                label={
+                  <span className="flex items-center gap-2">
+                    Taux de change (MAD)
+                    {rateStatus === 'loading' && (
+                      <span className="text-xs text-blue-500 animate-pulse">
+                        (calcul...)
+                      </span>
+                    )}
+                    {rateStatus === 'success' && (
+                      <span className="text-xs text-green-500">
+                        (actualisé)
+                      </span>
+                    )}
+                  </span>
+                }
+                value={form.exchange_rate}
+                onChange={setEvent('exchange_rate')}
+                disabled={form.currency === 'MAD' || rateStatus === 'loading'}
+                step="0.00001"
+                className={`w-full transition-all duration-500 ${rateStatus === 'success' ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-900/20' : ''}`}
+              />
+              {rateNote?.type === 'normal' && (
+                <p className="flex items-center gap-1 text-xs text-gray-400">
+                  <CalendarDays className="w-3 h-3" /> Taux du {rateNote.date}
+                </p>
+              )}
+              {rateNote?.type === 'weekend' && (
+                <p className="flex items-center gap-1 text-xs text-amber-500">
+                  <AlertTriangle className="w-3 h-3" /> Week-end — taux du{' '}
+                  {rateNote.date}
+                </p>
+              )}
+              {rateNote?.type === 'unavailable' && (
+                <p className="flex items-center gap-1 text-xs text-red-500">
+                  <WifiOff className="w-3 h-3" /> BAM indisponible
+                  {rateNote.date ? ` — taux du ${rateNote.date}` : ''}
+                </p>
+              )}
+            </div>
             <FormField
               type="select"
               label="Catégorie"

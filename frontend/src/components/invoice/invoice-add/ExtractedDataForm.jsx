@@ -18,6 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  AlertTriangle,
+  WifiOff,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getExchangeRate } from '@/api/invoice';
@@ -33,6 +35,7 @@ const ExtractedDataForm = ({
   const { addInvoice, loading, error, success, message, reset } =
     useAddInvoice();
   const [rateStatus, setRateStatus] = useState('idle');
+  const [rateNote, setRateNote] = useState(null);
 
   // Refined validation function
   const validateForm = (formData) => {
@@ -88,6 +91,7 @@ const ExtractedDataForm = ({
       if (currentFormData.exchange_rate !== 1) {
         updateFormData('exchange_rate', 1);
       }
+      setRateNote(null);
       return;
     }
 
@@ -103,14 +107,30 @@ const ExtractedDataForm = ({
             );
             setRateStatus('success');
             setTimeout(() => setRateStatus('idle'), 2000);
+
+            if (data.is_fallback) {
+              setRateNote({
+                type: 'unavailable',
+                date: data.date?.split('T')[0],
+              });
+            } else {
+              const returnedDate = data.date?.split('T')[0];
+              if (
+                returnedDate &&
+                returnedDate !== currentFormData.date?.split('T')[0]
+              ) {
+                setRateNote({ type: 'weekend', date: returnedDate });
+              } else {
+                setRateNote({ type: 'normal', date: returnedDate });
+              }
+            }
           } else {
             setRateStatus('idle');
+            setRateNote(null);
           }
         } catch (err) {
           setRateStatus('idle');
-          console.error(
-            'Impossible de récupérer le taux de change pour cette date.',
-          );
+          setRateNote({ type: 'unavailable' });
         }
       };
       const timeoutId = setTimeout(fetchRate, 500);
@@ -411,6 +431,23 @@ const ExtractedDataForm = ({
               }
               className={`w-full h-11 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 transition-all duration-500 ${rateStatus === 'success' ? 'ring-2 ring-green-500 bg-green-50 text-green-700' : ''} ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
             />
+            {rateNote?.type === 'normal' && (
+              <p className="flex items-center gap-1 text-xs text-gray-400">
+                <CalendarDays className="w-3 h-3" /> Taux du {rateNote.date}
+              </p>
+            )}
+            {rateNote?.type === 'weekend' && (
+              <p className="flex items-center gap-1 text-xs text-amber-500">
+                <AlertTriangle className="w-3 h-3" /> Week-end — taux du{' '}
+                {rateNote.date}
+              </p>
+            )}
+            {rateNote?.type === 'unavailable' && (
+              <p className="flex items-center gap-1 text-xs text-red-500">
+                <WifiOff className="w-3 h-3" /> BAM indisponible
+                {rateNote.date ? ` — taux du ${rateNote.date}` : ''}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
