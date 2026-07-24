@@ -37,6 +37,7 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  FileCode,
   MoreHorizontal,
   Pencil,
   Send,
@@ -52,6 +53,7 @@ const InvoiceRow = ({
   isExpanded,
   onToggleExpand,
   onExportPDF,
+  onExportUBL,
   onDelete,
   onArchive,
   onRestore,
@@ -251,6 +253,16 @@ const InvoiceRow = ({
     color: 'text-blue-600 dark:text-blue-400',
   });
 
+  // UBL
+  if (direction === 'outgoing') {
+    actions.push({
+      key: 'ubl',
+      label: 'Exporter UBL (XML)',
+      icon: FileCode,
+      color: 'text-blue-600 dark:text-blue-400',
+    });
+  }
+
   actions.push({ key: 'sep3', type: 'separator' });
 
   // Archive / Restore
@@ -286,6 +298,9 @@ const InvoiceRow = ({
         break;
       case 'pdf':
         onExportPDF(invoice);
+        break;
+      case 'ubl':
+        onExportUBL?.(invoice);
         break;
       case 'archive':
         onArchive?.(invoice);
@@ -326,7 +341,10 @@ const InvoiceRow = ({
         {onSelect && (
           <td
             className={`px-3 py-4 border-b align-middle text-center w-10 cursor-pointer ${isDarkMode ? 'border-gray-600' : 'border-gray-100'}`}
-            onClick={(e) => { e.stopPropagation(); onSelect(invoice.id || invoice._id, !isSelected); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(invoice.id || invoice._id, !isSelected);
+            }}
           >
             <input
               type="checkbox"
@@ -345,7 +363,10 @@ const InvoiceRow = ({
           <Button
             variant="ghost"
             size="sm"
-            onClick={(e) => { e.stopPropagation(); onToggleExpand(invoice.id || invoice._id); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleExpand(invoice.id || invoice._id);
+            }}
             className={`p-1 h-6 w-6 ${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-600' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'}`}
           >
             {isExpanded ? <ChevronUp /> : <ChevronDown />}

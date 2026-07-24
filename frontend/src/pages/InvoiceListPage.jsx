@@ -27,6 +27,7 @@ import {
   unmarkVenteSent,
   unmarkVentePaid,
   downloadVentePdf,
+  downloadVenteUbl,
   exportVentes,
 } from '@/api/ventes';
 import { computeBatchCounts } from '@/utils/batchCounts';
@@ -222,7 +223,10 @@ const InvoiceListPage = ({ direction = null }) => {
     return updated;
   };
 
-  const handleBatchUpdate = async (updates, label = { s: 'mise à jour', p: 'mises à jour' }) => {
+  const handleBatchUpdate = async (
+    updates,
+    label = { s: 'mise à jour', p: 'mises à jour' },
+  ) => {
     if (selectedIds.size === 0) return;
     setBatchLoading(true);
     try {
@@ -751,7 +755,8 @@ const InvoiceListPage = ({ direction = null }) => {
                     isDarkMode ? 'text-blue-200' : 'text-blue-800'
                   }`}
                 >
-                  {selectedIds.size} facture{selectedIds.size > 1 ? 's' : ''} sélectionnée{selectedIds.size > 1 ? 's' : ''}
+                  {selectedIds.size} facture{selectedIds.size > 1 ? 's' : ''}{' '}
+                  sélectionnée{selectedIds.size > 1 ? 's' : ''}
                 </span>
                 <div className="flex items-center gap-2 flex-wrap">
                   {/* Left cluster: state mutations */}
@@ -760,7 +765,10 @@ const InvoiceListPage = ({ direction = null }) => {
                       size="sm"
                       variant="outline"
                       onClick={() =>
-                        handleBatchUpdate({ status: 'validated' }, { s: 'validée', p: 'validées' })
+                        handleBatchUpdate(
+                          { status: 'validated' },
+                          { s: 'validée', p: 'validées' },
+                        )
                       }
                       disabled={batchLoading}
                       className="border-blue-500 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
@@ -812,7 +820,10 @@ const InvoiceListPage = ({ direction = null }) => {
                       onClick: () =>
                         handleBatchUpdate(
                           { status: 'validated' },
-                          { s: 'marquée non envoyée', p: 'marquées non envoyées' },
+                          {
+                            s: 'marquée non envoyée',
+                            p: 'marquées non envoyées',
+                          },
                         ),
                       className:
                         'border-gray-400 text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
@@ -877,7 +888,10 @@ const InvoiceListPage = ({ direction = null }) => {
                       onClick: () =>
                         handleBatchUpdate(
                           { is_exported: false },
-                          { s: 'marquée non exportée', p: 'marquées non exportées' },
+                          {
+                            s: 'marquée non exportée',
+                            p: 'marquées non exportées',
+                          },
                         ),
                       className:
                         'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
@@ -891,7 +905,10 @@ const InvoiceListPage = ({ direction = null }) => {
                       icon: Archive,
                       count: canArchive,
                       onClick: () =>
-                        handleBatchUpdate({ is_archived: true }, { s: 'archivée', p: 'archivées' }),
+                        handleBatchUpdate(
+                          { is_archived: true },
+                          { s: 'archivée', p: 'archivées' },
+                        ),
                       className:
                         'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
                     }}
@@ -919,7 +936,10 @@ const InvoiceListPage = ({ direction = null }) => {
                         onClick: () =>
                           handleBatchUpdate(
                             { direction: 'incoming' },
-                            { s: 'définie comme achat', p: 'définies comme achat' },
+                            {
+                              s: 'définie comme achat',
+                              p: 'définies comme achat',
+                            },
                           ),
                         className:
                           'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
@@ -931,7 +951,10 @@ const InvoiceListPage = ({ direction = null }) => {
                         onClick: () =>
                           handleBatchUpdate(
                             { direction: 'outgoing' },
-                            { s: 'définie comme vente', p: 'définies comme vente' },
+                            {
+                              s: 'définie comme vente',
+                              p: 'définies comme vente',
+                            },
                           ),
                         className:
                           'border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-800',
@@ -1005,6 +1028,9 @@ const InvoiceListPage = ({ direction = null }) => {
                               inv.id || inv._id,
                               inv.invoice_number,
                             )
+                      }
+                      onExportUBL={(inv) =>
+                        downloadVenteUbl(inv.id || inv._id, inv.invoice_number)
                       }
                       onDelete={handleDeleteInvoice}
                       onArchive={handleArchive}
