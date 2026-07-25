@@ -85,7 +85,7 @@ export const unmarkVentePaid = async (id) => {
   return response.data;
 };
 
-export const exportVentes = async (filters = {}) => {
+export const exportVentes = async (filters = {}, ratesPayload = {}) => {
   try {
     const params = {};
     if (filters.status && filters.status !== 'all')
@@ -97,7 +97,7 @@ export const exportVentes = async (filters = {}) => {
       params.is_exported = filters.is_exported === 'true';
     if (filters.include_archived) params.include_archived = true;
 
-    const response = await api.post('/ventes/export', null, {
+    const response = await api.post('/ventes/export', ratesPayload, {
       ...getAuthConfig(),
       params,
       responseType: 'blob',

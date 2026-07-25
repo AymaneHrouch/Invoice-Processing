@@ -490,6 +490,11 @@ def download_vente_pdf(
     )
 
 
+class ExportRatesBody(BaseModel):
+    date: str | None = None
+    rates: dict[str, float] = {}
+
+
 @router.post("/export", summary="Export outgoing invoices (Ventes) to Excel")
 def export_ventes(
     status: str | None = Query(None),
@@ -497,9 +502,11 @@ def export_ventes(
     category: str | None = Query(None),
     is_exported: bool | None = Query(None),
     include_archived: bool = Query(False),
+    body: ExportRatesBody = Body(default_factory=ExportRatesBody),
     current_user: dict = Depends(get_current_user),
 ):
     """Export outgoing invoices to Excel. Locks direction=outgoing."""
+    rates = body.rates if body else {}
     try:
         invoices = InvoiceCRUD.get_invoices_for_export(
             status=status,
@@ -513,28 +520,35 @@ def export_ventes(
 
         wb = Workbook()
         ws = wb.active
-        ws.title = "Ventes"
+        ws.title = "Factures"
 
-        headers = [
-            "N° Facture", "Client", "Date", "ICE Client",
-            "TVA (%)", "Montant TVA", "Total TTC", "Échéance",
-            "Statut", "Catégorie",
-        ]
-        ws.append(headers)
+        ws.append(["N° Facture", "Client", "Date", "Échéance", "Catégorie",
+                   "TVA (%)", "Montant TVA", "Total MAD", "Statut"])
 
         exported_ids = []
+        STATUS_LABELS = {
+            "draft": "Brouillon", "extracted": "Extrait",
+            "validated": "Validé", "sent": "Envoyé", "paid": "Payé",
+        }
         for inv in invoices:
+            currency = inv.currency or "MAD"
+            total = float(inv.total_amount) if inv.total_amount else 0.0
+            if currency == "MAD":
+                total_mad = total
+            else:
+                rate = rates.get(currency) or float(inv.exchange_rate or 1.0)
+                total_mad = round(total * rate, 2)
+
             ws.append([
                 inv.invoice_number or "",
                 inv.client_name or inv.vendor_name or "",
                 inv.invoice_date.strftime("%d/%m/%Y") if inv.invoice_date else "",
-                inv.client_ice or "",
+                inv.invoice_due_date.strftime("%d/%m/%Y") if inv.invoice_due_date else "",
+                inv.category or "",
                 float(inv.tva) if inv.tva is not None else "",
                 float(inv.amount_tva) if inv.amount_tva is not None else "",
-                float(inv.total_amount) if inv.total_amount else "",
-                inv.invoice_due_date.strftime("%d/%m/%Y") if inv.invoice_due_date else "",
-                inv.status or "",
-                inv.category or "",
+                total_mad,
+                STATUS_LABELS.get(inv.status or "", inv.status or ""),
             ])
             exported_ids.append(str(inv.id))
 

@@ -57,6 +57,7 @@ import {
   InvoiceExpandedRow,
 } from '@/components';
 import ExportConfirmDialog from '@/components/invoice/invoice-listing/ExportConfirmDialog';
+import ExportRatesModal from '@/components/invoice/invoice-listing/ExportRatesModal';
 import { useDeleteInvoice } from '@/hooks/useDeleteInvoice';
 import { toast } from 'sonner';
 
@@ -155,6 +156,7 @@ const InvoiceListPage = ({ direction = null }) => {
   const [pdfBatchLoading, setPdfBatchLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportConfirm, setExportConfirm] = useState({ open: false, ids: [] });
+  const [exportRatesOpen, setExportRatesOpen] = useState(false);
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
 
   const handleEdit = (invoice) => {
@@ -547,13 +549,29 @@ const InvoiceListPage = ({ direction = null }) => {
     }
   };
 
-  const handleExport = async () => {
+  // Step 1: open rates modal only if there are non-MAD invoices
+  const handleExport = () => {
+    const hasNonMAD = (invoiceData?.data || []).some(
+      (inv) => inv.currency && inv.currency !== 'MAD',
+    );
+    if (hasNonMAD) {
+      setExportRatesOpen(true);
+    } else {
+      handleExportWithRates({});
+    }
+  };
+
+  // Step 2: called by the modal when user clicks "Exporter"
+  const handleExportWithRates = async (ratesPayload) => {
     setExportLoading(true);
     try {
       let ids;
-      if (direction === 'outgoing') ids = await exportVentes(filters);
-      else if (direction === 'incoming') ids = await exportAchats(filters);
-      else ids = await exportInvoices(filters);
+      if (direction === 'outgoing')
+        ids = await exportVentes(filters, ratesPayload);
+      else if (direction === 'incoming')
+        ids = await exportAchats(filters, ratesPayload);
+      else ids = await exportInvoices(filters, ratesPayload);
+      setExportRatesOpen(false);
       toast.success('Factures exportées avec succès');
       if (ids && ids.length > 0) {
         setExportConfirm({ open: true, ids });
@@ -585,6 +603,16 @@ const InvoiceListPage = ({ direction = null }) => {
       count={exportConfirm.ids.length}
       onConfirm={handleExportConfirm}
       onCancel={() => setExportConfirm({ open: false, ids: [] })}
+    />
+  );
+
+  const exportRatesModal = (
+    <ExportRatesModal
+      open={exportRatesOpen}
+      invoices={invoiceData?.data || []}
+      onExport={handleExportWithRates}
+      onCancel={() => setExportRatesOpen(false)}
+      loading={exportLoading}
     />
   );
 
@@ -1071,6 +1099,7 @@ const InvoiceListPage = ({ direction = null }) => {
       </div>
       {editModal}
       {exportConfirmDialog}
+      {exportRatesModal}
     </>
   );
 };

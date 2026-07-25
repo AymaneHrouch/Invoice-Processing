@@ -40,6 +40,15 @@ from app.services import dashboard
 from app.services.invoices import extract_invoice_data, run_amount_checks
 from app.services.pdf import generate_invoice_pdf
 from app.utils.auth import get_current_user
+from pydantic import BaseModel
+
+
+class ExportRatesBody(BaseModel):
+    """Exchange rates provided by the user for the export."""
+    date: str | None = None
+    rates: dict[str, float] = {}
+
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/invoices", tags=["invoices"])
@@ -206,6 +215,7 @@ def export_achats(
         category: str | None = Query(None),
         is_exported: bool | None = Query(None),
         include_archived: bool = Query(False),
+        body: ExportRatesBody = Body(default_factory=ExportRatesBody),
         current_user: dict = Depends(get_current_user),
 ):
     """Export incoming invoices to Excel. Locks direction=incoming."""
@@ -218,6 +228,7 @@ def export_achats(
         include_archived=include_archived,
         filename_prefix="achats",
         company_id=current_user.get("company_id"),
+        rates=body.rates if body else {},
     )
 
 
@@ -228,6 +239,7 @@ def export_invoices(
         category: str | None = Query(None, description="Filter by category"),
         is_exported: bool | None = Query(None, description="Filter by export status"),
         include_archived: bool = Query(False, description="Include archived invoices"),
+        body: ExportRatesBody = Body(default_factory=ExportRatesBody),
 ):
     """Export filtered invoices to Excel. Auto-sets is_exported=True on all exported invoices."""
     return _do_export(
@@ -237,7 +249,8 @@ def export_invoices(
         category=category,
         is_exported=is_exported,
         include_archived=include_archived,
-        filename_prefix="invoices",
+        filename_prefix="factures",
+        rates=body.rates if body else {},
     )
 
 
@@ -251,9 +264,13 @@ def _do_export(
     include_archived: bool,
     filename_prefix: str,
     company_id: str | None = None,
+    rates: dict[str, float] | None = None,
 ):
     try:
         from openpyxl import Workbook
+
+        if rates is None:
+            rates = {}
 
         invoices = InvoiceCRUD.get_invoices_for_export(
             status=status,
@@ -267,30 +284,44 @@ def _do_export(
 
         wb = Workbook()
         ws = wb.active
-        ws.title = "Invoices"
+        ws.title = "Factures"
 
-        headers = [
-            "Invoice Number", "Vendor", "Date", "Direction", "ICE",
-            "TVA", "Amount TVA", "Total Amount", "Due Date",
-            "Status", "Category",
-        ]
+        headers = ["N° Facture", "Fournisseur / Client", "Date", "Échéance",
+                   "Catégorie", "TVA (%)", "Montant TVA", "Total MAD", "Statut"]
+        if direction is None:
+            headers.insert(2, "Sens")
         ws.append(headers)
+
+        DIRECTION_LABELS = {"outgoing": "Vente", "incoming": "Achat"}
+        STATUS_LABELS = {
+            "draft": "Brouillon", "extracted": "Extrait",
+            "validated": "Validé", "sent": "Envoyé", "paid": "Payé",
+        }
 
         exported_ids = []
         for inv in invoices:
-            ws.append([
-                inv.invoice_number,
-                inv.vendor_name,
+            currency = inv.currency or "MAD"
+            total = float(inv.total_amount) if inv.total_amount else 0.0
+            if currency == "MAD":
+                total_mad = total
+            else:
+                rate = rates.get(currency) or float(inv.exchange_rate or 1.0)
+                total_mad = round(total * rate, 2)
+
+            row = [
+                inv.invoice_number or "",
+                inv.client_name or inv.vendor_name or "",
                 inv.invoice_date.strftime("%d/%m/%Y") if inv.invoice_date else "",
-                inv.direction,
-                (inv.ice if inv.ice is not None else "") or "",
-                (inv.tva if inv.tva is not None else "") or "",
-                (inv.amount_tva if inv.amount_tva is not None else "") or "",
-                float(inv.total_amount) if inv.total_amount else "",
                 inv.invoice_due_date.strftime("%d/%m/%Y") if inv.invoice_due_date else "",
-                inv.status,
                 inv.category or "",
-            ])
+                float(inv.tva) if inv.tva is not None else "",
+                float(inv.amount_tva) if inv.amount_tva is not None else "",
+                total_mad,
+                STATUS_LABELS.get(inv.status or "", inv.status or ""),
+            ]
+            if direction is None:
+                row.insert(2, DIRECTION_LABELS.get(inv.direction or "", inv.direction or ""))
+            ws.append(row)
             exported_ids.append(str(inv.id))
 
         output = BytesIO()
@@ -309,6 +340,7 @@ def _do_export(
     except Exception as e:
         logger.exception("Export failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.get("/stats", summary="Get work queue stats (FEAT-03)")

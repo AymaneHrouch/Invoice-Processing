@@ -160,7 +160,7 @@ export const getInvoiceById = async (id) => {
   }
 };
 
-export const exportInvoices = async (filters = {}) => {
+export const exportInvoices = async (filters = {}, ratesPayload = {}) => {
   try {
     const params = {};
     if (filters.status && filters.status !== 'all')
@@ -173,7 +173,7 @@ export const exportInvoices = async (filters = {}) => {
     }
     if (filters.include_archived) params.include_archived = true;
 
-    const response = await api.post('/invoices/export', null, {
+    const response = await api.post('/invoices/export', ratesPayload, {
       params,
       responseType: 'blob',
     });
@@ -202,7 +202,7 @@ export const exportInvoices = async (filters = {}) => {
   }
 };
 
-export const exportAchats = async (filters = {}) => {
+export const exportAchats = async (filters = {}, ratesPayload = {}) => {
   try {
     const params = {};
     if (filters.status && filters.status !== 'all')
@@ -214,7 +214,7 @@ export const exportAchats = async (filters = {}) => {
       params.is_exported = filters.is_exported === 'true';
     if (filters.include_archived) params.include_archived = true;
 
-    const response = await api.post('/invoices/achats/export', null, {
+    const response = await api.post('/invoices/achats/export', ratesPayload, {
       ...getAuthConfig(),
       params,
       responseType: 'blob',
