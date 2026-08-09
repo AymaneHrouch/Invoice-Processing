@@ -27,6 +27,7 @@ import {
   unmarkVenteSent,
   unmarkVentePaid,
   downloadVentePdf,
+  downloadVenteUbl,
   exportVentes,
 } from '@/api/ventes';
 import { computeBatchCounts } from '@/utils/batchCounts';
@@ -1055,6 +1056,9 @@ const InvoiceListPage = ({ direction = null }) => {
                               inv.id || inv._id,
                               inv.invoice_number,
                             )
+                      }
+                      onExportUBL={(inv) =>
+                        downloadVenteUbl(inv.id || inv._id, inv.invoice_number)
                       }
                       onDelete={handleDeleteInvoice}
                       onArchive={handleArchive}

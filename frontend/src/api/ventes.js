@@ -141,3 +141,18 @@ export const downloadVentePdf = async (id, invoiceNumber) => {
   a.click();
   URL.revokeObjectURL(url);
 };
+
+export const downloadVenteUbl = async (id, invoiceNumber) => {
+  const response = await api.get(`/ventes/${id}/ubl`, {
+    ...getAuthConfig(),
+    responseType: 'blob',
+  });
+  const url = URL.createObjectURL(
+    new Blob([response.data], { type: 'application/xml' }),
+  );
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `facture_${invoiceNumber}.xml`;
+  a.click();
+  URL.revokeObjectURL(url);
+};

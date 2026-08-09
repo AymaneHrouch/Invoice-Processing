@@ -22,6 +22,7 @@ from app.models.invoice import (
 )
 from app.services.invoices import run_amount_checks
 from app.services.pdf import generate_invoice_pdf
+from app.services.ubl import generate_ubl_invoice
 from app.utils.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -486,6 +487,37 @@ def download_vente_pdf(
     return StreamingResponse(
         BytesIO(pdf_bytes),
         media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/{vente_id}/ubl")
+def download_vente_ubl(
+    vente_id: str = Path(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Generate and return the UBL 2.1 XML for the given outgoing invoice."""
+    try:
+        inv = InvoiceCRUD.get_invoice_by_id(vente_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="ID invalide.") from None
+    if not inv or inv.direction != "outgoing":
+        raise HTTPException(status_code=404, detail="Facture introuvable.")
+
+    col = get_company_collection()
+    company_id = current_user.get("company_id")
+    company = (col.find_one({"_id": ObjectId(company_id)}) if company_id else col.find_one({})) or {}
+
+    try:
+        xml = generate_ubl_invoice(inv, company)
+    except Exception as e:
+        logger.exception("UBL generation failed for vente %s: %s", vente_id, e)
+        raise HTTPException(status_code=500, detail="Erreur lors de la génération du UBL.") from e
+
+    filename = f"facture_{inv.invoice_number}.xml"
+    return StreamingResponse(
+        BytesIO(xml.encode("utf-8")),
+        media_type="application/xml",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

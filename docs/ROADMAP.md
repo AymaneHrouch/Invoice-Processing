@@ -114,12 +114,12 @@ Each phase is independently shippable and adds value. Complete one phase fully b
 - [ ] **Frontend**: Logo upload on `CompanyProfilePage` (store URL or base64)
 - [ ] **Frontend**: Custom footer note field on `CompanyProfilePage` (e.g. "Merci pour votre confiance") — passed as `custom_footer` in template context
 
-### 2.4 UBL 2.1 XML Generation
-- [ ] **Backend**: New service `services/ubl.py` — generates UBL 2.1 Invoice XML from Invoice model
-- [ ] **Backend**: `GET /ventes/{id}/ubl` — returns the XML file
-- [ ] **Backend**: UBL fields mapping (see `docs/UBL.md` for full spec)
-- [ ] **Backend**: Validate generated XML against UBL 2.1 XSD schema
-- [ ] **Frontend**: "Export UBL" button on validated outgoing invoices
+### 2.4 UBL 2.1 XML Generation ✅
+- [X] **Backend**: New service `services/ubl.py` — generates UBL 2.1 Invoice XML from Invoice model
+- [X] **Backend**: `GET /ventes/{id}/ubl` — returns the XML file
+- [X] **Backend**: UBL fields mapping (see `docs/UBL.md` for full spec)
+- [X] **Backend**: Validate generated XML against UBL 2.1 XSD schema
+- [X] **Frontend**: "Export UBL" button on validated outgoing invoices
 
 ### 2.5 Excel Export per Direction ✅
 - [x] **Backend**: `POST /invoices/achats/export` — export incoming invoices only (direction=incoming locked)

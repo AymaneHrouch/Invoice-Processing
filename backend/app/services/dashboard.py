@@ -578,11 +578,13 @@ def get_pme_kpis(company_id: str | None = None):
 def get_tva_balance(year: int | None = None, quarter: int | None = None, company_id: str | None = None):
     """TVA collectée (Ventes) vs TVA déductible (Achats) for all 3 periods simultaneously."""
     today = datetime.now()
+    # Both params are independently optional — default them independently, or a
+    # year-without-quarter call leaves quarter as None and blows up below.
     if year is None:
         year = today.year
-        if quarter is None:
-            quarter = (today.month - 1) // 3
-    
+    if quarter is None:
+        quarter = (today.month - 1) // 3
+
     # This quarter
     tq_start = datetime(year, quarter * 3 + 1, 1)
     next_q_month = (quarter * 3 + 4) % 12 or 12
