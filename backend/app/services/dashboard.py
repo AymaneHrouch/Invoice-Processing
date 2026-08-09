@@ -502,116 +502,153 @@ def get_a_payer(limit: int = 10, company_id: str | None = None):
 
 
 def get_pme_kpis(company_id: str | None = None):
-    """PME KPIs: CA Ventes ce mois, Dépenses Achats ce mois, Ventes brouillons, Achats à valider."""
+    """PME KPIs: CA Ventes ce mois, Dépenses Achats ce mois, Ventes brouillons, Achats à valider. Single aggregation query."""
     now = datetime.now()
     this_month = datetime(now.year, now.month, 1)
     next_month = datetime(now.year + (now.month == 12), (now.month % 12) + 1, 1)
+    
     base_filter: dict = {"is_archived": {"$ne": True}}
     if company_id:
         base_filter["company_id"] = company_id
 
-    pipeline_ventes = [
-        {"$match": {
-            **base_filter,
-            "direction": "outgoing",
-            "status": {"$nin": ["draft"]},
-            "invoice_date": {"$gte": this_month, "$lt": next_month},
-            "total_amount": {"$ne": None},
-        }},
-        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+    pipeline = [
+        {"$match": base_filter},
+        {"$facet": {
+            "ca_ventes": [
+                {"$match": {
+                    "direction": "outgoing",
+                    "status": {"$nin": ["draft"]},
+                    "invoice_date": {"$gte": this_month, "$lt": next_month},
+                    "total_amount": {"$ne": None},
+                }},
+                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+            ],
+            "depenses_achats": [
+                {"$match": {
+                    "direction": "incoming",
+                    "invoice_date": {"$gte": this_month, "$lt": next_month},
+                    "total_amount": {"$ne": None},
+                }},
+                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
+            ],
+            "ventes_brouillons": [
+                {"$match": {
+                    "direction": "outgoing",
+                    "status": "draft",
+                }},
+                {"$count": "count"}
+            ],
+            "achats_a_valider": [
+                {"$match": {
+                    "direction": "incoming",
+                    "status": "extracted",
+                }},
+                {"$count": "count"}
+            ],
+            "non_exportees": [
+                {"$match": {
+                    "status": {"$in": ["validated", "sent", "paid"]},
+                    "is_exported": {"$ne": True},
+                }},
+                {"$count": "count"}
+            ]
+        }}
     ]
-    result = list(invoice_collection.aggregate(pipeline_ventes))
-    ca_ventes = round(float(result[0]["total"]) if result else 0.0, 2)
 
-    pipeline_achats = [
-        {"$match": {
-            **base_filter,
-            "direction": "incoming",
-            "invoice_date": {"$gte": this_month, "$lt": next_month},
-            "total_amount": {"$ne": None},
-        }},
-        {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
-    ]
-    result = list(invoice_collection.aggregate(pipeline_achats))
-    depenses_achats = round(float(result[0]["total"]) if result else 0.0, 2)
+    res = list(invoice_collection.aggregate(pipeline))[0]
 
-    ventes_brouillons = invoice_collection.count_documents({
-        **base_filter,
-        "direction": "outgoing",
-        "status": "draft",
-    })
+    def extract_total(facet_result):
+        return round(float(facet_result[0]["total"]), 2) if facet_result else 0.0
 
-    achats_a_valider = invoice_collection.count_documents({
-        **base_filter,
-        "direction": "incoming",
-        "status": "extracted",
-    })
-
-    non_exportees = invoice_collection.count_documents({
-        **base_filter,
-        "status": {"$in": ["validated", "sent", "paid"]},
-        "is_exported": {"$ne": True},
-    })
+    def extract_count(facet_result):
+        return facet_result[0]["count"] if facet_result else 0
 
     return {
-        "ca_ventes_ce_mois": ca_ventes,
-        "depenses_achats_ce_mois": depenses_achats,
-        "ventes_brouillons": ventes_brouillons,
-        "achats_a_valider": achats_a_valider,
-        "non_exportees": non_exportees,
+        "ca_ventes_ce_mois": extract_total(res.get("ca_ventes")),
+        "depenses_achats_ce_mois": extract_total(res.get("depenses_achats")),
+        "ventes_brouillons": extract_count(res.get("ventes_brouillons")),
+        "achats_a_valider": extract_count(res.get("achats_a_valider")),
+        "non_exportees": extract_count(res.get("non_exportees")),
     }
 
 
 def get_tva_balance(year: int | None = None, quarter: int | None = None, company_id: str | None = None):
-    """TVA collectée (Ventes) vs TVA déductible (Achats).
-
-    - year + quarter (0-based): single quarter
-    - year only: full year
-    - no params: current quarter
-    """
+    """TVA collectée (Ventes) vs TVA déductible (Achats) for all 3 periods simultaneously."""
     today = datetime.now()
+    # Both params are independently optional — default them independently, or a
+    # year-without-quarter call leaves quarter as None and blows up below.
     if year is None:
         year = today.year
-        if quarter is None:
-            quarter = (today.month - 1) // 3
+    if quarter is None:
+        quarter = (today.month - 1) // 3
 
-    if quarter is not None:
-        quarter_start = datetime(year, quarter * 3 + 1, 1)
-        # End of this quarter = start of next quarter
-        next_quarter_month = (quarter * 3 + 4) % 12 or 12
-        next_quarter_year = year + (1 if quarter == 3 else 0)
-        quarter_end = datetime(next_quarter_year, next_quarter_month, 1)
-        period_label = f"T{quarter + 1} {year}"
-    else:
-        quarter_start = datetime(year, 1, 1)
-        quarter_end = datetime(year + 1, 1, 1)
-        period_label = f"Année {year}"
+    # This quarter
+    tq_start = datetime(year, quarter * 3 + 1, 1)
+    next_q_month = (quarter * 3 + 4) % 12 or 12
+    next_q_year = year + (1 if quarter == 3 else 0)
+    tq_end = datetime(next_q_year, next_q_month, 1)
 
-    def sum_tva(direction, statuses):
-        match: dict = {
-            "direction": direction,
-            "status": {"$in": statuses},
-            "invoice_date": {"$gte": quarter_start, "$lt": quarter_end},
-            "amount_tva": {"$ne": None},
-        }
-        if company_id:
-            match["company_id"] = company_id
-        pipeline = [
-            {"$match": match},
-            {"$group": {"_id": None, "total": {"$sum": "$amount_tva"}}},
+    # Last quarter
+    lq_quarter = quarter - 1
+    lq_year = year
+    if lq_quarter < 0:
+        lq_quarter = 3
+        lq_year -= 1
+    lq_start = datetime(lq_year, lq_quarter * 3 + 1, 1)
+    lq_end = tq_start
+
+    # This year
+    ty_start = datetime(year, 1, 1)
+    ty_end = datetime(year + 1, 1, 1)
+
+    base_match = {"amount_tva": {"$ne": None}}
+    if company_id:
+        base_match["company_id"] = company_id
+
+    def build_facet(direction, statuses, start, end):
+        return [
+            {"$match": {
+                "direction": direction,
+                "status": {"$in": statuses},
+                "invoice_date": {"$gte": start, "$lt": end},
+            }},
+            {"$group": {"_id": None, "total": {"$sum": "$amount_tva"}}}
         ]
-        result = list(invoice_collection.aggregate(pipeline))
-        return round(float(result[0]["total"]) if result else 0.0, 2)
 
-    collectee = sum_tva("outgoing", ["validated", "sent", "paid"])
-    deductible = sum_tva("incoming", ["validated", "paid"])
-    net = round(collectee - deductible, 2)
+    out_stat = ["validated", "sent", "paid"]
+    in_stat = ["validated", "paid"]
+
+    pipeline = [
+        {"$match": base_match},
+        {"$facet": {
+            "tq_out": build_facet("outgoing", out_stat, tq_start, tq_end),
+            "tq_in": build_facet("incoming", in_stat, tq_start, tq_end),
+            "lq_out": build_facet("outgoing", out_stat, lq_start, lq_end),
+            "lq_in": build_facet("incoming", in_stat, lq_start, lq_end),
+            "ty_out": build_facet("outgoing", out_stat, ty_start, ty_end),
+            "ty_in": build_facet("incoming", in_stat, ty_start, ty_end),
+        }}
+    ]
+
+    res = list(invoice_collection.aggregate(pipeline))[0]
+
+    def get_val(key):
+        return round(float(res[key][0]["total"]), 2) if res.get(key) else 0.0
+
+    def build_res(out_key, in_key, label):
+        collectee = get_val(out_key)
+        deductible = get_val(in_key)
+        return {
+            "collectee": collectee,
+            "deductible": deductible,
+            "net": round(collectee - deductible, 2),
+            "quarter_label": label,
+        }
 
     return {
-        "collectee": collectee,
-        "deductible": deductible,
-        "net": net,
-        "quarter_label": period_label,
+        "this_quarter": build_res("tq_out", "tq_in", f"T{quarter + 1} {year}"),
+        "last_quarter": build_res("lq_out", "lq_in", f"T{lq_quarter + 1} {lq_year}"),
+        "this_year": build_res("ty_out", "ty_in", f"Année {year}"),
     }
 
 
@@ -713,37 +750,54 @@ def get_ca_evolution(company_id: str | None = None):
     """Monthly CA (Ventes) vs Achats totals for the past 12 months."""
     now = datetime.now()
     MONTHS_FR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
+
+    start_month = now.month - 11
+    start_year = now.year
+    if start_month <= 0:
+        start_month += 12
+        start_year -= 1
+
+    start_date = datetime(start_year, start_month, 1)
+    end_date = datetime(now.year + (now.month == 12), now.month % 12 + 1, 1)
+
+    match: dict = {
+        "invoice_date": {"$gte": start_date, "$lt": end_date},
+        "total_amount": {"$ne": None},
+        "is_archived": {"$ne": True},
+        "$or": [
+            {"direction": "incoming"},
+            {"direction": "outgoing", "status": {"$nin": ["draft"]}},
+        ],
+    }
+    if company_id:
+        match["company_id"] = company_id
+
+    totals = {
+        (doc["_id"]["year"], doc["_id"]["month"], doc["_id"]["direction"]): round(float(doc["total"]), 2)
+        for doc in invoice_collection.aggregate([
+            {"$match": match},
+            {"$group": {
+                "_id": {
+                    "year": {"$year": "$invoice_date"},
+                    "month": {"$month": "$invoice_date"},
+                    "direction": "$direction",
+                },
+                "total": {"$sum": "$total_amount"},
+            }},
+        ])
+    }
+
     result = []
     for i in range(11, -1, -1):
         month = now.month - i
         year = now.year
-        while month <= 0:
+        if month <= 0:
             month += 12
             year -= 1
-        month_start = datetime(year, month, 1)
-        month_end = datetime(year + (month == 12), month % 12 + 1, 1)
-
-        def month_total(direction, extra=None):
-            match: dict = {
-                "direction": direction,
-                "invoice_date": {"$gte": month_start, "$lt": month_end},
-                "total_amount": {"$ne": None},
-                "is_archived": {"$ne": True},
-            }
-            if extra:
-                match.update(extra)
-            if company_id:
-                match["company_id"] = company_id
-            res = list(invoice_collection.aggregate([
-                {"$match": match},
-                {"$group": {"_id": None, "total": {"$sum": "$total_amount"}}},
-            ]))
-            return round(float(res[0]["total"]) if res else 0.0, 2)
-
         result.append({
             "month": f"{MONTHS_FR[month - 1]} {year}",
-            "ventes": month_total("outgoing", {"status": {"$nin": ["draft"]}}),
-            "achats": month_total("incoming"),
+            "ventes": totals.get((year, month, "outgoing"), 0.0),
+            "achats": totals.get((year, month, "incoming"), 0.0),
         })
     return result
 
@@ -774,32 +828,51 @@ def get_delai_paiement(company_id: str | None = None):
 
 
 def get_tresorerie_prevision(company_id: str | None = None):
-    """Projected inflows and outflows for the next 30, 60, 90 days."""
+    """Projected inflows and outflows for the next 30, 60, 90 days. Single aggregation query."""
     now = datetime.now()
+    
+    date_30 = now + timedelta(days=30)
+    date_60 = now + timedelta(days=60)
+    date_90 = now + timedelta(days=90)
 
-    def window_total(direction, days):
-        match: dict = {
-            "direction": direction,
-            "invoice_due_date": {"$gte": now, "$lte": now + timedelta(days=days)},
-            "status": {"$nin": ["draft", "paid"]},
-            "is_archived": {"$ne": True},
-            "total_amount": {"$ne": None},
-        }
-        if company_id:
-            match["company_id"] = company_id
-        res = list(invoice_collection.aggregate([
-            {"$match": match},
-            {"$group": {"_id": None, "total": {"$sum": "$total_amount"}, "count": {"$sum": 1}}},
-        ]))
-        return {
-            "total": round(float(res[0]["total"]) if res else 0.0, 2),
-            "count": int(res[0]["count"]) if res else 0,
-        }
+    match: dict = {
+        "invoice_due_date": {"$gte": now, "$lte": date_90},
+        "status": {"$nin": ["draft", "paid"]},
+        "is_archived": {"$ne": True},
+        "total_amount": {"$ne": None},
+    }
+    if company_id:
+        match["company_id"] = company_id
+
+    pipeline = [
+        {"$match": match},
+        {"$group": {
+            "_id": "$direction",
+            "total_30": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_30]}, "$total_amount", 0]}},
+            "count_30": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_30]}, 1, 0]}},
+            "total_60": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_60]}, "$total_amount", 0]}},
+            "count_60": {"$sum": {"$cond": [{"$lte": ["$invoice_due_date", date_60]}, 1, 0]}},
+            "total_90": {"$sum": "$total_amount"},
+            "count_90": {"$sum": 1},
+        }}
+    ]
+
+    res = {
+        "outgoing": {"30j": {"total": 0.0, "count": 0}, "60j": {"total": 0.0, "count": 0}, "90j": {"total": 0.0, "count": 0}},
+        "incoming": {"30j": {"total": 0.0, "count": 0}, "60j": {"total": 0.0, "count": 0}, "90j": {"total": 0.0, "count": 0}},
+    }
+
+    for doc in invoice_collection.aggregate(pipeline):
+        direction = doc["_id"]
+        if direction in res:
+            res[direction]["30j"] = {"total": round(float(doc["total_30"]), 2), "count": int(doc["count_30"])}
+            res[direction]["60j"] = {"total": round(float(doc["total_60"]), 2), "count": int(doc["count_60"])}
+            res[direction]["90j"] = {"total": round(float(doc["total_90"]), 2), "count": int(doc["count_90"])}
 
     return {
-        "30j": {"encaissements": window_total("outgoing", 30), "decaissements": window_total("incoming", 30)},
-        "60j": {"encaissements": window_total("outgoing", 60), "decaissements": window_total("incoming", 60)},
-        "90j": {"encaissements": window_total("outgoing", 90), "decaissements": window_total("incoming", 90)},
+        "30j": {"encaissements": res["outgoing"]["30j"], "decaissements": res["incoming"]["30j"]},
+        "60j": {"encaissements": res["outgoing"]["60j"], "decaissements": res["incoming"]["60j"]},
+        "90j": {"encaissements": res["outgoing"]["90j"], "decaissements": res["incoming"]["90j"]},
     }
 
 

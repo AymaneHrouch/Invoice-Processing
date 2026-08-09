@@ -144,3 +144,23 @@ export const getDashboardOverview = async (currency = 'MAD') => {
     throw new Error(`Failed to fetch dashboard overview: ${error.message}`);
   }
 };
+
+export const fetchDashboardAll = async ({
+  year,
+  quarter,
+  vendorLimit,
+  activityLimit,
+  encaisserLimit,
+  payerLimit,
+} = {}) => {
+  const params = {};
+  if (year !== undefined) params.year = year;
+  if (quarter !== undefined) params.quarter = quarter;
+  if (vendorLimit !== undefined) params.vendor_limit = vendorLimit;
+  if (activityLimit !== undefined) params.activity_limit = activityLimit;
+  if (encaisserLimit !== undefined) params.encaisser_limit = encaisserLimit;
+  if (payerLimit !== undefined) params.payer_limit = payerLimit;
+
+  const response = await api.get('/dashboard/all', { params });
+  return response.data;
+};
