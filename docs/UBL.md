@@ -40,9 +40,6 @@ Per DGI mandate, each electronic invoice must include:
   <!-- Supplier (my company) -->
   <cac:AccountingSupplierParty>
     <cac:Party>
-      <cac:PartyName>
-        <cbc:Name>Mon Entreprise SARL</cbc:Name>
-      </cac:PartyName>
       <cac:PartyIdentification>
         <cbc:ID schemeID="ICE">001234567000089</cbc:ID>
       </cac:PartyIdentification>
@@ -52,6 +49,9 @@ Per DGI mandate, each electronic invoice must include:
       <cac:PartyIdentification>
         <cbc:ID schemeID="RC">123456</cbc:ID>
       </cac:PartyIdentification>
+      <cac:PartyName>
+        <cbc:Name>Mon Entreprise SARL</cbc:Name>
+      </cac:PartyName>
       <cac:PostalAddress>
         <cbc:StreetName>123 Bd Mohammed V</cbc:StreetName>
         <cbc:CityName>Casablanca</cbc:CityName>
@@ -72,12 +72,12 @@ Per DGI mandate, each electronic invoice must include:
   <!-- Client -->
   <cac:AccountingCustomerParty>
     <cac:Party>
-      <cac:PartyName>
-        <cbc:Name>Client SA</cbc:Name>
-      </cac:PartyName>
       <cac:PartyIdentification>
         <cbc:ID schemeID="ICE">009876543000021</cbc:ID>
       </cac:PartyIdentification>
+      <cac:PartyName>
+        <cbc:Name>Client SA</cbc:Name>
+      </cac:PartyName>
       <cac:PostalAddress>
         <cbc:StreetName>456 Rue Hassan II</cbc:StreetName>
         <cbc:CityName>Rabat</cbc:CityName>
@@ -121,8 +121,8 @@ Per DGI mandate, each electronic invoice must include:
       <cbc:TaxAmount currencyID="MAD">3000.00</cbc:TaxAmount>
     </cac:TaxTotal>
     <cac:Item>
-      <cbc:Name>Service de conseil technique</cbc:Name>
       <cbc:Description>Prestation de conseil pour projet X</cbc:Description>
+      <cbc:Name>Service de conseil technique</cbc:Name>
       <cac:ClassifiedTaxCategory>
         <cbc:ID>S</cbc:ID>
         <cbc:Percent>20</cbc:Percent>
@@ -152,13 +152,14 @@ Per DGI mandate, each electronic invoice must include:
 | `vendor_ice` (from profile) | `cac:AccountingSupplierParty/.../cbc:ID[@schemeID='ICE']` |
 | `client_name` | `cac:AccountingCustomerParty/cac:Party/cac:PartyName/cbc:Name` |
 | `client_ice` | `cac:AccountingCustomerParty/.../cbc:ID[@schemeID='ICE']` |
-| `subtotal_ht` | `cac:LegalMonetaryTotal/cbc:TaxExclusiveAmount` |
-| `tva_amount` | `cac:TaxTotal/cbc:TaxAmount` |
-| `total_amount` | `cac:LegalMonetaryTotal/cbc:PayableAmount` |
-| `items[].description` | `cac:InvoiceLine/cac:Item/cbc:Name` |
+| `subtotal_ht` | `cac:LegalMonetaryTotal/cbc:TaxExclusiveAmount` (and`cbc:LineExtensionAmount`) |
+| `amount_tva` | `cac:TaxTotal/cbc:TaxAmount` |
+| `total_amount` | `cac:LegalMonetaryTotal/cbc:PayableAmount` (and `cbc:TaxInclusiveAmount`) |
+| `items[].name` | `cac:InvoiceLine/cac:Item/cbc:Name` |
+| `items[].description` | `cac:InvoiceLine/cac:Item/cbc:Description` |
 | `items[].quantity` | `cac:InvoiceLine/cbc:InvoicedQuantity` |
 | `items[].unit_price` | `cac:InvoiceLine/cac:Price/cbc:PriceAmount` |
-| `items[].total` | `cac:InvoiceLine/cbc:LineExtensionAmount` |
+| `items[].quantity × items[].unit_price` (HT) | `cac:InvoiceLine/cbc:LineExtensionAmount` |
 
 ## Python Implementation Notes
 
